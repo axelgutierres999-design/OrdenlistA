@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mapa de Mesas | OrdenLista</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@picocss/pico@1/css/pico.min.css">
+    <link rel="stylesheet" href="css/app.css">
+    <style>
+      .grid-mesas { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 25px; margin-top: 2rem; }
+      .mesa-card { background: white; border-radius: 16px; padding: 20px; text-align: center; box-shadow: 0 4px 12px rgba(0,0,0,0.08); border-top: 6px solid #ccc; transition: all 0.3s ease; position: relative; }
+      .mesa-icon { font-size: 2.5rem; margin-bottom: 10px; display: block; }
+      .mesa-libre { border-top-color: #2ecc71; } /* Verde */
+      .mesa-ocupada { border-top-color: #f1c40f; background: #fffcf0; } /* Amarillo */
+      .mesa-urgente { border-top-color: #e74c3c; background: #fff5f5; animation: pulse-red 2s infinite; } /* Rojo */
+      
+      @keyframes pulse-red { 0% { box-shadow: 0 0 0 0px rgba(220, 53, 69, 0.2); } 70% { box-shadow: 0 0 0 10px rgba(220, 53, 69, 0); } 100% { box-shadow: 0 0 0 0px rgba(220, 53, 69, 0); } }
+      
+      /* Estilos para el Ticket (Modal) */
+      #modalTicket {
+        display:none; position:fixed; top:0; left:0; width:100%; height:100%; 
+        background:rgba(0,0,0,0.8); z-index:1000; justify-content:center; align-items:center;
+      }
+      #ticketPrint {
+        background: white; color: black; padding: 20px; width: 320px;
+        border-radius: 5px; box-shadow: 0 10px 25px rgba(0,0,0,0.5);
+      }
+      @media print {
+        body * { visibility: hidden; }
+        #modalTicket { position: absolute; left: 0; top: 0; background: white !important; display: flex !important; }
+        #ticketPrint { visibility: visible; width: 100%; box-shadow: none; position: absolute; left: 0; top: 0; }
+        #ticketPrint * { visibility: visible; }
+        .no-print { display: none !important; }
+      }
+    </style>
+</head>
+<body>
+    <nav class="container-fluid nav-inicio nav-cuadros">
+      <ul><li><strong>☕ OrdenLista</strong></li></ul>
+      <ul id="menuNavegacion" class="nav-botones"></ul>
+    </nav>
+
+    <main class="container">
+      <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem;">
+        <h1>🗺️ Mapa de Mesas</h1>
+        <div style="display: flex; gap: 10px; align-items: center; background: var(--color-superficie); padding: 10px; border-radius: 8px;">
+          <small>Mesas:</small>
+          <input type="number" id="numMesasInput" value="10" style="width: 70px; margin: 0;">
+          <button onclick="guardarConfig()" class="outline" style="margin: 0; padding: 5px 15px;">⚙️ Guardar</button>
+        </div>
+      </div>
+
+      <div class="grid-mesas" id="contenedorMesas">
+          </div>
+    </main>
+
+    <div id="modalTicket">
+      <div id="ticketPrint">
+        <div style="text-align:center; border-bottom: 2px dashed #000; padding-bottom:10px; margin-bottom:15px;">
+          <h2 style="margin:0; font-size:1.4rem; color:black;">☕ ORDEN LISTA</h2>
+          <p style="font-size:0.7rem; margin:0; color:black;">SISTEMA POS<br>TICKET DE CONSUMO</p>
+        </div>
+        <div style="font-size:0.85rem; line-height:1.2; margin-bottom:15px; color:black;">
+          <p style="margin:0;"><strong>FOLIO:</strong> #<span id="t-folio"></span></p>
+          <p style="margin:0;"><strong>MESA:</strong> <span id="t-mesa"></span></p>
+          <p style="margin:0;"><strong>FECHA:</strong> <span id="t-fecha"></span></p>
+        </div>
+        <table style="width:100%; font-size:0.85rem; border-collapse:collapse; margin-bottom:15px; color:black;">
+          <thead><tr style="border-bottom: 1px solid #000;"><th style="text-align:left;">DETALLE</th><th style="text-align:right;">TOT.</th></tr></thead>
+          <tbody id="t-items"></tbody>
+        </table>
+        <div style="border-top: 2px dashed #000; padding-top:10px; text-align:right; color:black;">
+          <h3 style="margin:0; color:black;">TOTAL: $<span id="t-total"></span></h3>
+          <p style="font-size:0.6rem; margin:0;">¡Gracias por su visita!</p>
+        </div>
+        
+        <div class="no-print" style="text-align:center; margin-top:25px; display:flex; gap:10px; justify-content:center;">
+          <button id="btnEfectivo" style="background:#2ecc71; border:none; color:white; flex:1; cursor:pointer;">Efectivo</button>
+          <button id="btnTarjeta" style="background:#3498db; border:none; color:white; flex:1; cursor:pointer;">Tarjeta</button>
+        </div>
+        <div class="no-print" style="margin-top:10px; text-align:center;">
+           <button onclick="document.getElementById('modalTicket').style.display='none'" style="background:#666; border:none; color:white; width:100%; cursor:pointer;">Cerrar</button>
+        </div>
+      </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="js/supabase-client.js"></script>
+    <script src="js/logout.js"></script>
+    <script src="js/app.js"></script>
+    <script src="js/mesas.js"></script>
+</body>
+</html>

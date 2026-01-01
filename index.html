@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Registro | OrdenLista</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@picocss/pico@1/css/pico.min.css">
+    <link rel="stylesheet" href="css/app.css">
+    <style>
+        body { display:flex; align-items:center; justify-content:center; min-height:100vh; background: #f0f2f5; }
+        article { width: 100%; max-width: 450px; padding: 2rem; border-radius: 12px; }
+    </style>
+</head>
+<body>
+    <article>
+        <header>
+            <h2 style="text-align:center;">Crear mi Negocio</h2>
+            <p style="text-align:center;">Digitaliza tu restaurante ahora</p>
+        </header>
+        
+        <form id="formRegistro">
+            <label>Nombre del Negocio
+                <input type="text" id="regNegocio" placeholder="Ej. Tacos El Jefe" required>
+            </label>
+
+            <label>Dirección (Opcional)
+                <input type="text" id="regDireccion" placeholder="Calle Principal #123">
+            </label>
+
+            <hr>
+            <label>Correo Electrónico
+                <input type="email" id="regEmail" placeholder="admin@correo.com" required>
+            </label>
+
+            <label>Contraseña
+                <input type="password" id="regPassword" placeholder="******" minlength="6" required>
+            </label>
+
+            <label>Nombre del Dueño
+                <input type="text" id="regNombreAdmin" placeholder="Tu Nombre" required>
+            </label>
+
+            <label>PIN de Acceso (4 números)
+                <input type="password" id="regPinAdmin" placeholder="1234" maxlength="4" pattern="\d{4}" inputmode="numeric" required>
+                <small>Este PIN usarás para entrar al sistema diario.</small>
+            </label>
+
+            <button type="submit" id="btnRegistro" class="contrast">✨ Registrar y Comenzar</button>
+        </form>
+
+        <footer style="text-align:center;">
+            <a href="login.html">¿Ya tienes cuenta? Inicia sesión aquí</a>
+        </footer>
+    </article>
+
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="js/supabase-client.js"></script>
+    <script src="js/registro.js"></script> 
+</body>
+</html>

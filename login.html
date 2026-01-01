@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>OrdenLista | Acceso</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@picocss/pico@1/css/pico.min.css">
+    <link rel="stylesheet" href="css/app.css">
+    <style>
+        body { 
+            height: 100vh; 
+            display: flex; 
+            align-items: center; 
+            justify-content: center; 
+            background: var(--color-fondo); 
+            background-image: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+        }
+        .login-card { width: 100%; max-width: 420px; padding: 2rem; border-radius: 15px; background: white; box-shadow: 0 10px 30px rgba(0,0,0,0.1); }
+        .hidden { display: none; }
+        .reloj { font-size: 1.2rem; font-weight: bold; text-align: center; margin-bottom: 1rem; color: #10ad93; }
+        .brand-logo { font-size: 3rem; text-align: center; margin-bottom: 0.5rem; display: block; }
+    </style>
+</head>
+<body>
+    
+    <article id="pasoRestaurante" class="login-card">
+        <span class="brand-logo">☕</span>
+        <h2 style="text-align: center;">OrdenLista</h2>
+        <p style="text-align: center; color: #666; margin-bottom: 2rem;">Ingresa el nombre de tu negocio para empezar</p>
+        
+        <form id="formRestaurante">
+            <label>Nombre de tu Restaurante</label>
+            <input type="text" id="nombreRestaurante" placeholder="Ej. Café Central" required>
+            <button type="submit" class="contrast">Continuar</button>
+        </form>
+        <footer style="text-align:center; margin-top:1rem;">
+            <a href="index.html" style="font-size: 0.85rem;">¿No tienes cuenta? Regístrate aquí</a>
+        </footer>
+    </article>
+
+    <article id="pasoLogin" class="login-card hidden">
+        <header>
+            <div id="relojActual" class="reloj">00:00:00</div>
+            <h3 id="tituloRestaurante" style="text-align:center; margin:0;">Bienvenido</h3>
+            <small style="display:block; text-align:center; color:#888;">Control de Asistencia</small>
+        </header>
+        
+        <form id="formLogin">
+            <label>Usuario</label>
+            <select id="userSelect" required>
+                <option value="" disabled selected>Cargando usuarios...</option>
+            </select>
+            
+            <label>PIN de Acceso</label>
+            <input type="password" id="userPin" placeholder="****" maxlength="4" required>
+            
+            <button id="btnEntrar" type="submit" class="contrast">Registrar Entrada</button>
+            <a href="#" id="btnCambiarRestaurante" style="display:block; text-align:center; margin-top:1rem; font-size:0.9rem;">Cambiar de Restaurante</a>
+        </form>
+    </article>
+
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="js/supabase-client.js"></script>
+    <script src="js/login.js"></script> 
+</body>
+</html>

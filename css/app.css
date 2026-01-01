@@ -1,0 +1,168 @@
+:root {
+  --color-acento-principal: #3498db; 
+  --color-superficie: #f8f9fa; 
+  --color-superficie-clara: #e9ecef; 
+  --color-texto-principal: #343a40; 
+  --color-texto-secundario: #6c757d; 
+  --color-contraste: #212529; 
+
+  --color-estado-verde: #28a745; 
+  --color-estado-amarillo: #ffc107; 
+  --color-estado-rojo: #dc3545; 
+}
+
+.nav-cuadros { 
+    background-color: var(--color-contraste); 
+}
+.nav-cuadros strong { 
+    color: white; 
+}
+.nav-cuadros a { 
+    color: #e9ecef !important; 
+}
+.nav-cuadros .activo {
+    background-color: var(--color-acento-principal);
+    color: white !important;
+    font-weight: bold;
+}
+.panel { 
+    padding-top: 3rem; 
+    padding-bottom: 3rem; 
+}
+
+.estado-inv {
+    font-weight: bold;
+    padding: 0.3rem 0.6rem;
+    border-radius: 4px;
+    display: inline-block;
+}
+.suficiente { background-color: var(--color-estado-verde); color: white; }
+.bajo { background-color: var(--color-estado-amarillo); color: var(--color-contraste); }
+.agotado { background-color: var(--color-estado-rojo); color: white; }
+/* === Resaltado automático de la página activa === */
+.nav-botones a.activo {
+  background-color: var(--color-acento-principal);
+  color: white !important;
+  font-weight: bold;
+  border-radius: 6px;
+  padding: 0.4rem 0.8rem;
+  transition: background 0.3s ease;
+}
+/* Ajustes para el menú superior dinámico */
+.nav-cuadros {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.5rem 1rem;
+    position: sticky;
+    top: 0;
+    z-index: 1000;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.2);
+}
+
+.nav-botones a {
+    padding: 8px 15px;
+    text-decoration: none;
+    font-size: 0.9rem;
+    border-radius: 5px;
+    margin: 0 2px;
+}
+
+.nav-botones a.activo {
+    background-color: var(--color-acento-principal) !important;
+    color: white !important;
+}
+
+.nav-botones a:hover:not(.activo) {
+    background-color: rgba(255,255,255,0.1);
+}.nav-botones {
+    display: flex;
+    gap: 10px;
+    list-style: none;
+    margin: 0;
+    padding: 0;
+}
+
+.nav-botones a {
+    color: white !important;
+    text-decoration: none;
+    font-size: 0.85rem;
+    padding: 5px 10px;
+    border-radius: 5px;
+}
+
+.nav-botones a.activo {
+    background: var(--color-acento-principal);
+}
+/* VARIABLES GLOBALES */
+:root {
+  --color-fondo: #f4f6f8;
+  --color-superficie: #ffffff;
+  --color-superficie-clara: #e9ecef;
+  --color-acento-principal: #10ad93; /* Verde Teal de OrdenLista */
+  --color-acento-hover: #0d8a76;
+  
+  --color-estado-verde: #2ecc71;
+  --color-estado-amarillo: #f1c40f;
+  --color-estado-rojo: #e74c3c;
+}
+
+/* ESTILOS GENERALES */
+body {
+  background-color: var(--color-fondo);
+  min-height: 100vh;
+}
+
+/* NAVEGACIÓN UNIFICADA */
+nav.nav-inicio {
+  background-color: white;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+  padding: 1rem 2rem;
+  margin-bottom: 2rem;
+}
+
+/* Menú generado dinámicamente por JS */
+.nav-botones li a {
+  color: #555;
+  text-decoration: none;
+  font-weight: 500;
+  padding: 0.5rem 1rem;
+  border-radius: 6px;
+  transition: all 0.2s;
+}
+
+.nav-botones li a:hover {
+  background-color: var(--color-superficie-clara);
+  color: var(--color-acento-principal);
+}
+
+.nav-botones li a.activo {
+  background-color: var(--color-acento-principal);
+  color: white;
+}
+
+/* UTILIDADES */
+.hidden {
+  display: none !important;
+}
+
+.text-center {
+  text-align: center;
+}
+
+/* CLASES PARA BOTONES DE ESTADO (Cocina/Ordenes) */
+.btn-estado {
+  border: none;
+  color: white;
+  cursor: default;
+}
+
+/* ANIMACIONES */
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.anim-fade-in {
+  animation: fadeIn 0.4s ease-out forwards;
+}

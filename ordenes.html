@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>OrdenLista | Seguimiento de Órdenes</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@picocss/pico@1/css/pico.min.css" />
+  <link rel="stylesheet" href="css/app.css" />
+  <style>
+    .tabla-ordenes { margin-top: 2rem; }
+    .estado-orden { font-weight: bold; padding: 0.3rem 0.6rem; border-radius: 4px; display: inline-block; min-width: 90px; text-align: center; }
+    .estado-pendiente { background-color: var(--color-estado-rojo); color: white; }
+    .estado-proceso { background-color: var(--color-estado-amarillo); color: black; }
+    .estado-terminado { background-color: var(--color-estado-verde); color: white; }
+    .tiempo-alerta-rojo { color: var(--color-estado-rojo); font-weight: bold; animation: pulse 1s infinite; }
+    @keyframes pulse { 0% { opacity: 1; } 50% { opacity: 0.5; } 100% { opacity: 1; } }
+    
+    @media print {
+      body * { visibility: hidden; }
+      #modalTicket, #modalTicket *, #ticketPrint, #ticketPrint * { visibility: visible; }
+      #modalTicket { position: absolute; left: 0; top: 0; display: flex !important; background: white; }
+      .no-print { display: none; }
+    }
+  </style>
+</head>
+<body>
+  <audio id="audioNotificacion" src="https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3" preload="auto"></audio>
+
+  <nav class="container-fluid nav-inicio nav-cuadros">
+    <ul><li><strong>☕ OrdenLista</strong></li></ul>
+    <ul id="menuNavegacion" class="nav-botones"></ul>
+  </nav>
+
+  <main class="container">
+    <h1>📋 Seguimiento de Órdenes</h1>
+    <div class="grid">
+      <select id="filtroEstado">
+        <option value="todos">Mostrar Todos</option>
+        <option value="pendiente">Pendientes</option>
+        <option value="proceso">En Proceso</option>
+        <option value="terminado">Terminadas</option>
+        <option value="por_confirmar">🔔 Solicitudes QR</option>
+      </select>
+      <input type="text" id="inputBusqueda" placeholder="Buscar por ID o Mesa..." />
+    </div>
+
+    <table role="grid" class="tabla-ordenes">
+      <thead>
+        <tr><th>ID</th><th>Mesa</th><th>Productos</th><th>Total</th><th>Estado</th><th>Tiempo</th><th>Acciones</th></tr>
+      </thead>
+      <tbody id="tablaBodyOrdenes"></tbody>
+    </table>
+  </main>
+
+  <div id="modalTicket" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.8); z-index:1000; justify-content:center; align-items:center;">
+    <div id="ticketPrint" style="background:white; width:320px; padding:25px; font-family:'Courier New', monospace; color:black;">
+      <div style="text-align:center; border-bottom: 2px solid #000; padding-bottom:10px; margin-bottom:15px;">
+        <h2 style="margin:0;">☕ MI CAFETERÍA</h2>
+      </div>
+      <div style="font-size:0.85rem; margin-bottom:15px;">
+        <p style="margin:0;">FOLIO: #<span id="t-folio"></span> | MESA: <span id="t-mesa"></span></p>
+        <p style="margin:0;">FECHA: <span id="t-fecha"></span></p>
+      </div>
+      <table style="width:100%; font-size:0.85rem; border-collapse:collapse; margin-bottom:15px;">
+        <tbody id="t-items"></tbody>
+      </table>
+      <div style="border-top: 2px solid #000; padding-top:10px; text-align:right;">
+        <h3 style="margin:0;">TOTAL: $<span id="t-total"></span></h3>
+      </div>
+      <div class="no-print" style="text-align:center; margin-top:20px; display:flex; gap:10px;">
+        <button onclick="window.print()" style="background:#28a745; border:none; color:white; flex:1;">Imprimir</button>
+        <button onclick="document.getElementById('modalTicket').style.display='none'" style="background:#6c757d; border:none; color:white; flex:1;">Cerrar</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="js/supabase-client.js"></script>
+  <script src="js/app.js"></script>
+  <script src="js/ordenes.js"></script>
+</body>
+</html>

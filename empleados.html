@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>OrdenLista | RRHH y Asistencia</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@picocss/pico@1/css/pico.min.css">
+    <link rel="stylesheet" href="css/app.css">
+    <style>
+        .tarjeta-perfil {
+            text-align: center;
+            padding: 2rem;
+            background: #fff;
+            border-radius: 15px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.05);
+            margin-bottom: 2rem;
+        }
+        .avatar-grande {
+            width: 100px; height: 100px; border-radius: 50%; object-fit: cover;
+            border: 4px solid #10ad93; margin-bottom: 1rem;
+        }
+        .badge {
+            background: #10ad93; color: white; padding: 4px 12px; 
+            border-radius: 20px; font-size: 0.8rem; text-transform: uppercase;
+        }
+        .grid-empleados {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+            gap: 20px;
+            margin-top: 1rem;
+        }
+        .card-mini {
+            background: #f9f9f9; padding: 1.5rem; border-radius: 10px; text-align: center;
+            border: 1px solid #eee; transition: transform 0.2s;
+        }
+        .card-mini:hover { transform: translateY(-5px); box-shadow: 0 5px 15px rgba(0,0,0,0.1); }
+        .card-mini img { width: 60px; height: 60px; border-radius: 50%; margin-bottom: 10px; }
+        .hidden { display: none !important; }
+    </style>
+</head>
+<body>
+    <nav class="container-fluid nav-inicio nav-cuadros">
+        <ul><li><strong>☕ OrdenLista RRHH</strong></li></ul>
+        <ul id="menuNavegacion" class="nav-botones">
+            </ul>
+    </nav>
+
+    <main class="container">
+        <article class="tarjeta-perfil">
+            <img id="miAvatar" src="https://ui-avatars.com/api/?name=Usuario" alt="Avatar" class="avatar-grande">
+            <h2 id="miNombre" style="margin-bottom: 5px;">Cargando...</h2>
+            <span id="miRol" class="badge">...</span>
+            <div style="margin-top: 1.5rem; display: flex; justify-content: center; gap: 2rem;">
+                <div>
+                    <small>Hora de Entrada</small>
+                    <div id="miEntrada" style="font-weight: bold; font-size: 1.2rem;">--:--</div>
+                </div>
+                <div>
+                    <small>Estado</small>
+                    <div style="color: #2ecc71; font-weight: bold;">🟢 Activo</div>
+                </div>
+            </div>
+        </article>
+
+        <section id="panelDueño" class="hidden">
+            <hr>
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+                <h3>👥 Gestión de Personal</h3>
+                <button onclick="abrirModalEmpleado()" class="outline" style="width: auto;">+ Nuevo Empleado</button>
+            </div>
+            <div id="gridEmpleados" class="grid-empleados"></div>
+
+            <h3 style="margin-top: 3rem;">📅 Registro de Asistencia (Hoy)</h3>
+            <article>
+                <table role="grid">
+                    <thead>
+                        <tr>
+                            <th>Empleado</th>
+                            <th>Rol</th>
+                            <th>Entrada</th>
+                            <th>Estado</th>
+                        </tr>
+                    </thead>
+                    <tbody id="tablaAsistenciaCompleta"></tbody>
+                </table>
+            </article>
+        </section>
+    </main>
+
+    <dialog id="modalNuevoEmpleado">
+        <article style="width: 400px;">
+            <header>
+                <button aria-label="Close" class="contrast" onclick="document.getElementById('modalNuevoEmpleado').close()" rel="prev"></button>
+                <h3>Contratar Nuevo Empleado</h3>
+            </header>
+            <form id="formNuevoEmpleado">
+                <label>Nombre Completo
+                    <input type="text" id="nombreEmp" required placeholder="Ej. Ana García">
+                </label>
+                <label>Rol / Puesto
+                    <select id="rolEmp" required>
+                        <option value="mesero">Mesero</option>
+                        <option value="cocinero">Cocinero</option>
+                        <option value="encargado">Encargado</option>
+                    </select>
+                </label>
+                <label>PIN de Acceso (4 dígitos)
+                    <input type="password" id="pinEmp" required placeholder="Ej. 1234" maxlength="4" pattern="\d{4}">
+                    <small>Código para iniciar sesión.</small>
+                </label>
+                <footer style="margin-top: 1rem;">
+                    <button type="submit">Guardar Empleado</button>
+                </footer>
+            </form>
+        </article>
+    </dialog>
+
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="js/supabase-client.js"></script>
+    <script src="js/logout.js"></script>
+    <script src="js/app.js"></script>
+    <script src="js/empleados.js"></script> 
+</body>
+</html>

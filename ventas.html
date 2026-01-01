@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Analíticas | OrdenLista</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@picocss/pico@1/css/pico.min.css">
+    <link rel="stylesheet" href="css/app.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        .card-stat { 
+            background: var(--color-superficie); 
+            border-radius: 12px; 
+            padding: 1.5rem; 
+            text-align: center;
+            border-bottom: 4px solid var(--color-acento-principal);
+            box-shadow: 0 4px 6px rgba(0,0,0,0.05);
+        }
+        .panel-blanco { background: white; padding: 2rem; border-radius: 12px; margin-top: 2rem; }
+        .chart-container { position: relative; height: 300px; width: 100%; display: flex; justify-content: center; }
+        @media print { .nav-cuadros, button { display: none !important; } }
+    </style>
+</head>
+<body>
+    <nav class="container-fluid nav-inicio nav-cuadros">
+        <ul><li><strong>☕ OrdenLista</strong></li></ul>
+        <ul id="menuNavegacion" class="nav-botones">
+            </ul>
+    </nav>
+
+    <main class="container">
+        <header>
+            <h1>📊 Corte de Caja y Ventas (Hoy)</h1>
+        </header>
+
+        <section class="grid">
+            <div class="card-stat">
+                <p>Ventas Totales Hoy</p>
+                <h2 id="totalDia" style="color: #10ad93;">$0.00</h2>
+            </div>
+            <div class="card-stat" style="border-bottom-color: #3498db;">
+                <p>Transacciones</p>
+                <h2 id="numVentasDia">0</h2>
+            </div>
+        </section>
+
+        <div class="panel-blanco">
+            <h3 style="text-align:center;">Productos Más Vendidos</h3>
+            <div class="chart-container">
+                <canvas id="graficoCategorias"></canvas>
+            </div>
+        </div>
+
+        <div class="panel-blanco">
+            <h3>📋 Registro de Últimas Ventas</h3>
+            <table>
+                <thead>
+                    <tr>
+                        <th>ID Venta</th>
+                        <th>Mesa</th>
+                        <th>Total</th>
+                        <th>Método</th>
+                        <th>Hora</th>
+                    </tr>
+                </thead>
+                <tbody id="listaUltimasVentas"></tbody>
+            </table>
+        </div>
+
+        <div style="display: flex; gap: 1rem; justify-content: flex-end; margin-top: 2rem; margin-bottom: 3rem;">
+            <button class="contrast outline" onclick="imprimirCorteCaja()">🖨️ Imprimir Corte de Caja</button>
+        </div>
+    </main>
+
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="js/supabase-client.js"></script>
+    <script src="js/logout.js"></script>
+    <script src="js/app.js"></script>
+    <script src="js/estadisticas.js"></script>
+</body>
+</html>
