@@ -1,4 +1,4 @@
-// js/login.js - AUTENTICACIÓN Y ASISTENCIA CON FILTRO DE SEGURIDAD
+// js/login.js - CORREGIDO PARA VINCULACIÓN DIRECTA POR CORREO ADMIN
 
 document.addEventListener('DOMContentLoaded', async () => {
     const btnEntrar = document.getElementById('btnEntrar');
@@ -10,66 +10,66 @@ document.addEventListener('DOMContentLoaded', async () => {
     const formRest = document.getElementById('formRestaurante');
     const formLogin = document.getElementById('formLogin');
 
-    // 1. Verificar configuración previa
+    // 1. Verificar configuración previa en el navegador
     const restGuardado = JSON.parse(localStorage.getItem('config_restaurante'));
     if (restGuardado) {
         pasoRestaurante.classList.add('hidden');
         pasoLogin.classList.remove('hidden');
-        tituloRestaurante.textContent = restGuardado.nombre;
+        if (tituloRestaurante) tituloRestaurante.textContent = restGuardado.nombre;
         cargarUsuarios(restGuardado.id);
     }
 
-    // 2. Paso 1: Vincular con Nombre + Correo (EVITA DUPLICADOS)
+    // 2. Paso 1: Vincular Negocio (CORRECCIÓN DE LÓGICA)
     if (formRest) {
         formRest.addEventListener('submit', async (e) => {
             e.preventDefault();
             const nombreBusqueda = document.getElementById('nombreRestaurante').value.trim();
             const correoBusqueda = document.getElementById('correoAdmin').value.trim();
             
-            if (!window.db) return alert("Sin conexión a DB");
+            if (!window.db) return alert("Sin conexión a la base de datos");
 
-            // Buscamos el perfil del dueño que coincida con el nombre del negocio y correo
-            // En tu lógica SQL, el nombre del dueño suele ser el correo o nombre completo
-            const { data: perfilDueño, error: errPerfil } = await window.db
-                .from('perfiles')
-                .select('restaurante_id, nombre')
-                .eq('rol', 'dueño')
-                .ilike('nombre', `%${correoBusqueda}%`) 
-                .maybeSingle();
-
-            if (errPerfil || !perfilDueño) {
-                return alert("No se encontró un administrador con ese correo. Verifica tus datos.");
-            }
-
-            // Ahora verificamos que el restaurante con ese ID coincida con el nombre escrito
+            // CAMBIO CLAVE: Buscamos directamente en la tabla 'restaurantes' 
+            // usando el campo correo_admin que definimos en el SQL
             const { data: restaurante, error: errRest } = await window.db
                 .from('restaurantes')
-                .select('id, nombre')
-                .eq('id', perfilDueño.restaurante_id)
-                .ilike('nombre', nombreBusqueda)
+                .select('id, nombre, correo_admin')
+                .eq('correo_admin', correoBusqueda)
                 .maybeSingle();
 
-            if (errRest || !restaurante) {
-                return alert("El nombre del restaurante no coincide con el registrado para ese correo.");
+            if (errRest) {
+                console.error("Error Supabase:", errRest);
+                return alert("Error al consultar la base de datos.");
             }
 
-            // Éxito: Guardamos la vinculación
+            if (!restaurante) {
+                return alert("No existe ningún restaurante registrado con el correo: " + correoBusqueda);
+            }
+
+            // Validar que el nombre coincida (ignorando mayúsculas/minúsculas)
+            if (restaurante.nombre.toLowerCase() !== nombreBusqueda.toLowerCase()) {
+                return alert("El nombre del restaurante no coincide con el correo proporcionado.");
+            }
+
+            // Éxito: Guardamos la vinculación en el navegador
             localStorage.setItem('config_restaurante', JSON.stringify({
                 id: restaurante.id,
                 nombre: restaurante.nombre
             }));
             
+            alert("¡Vínculo exitoso con " + restaurante.nombre + "!");
             location.reload();
         });
     }
 
-    // 3. Cargar Usuarios
+    // 3. Cargar Usuarios del restaurante vinculado
     async function cargarUsuarios(restauranteId) {
         const { data, error } = await window.db
             .from('perfiles')
             .select('id, nombre, rol')
             .eq('restaurante_id', restauranteId)
             .order('nombre', { ascending: true });
+
+        if (error) console.error("Error cargando usuarios:", error);
 
         if (data && userSelect) {
             userSelect.innerHTML = '<option value="" disabled selected>Selecciona tu nombre</option>';
@@ -79,7 +79,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
     }
 
-    // 4. Login de Empleado (Paso 2)
+    // 4. Login de Empleado (PIN)
     if (formLogin) {
         formLogin.addEventListener('submit', async (e) => {
             e.preventDefault();
@@ -87,7 +87,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             const pin = userPinInput.value;
             const configRest = JSON.parse(localStorage.getItem('config_restaurante'));
 
-            if (!userId || pin.length !== 4) return alert("Datos incompletos");
+            if (!userId || pin.length < 4) return alert("Por favor selecciona un usuario e ingresa tu PIN de 4 dígitos");
 
             btnEntrar.disabled = true;
             btnEntrar.innerText = "Verificando...";
@@ -102,7 +102,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                     .single();
 
                 if (error || !usuario) {
-                    alert("⛔ PIN incorrecto");
+                    alert("⛔ PIN incorrecto o usuario no válido");
                     userPinInput.value = "";
                 } else {
                     const sesion = {
@@ -114,7 +114,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                     };
                     localStorage.setItem('sesion_activa', JSON.stringify(sesion));
 
-                    // Asistencia
+                    // Registro de Asistencia
                     await window.db.from('asistencia').insert([{
                         empleado_id: usuario.id,
                         nombre_empleado: usuario.nombre,
@@ -125,7 +125,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                     redirigirUsuario(sesion.rol);
                 }
             } catch (err) {
-                alert("Error: " + err.message);
+                alert("Error de sistema: " + err.message);
             } finally {
                 btnEntrar.disabled = false;
                 btnEntrar.innerText = "Registrar Entrada";
@@ -134,20 +134,30 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
 
     function redirigirUsuario(rol) {
-        const rutas = { 'cocinero': 'cocina.html', 'dueño': 'ventas.html', 'mesero': 'mesas.html' };
+        const rutas = { 
+            'cocinero': 'cocina.html', 
+            'dueño': 'ventas.html', 
+            'mesero': 'mesas.html',
+            'administrador': 'ventas.html'
+        };
         window.location.href = rutas[rol] || 'mesas.html';
     }
 
+    // Reloj digital
     setInterval(() => {
         const reloj = document.getElementById('relojActual');
         if(reloj) reloj.textContent = new Date().toLocaleTimeString();
     }, 1000);
 
-    document.getElementById('btnCambiarRestaurante').onclick = (e) => {
-        e.preventDefault();
-        if(confirm("¿Vincular a otro restaurante?")) {
-            localStorage.clear();
-            location.reload();
-        }
-    };
+    // Botón para desvincular
+    const btnCambiar = document.getElementById('btnCambiarRestaurante');
+    if (btnCambiar) {
+        btnCambiar.onclick = (e) => {
+            e.preventDefault();
+            if(confirm("¿Deseas desvincular esta terminal? Se borrarán los datos de sesión.")) {
+                localStorage.clear();
+                location.reload();
+            }
+        };
+    }
 });
