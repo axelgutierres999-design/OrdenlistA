@@ -1,15 +1,16 @@
-// js/app.js - LÓGICA INTEGRAL CON INVENTARIO Y FILTRO POR NEGOCIO
+// js/app.js - LÓGICA INTEGRAL CENTRALIZADA (ORDENLISTA)
 const App = (function() {
   let ordenes = [];
   let suministros = [];
   let ventas = [];
   
-  // Obtener el ID del restaurante de la sesión activa
+  // Obtener el ID del restaurante de la sesión activa (Regla de Oro)
   const getRestoId = () => {
     const sesion = JSON.parse(localStorage.getItem('sesion_activa'));
     return sesion ? sesion.restaurante_id : null;
   };
 
+  // Base de datos de recetas para descuento de inventario
   let recetas = JSON.parse(localStorage.getItem('recetas_db')) || {
     'cafe americano': { 'cafe en grano': 0.015 },
     'cafe con leche': { 'cafe en grano': 0.015, 'leche entera': 0.150 },
@@ -19,57 +20,65 @@ const App = (function() {
   };
 
   const renderCallbacks = {};
+
+  // Normalizador para comparar nombres de productos e ingredientes
   const normalizar = (texto) =>
     texto ? texto.toLowerCase().trim().normalize("NFD").replace(/[\u0300-\u036f]/g, "") : "";
 
+  // 1. CARGA DE DATOS DESDE SUPABASE
   const cargarDatosIniciales = async () => {
     if (typeof db === 'undefined') return;
     const restoId = getRestoId();
     if (!restoId) return;
 
     try {
+        // Cargar Órdenes activas (que no estén pagadas ni canceladas)
         const { data: dataOrdenes } = await db.from('ordenes')
             .select('*')
             .eq('restaurante_id', restoId)
-            .neq('estado', 'terminado');
+            .neq('estado', 'pagado'); 
         if (dataOrdenes) ordenes = dataOrdenes;
 
+        // Cargar Suministros/Stock
         const { data: dataSuministros } = await db.from('suministros')
             .select('*')
             .eq('restaurante_id', restoId);
         if (dataSuministros) suministros = dataSuministros;
 
+        // Cargar últimas Ventas (Historial)
         const { data: dataVentas } = await db.from('ventas')
             .select('*')
             .eq('restaurante_id', restoId)
-            .order('fecha', { ascending: false })
+            .order('created_at', { ascending: false })
             .limit(50); 
         if (dataVentas) ventas = dataVentas;
 
         App.notifyUpdate();
     } catch (err) {
-        console.error("Error cargando datos:", err);
+        console.error("Error cargando datos globales:", err);
     }
   };
 
+  // 2. INTERFAZ DE COBRO (MODAL)
   const mostrarModalPago = (total, callbackPago) => {
     const modal = document.createElement('div');
-    modal.style = "position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.85);display:flex;justify-content:center;align-items:center;z-index:10000;font-family:sans-serif;";
+    modal.id = "modalGlobalPago";
+    modal.style = "position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.85);display:flex;justify-content:center;align-items:center;z-index:10000;font-family:sans-serif;padding:10px;";
     
     modal.innerHTML = `
-      <div style="background:white;padding:2rem;border-radius:15px;width:350px;text-align:center;box-shadow:0 10px 30px rgba(0,0,0,0.5);">
-        <h3 style="margin-top:0;">Total a Cobrar</h3>
+      <div style="background:white;padding:2rem;border-radius:15px;width:100%;max-width:350px;text-align:center;box-shadow:0 10px 30px rgba(0,0,0,0.5);">
+        <h3 style="margin-top:0;color:#333;">Finalizar Cuenta</h3>
         <div style="font-size:2.5rem;font-weight:bold;color:#10ad93;margin-bottom:1rem;">$${total.toFixed(2)}</div>
         <div style="text-align:left; margin-bottom:1rem;">
-            <label>💵 Efectivo Recibido:</label>
-            <input type="number" id="inputRecibido" placeholder="0.00" style="width:100%;padding:8px;font-size:1.1rem;margin-top:5px;">
-            <div id="txtCambio" style="margin-top:5px;font-weight:bold;color:#777;">Cambio: $0.00</div>
+            <label style="font-size:0.9rem;color:#666;">💵 Efectivo Recibido:</label>
+            <input type="number" id="inputRecibido" placeholder="0.00" style="width:100%;padding:12px;font-size:1.2rem;margin-top:5px;border:2px solid #eee;border-radius:8px;">
+            <div id="txtCambio" style="margin-top:8px;font-weight:bold;color:#777;text-align:center;">Cambio: $0.00</div>
         </div>
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px;">
-          <button id="btnEfectivo" disabled style="background:#2ecc71;color:white;border:none;padding:10px;border-radius:5px;cursor:pointer;">Efectivo</button>
-          <button id="btnTarjeta" style="background:#3498db;color:white;border:none;padding:10px;border-radius:5px;cursor:pointer;">Tarjeta</button>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:15px;">
+          <button id="btnEfectivo" disabled style="background:#2ecc71;color:white;border:none;padding:12px;border-radius:8px;cursor:pointer;font-weight:bold;">EFECTIVO</button>
+          <button id="btnTarjeta" style="background:#3498db;color:white;border:none;padding:12px;border-radius:8px;cursor:pointer;font-weight:bold;">TARJETA</button>
         </div>
-        <button id="btnCancelar" style="background:none;border:none;text-decoration:underline;cursor:pointer;color:#666;">Cancelar</button>
+        <button id="btnCancelar" style="background:none;border:none;text-decoration:underline;cursor:pointer;color:#999;font-size:0.9rem;">Volver a la mesa</button>
       </div>`;
     
     document.body.appendChild(modal);
@@ -85,7 +94,7 @@ const App = (function() {
         txtCambio.style.color = "#27ae60";
         btnEfectivo.disabled = false;
       } else {
-        txtCambio.textContent = "Falta dinero";
+        txtCambio.textContent = "Monto insuficiente";
         txtCambio.style.color = "#c0392b";
         btnEfectivo.disabled = true;
       }
@@ -97,20 +106,22 @@ const App = (function() {
     input.focus();
   };
 
+  // 3. IMPRESIÓN DE TICKET
   const imprimirTicketVenta = (venta) => {
     const ventana = window.open("", "_blank", "width=350,height=550");
     const items = venta.productos.split(',').map(p => {
-        return `<tr><td style="text-align:left; border-bottom:1px solid #eee; padding:5px 0;">${p.trim()}</td><td style="text-align:right; border-bottom:1px solid #eee; padding:5px 0;">--</td></tr>`;
+        return `<tr><td style="text-align:left; border-bottom:1px solid #eee; padding:5px 0;">${p.trim()}</td><td style="text-align:right; border-bottom:1px solid #eee; padding:5px 0;">$ --</td></tr>`;
     }).join('');
 
     ventana.document.write(`
-        <html><head><title>Ticket #${venta.id}</title>
-            <style>body { font-family: 'Courier New', monospace; font-size: 13px; padding: 10px; text-align: center; } table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 12px; } th { border-bottom: 1px dashed black; } .total { font-size: 18px; font-weight: bold; margin-top: 15px; border-top: 1px dashed black; padding-top: 10px; } button { display:none; } @media print { button { display: none; } }</style>
+        <html><head><title>Ticket #${venta.id.slice(-5)}</title>
+            <style>body { font-family: 'Courier New', monospace; font-size: 13px; padding: 10px; text-align: center; } table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 12px; } th { border-bottom: 1px dashed black; } .total { font-size: 18px; font-weight: bold; margin-top: 15px; border-top: 1px dashed black; padding-top: 10px; } @media print { .no-print { display: none; } }</style>
         </head><body>
-            <h3>ORDENLISTA</h3><p>Ticket de Venta</p><p style="font-size:11px;">Folio: ${venta.id}<br>Fecha: ${new Date().toLocaleString()}</p>
-            <p><strong>Mesa: ${venta.mesa}</strong></p><table><thead><tr><th align="left">Producto</th><th align="right">$$</th></tr></thead><tbody>${items}</tbody></table>
-            <div class="total">TOTAL: $${venta.total.toFixed(2)}</div><p>Método: ${(venta.metodo_pago || 'efectivo').toUpperCase()}</p>
-            <div class="footer"><p>¡Gracias por su compra!</p></div><script>window.print();</script>
+            <h3>${JSON.parse(localStorage.getItem('sesion_activa'))?.nombre_restaurante || 'ORDENLISTA'}</h3><p>Ticket de Venta</p>
+            <p style="font-size:11px;">Folio: ${venta.id}<br>Fecha: ${new Date().toLocaleString()}</p>
+            <p><strong>MESA: ${venta.mesa}</strong></p><table><thead><tr><th align="left">Producto</th><th align="right">Subt.</th></tr></thead><tbody>${items}</tbody></table>
+            <div class="total">TOTAL: $${venta.total.toFixed(2)}</div><p>Método de Pago: ${(venta.metodo_pago || 'efectivo').toUpperCase()}</p>
+            <p>¡Gracias por su visita!</p><script>window.print(); setTimeout(()=>window.close(), 500);</script>
         </body></html>`);
     ventana.document.close();
   };
@@ -122,6 +133,7 @@ const App = (function() {
     getVentas: () => ventas,
     getRecetas: () => recetas,
 
+    // AGREGAR O ACTUALIZAR ORDEN (LÓGICA MULTI-PRODUCTO POR MESA)
     addOrden: async (orden) => {
       const restoId = getRestoId();
       if (!restoId) return;
@@ -130,7 +142,8 @@ const App = (function() {
       if (orden.estado === 'por_confirmar') {
           nuevaOrden.id = `PEND-${Date.now()}`;
       } else {
-          const existente = ordenes.find(o => o.mesa === orden.mesa && o.estado !== 'terminado' && o.estado !== 'por_confirmar');
+          // Si la mesa ya tiene una orden abierta, acumulamos los productos
+          const existente = ordenes.find(o => o.mesa === orden.mesa && o.estado !== 'pagado' && o.estado !== 'cancelado');
           if (existente) {
              const prodActualizado = existente.productos + `, ${orden.productos}`;
              const totalActualizado = existente.total + orden.total;
@@ -140,29 +153,28 @@ const App = (function() {
                  productos: prodActualizado,
                  total: totalActualizado,
                  comentarios: comActualizado,
-                 estado: 'pendiente'
+                 estado: 'pendiente' // Regresa a pendiente para que cocina lo vea
              }).eq('id', existente.id);
-             App.init();
              return { id: existente.id };
           }
-          nuevaOrden.id = `ORD-${Date.now()}`;
           nuevaOrden.estado = 'pendiente';
       }
 
       await db.from('ordenes').insert([nuevaOrden]);
-      App.init();
       return { id: nuevaOrden.id };
     },
 
+    // CAMBIO DE ESTADO (COCINA -> LISTO)
     updateEstado: async (id, nuevoEstado) => {
       const orden = ordenes.find(o => o.id === id);
+      // Cuando la orden pasa a 'terminado' (Lista para entrega), descontamos stock
       if(orden && nuevoEstado === 'terminado') {
           App.descontarInventario(orden.productos);
       }
       await db.from('ordenes').update({ estado: nuevoEstado }).eq('id', id);
-      App.init();
     },
 
+    // PROCESO DE COBRO FINAL Y CIERRE DE MESA
     liberarMesaManual: (id) => {
       const orden = ordenes.find(o => o.id === id);
       const restoId = getRestoId();
@@ -170,59 +182,76 @@ const App = (function() {
       
       mostrarModalPago(orden.total, async (metodo) => {
         const venta = {
-          id: `VTA-${Date.now()}`,
           restaurante_id: restoId,
           mesa: orden.mesa,
           productos: orden.productos,
           total: orden.total,
-          metodo_pago: metodo
+          metodo_pago: metodo,
+          created_at: new Date().toISOString()
         };
-        const { error } = await db.from('ventas').insert([venta]);
+
+        // 1. Registrar la venta en el historial
+        const { data: vtaGuardada, error } = await db.from('ventas').insert([venta]).select().single();
+        
         if (!error) {
-            await db.from('ordenes').delete().eq('id', id);
-            imprimirTicketVenta(venta);
+            // 2. Marcar la orden como pagada (esto la quita de la vista de mesas y cocina)
+            await db.from('ordenes').update({ estado: 'pagado' }).eq('id', id);
+            
+            // 3. Imprimir ticket
+            imprimirTicketVenta(vtaGuardada);
+            
+            // 4. Actualizar datos locales
             App.init();
+        } else {
+            alert("Error al procesar venta: " + error.message);
         }
       });
     },
 
+    // LÓGICA DE DESCUENTO DE STOCK
     descontarInventario: (productosString) => {
       if (!productosString) return;
-      const items = productosString.split(/,|\n/);
+      const items = productosString.split(',');
       items.forEach(async item => {
+        // Formato esperado: "1x Cafe Americano"
         const partes = item.trim().split('x '); 
         if (partes.length < 2) return;
-        const nombreProducto = normalizar(partes[1]);
+        
         const cantidadPedida = parseInt(partes[0]);
+        const nombreProducto = normalizar(partes[1]);
         const receta = recetas[nombreProducto];
 
         if (receta) {
           for (let ingrediente in receta) {
             const insumo = suministros.find(s => normalizar(s.nombre) === normalizar(ingrediente));
             if (insumo) {
-              const nuevaCant = parseFloat((insumo.cantidad - (receta[ingrediente] * cantidadPedida)).toFixed(3));
-              await db.from('suministros').update({ cantidad: nuevaCant }).eq('id', insumo.id);
+              const cantidadADescontar = receta[ingrediente] * cantidadPedida;
+              const nuevaCant = parseFloat((insumo.cantidad - cantidadADescontar).toFixed(3));
+              
+              await db.from('suministros')
+                .update({ cantidad: nuevaCant })
+                .eq('id', insumo.id)
+                .eq('restaurante_id', getRestoId());
             }
           }
         }
       });
     },
 
+    // SISTEMA DE RENDERIZADO REACTIVO
     registerRender: (name, cb) => { renderCallbacks[name] = cb; cb(); },
     notifyUpdate: () => { Object.values(renderCallbacks).forEach(cb => { if(typeof cb === 'function') cb(); }); }
   };
 })();
 
-// --- SEGURIDAD Y MENÚ DINÁMICO ---
+// --- SEGURIDAD Y NAVEGACIÓN ---
 const Seguridad = {
   verificarAcceso: () => {
     const sesion = JSON.parse(localStorage.getItem('sesion_activa'));
     const pag = window.location.pathname.split("/").pop();
-    // Agregamos index.html y login.html como públicas
-    const publicas = ["index.html", "login.html", "", "registro.html"];
+    const publicas = ["index.html", "login.html", "registro.html", ""];
     
     if (!sesion && !publicas.includes(pag)) {
-        // CORRECCIÓN: Si no hay sesión, mandar a LOGIN, no a registro
         window.location.href = "login.html";
     }
   }
@@ -232,13 +261,11 @@ function renderizarMenuSeguro() {
     const sesion = JSON.parse(localStorage.getItem('sesion_activa'));
     if (!sesion) return;
 
-    const esDueño = (sesion.rol === 'dueño' || sesion.rol === 'admin');
+    const esDueño = (sesion.rol === 'dueño');
     const pag = window.location.pathname.split("/").pop();
-    
-    const navContenedor = document.getElementById('menuNavegacion') || document.querySelector('.nav-botones');
+    const navContenedor = document.getElementById('menuNavegacion');
     if (!navContenedor) return;
 
-    // NOTA: Asegúrate de que tu archivo se llama ventas.html para que este link funcione
     navContenedor.innerHTML = `
         <li><a href="mesas.html" class="${pag === 'mesas.html' ? 'activo' : ''}">🪑 Mesas</a></li> 
         <li><a href="menu.html" class="${pag === 'menu.html' ? 'activo' : ''}">📜 Menú</a></li>
@@ -252,6 +279,7 @@ function renderizarMenuSeguro() {
     `;
 }
 
+// INICIALIZACIÓN Y REALTIME
 document.addEventListener('DOMContentLoaded', () => {
   Seguridad.verificarAcceso();
   renderizarMenuSeguro();
@@ -259,9 +287,14 @@ document.addEventListener('DOMContentLoaded', () => {
 
   const restoId = JSON.parse(localStorage.getItem('sesion_activa'))?.restaurante_id;
   if (typeof db !== 'undefined' && restoId) {
+      // Suscripción a cambios en tiempo real para Órdenes del negocio actual
       db.channel('cambios-ordenes')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'ordenes', filter: `restaurante_id=eq.${restoId}` }, () => App.init())
+      .on('postgres_changes', { 
+          event: '*', 
+          schema: 'public', 
+          table: 'ordenes', 
+          filter: `restaurante_id=eq.${restoId}` 
+      }, () => App.init())
       .subscribe();
   }
 });
-// Se eliminó la función window.cerrarSesion de aquí porque logout.js ya la maneja mejor.

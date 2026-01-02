@@ -1,135 +1,167 @@
-// js/login.js - CORREGIDO PARA IDENTIFICACIÓN ROBUSTA
+// js/login.js - AUTENTICACIÓN Y ASISTENCIA (CORREGIDO)
+
 document.addEventListener('DOMContentLoaded', async () => {
+    // 1. Elementos del DOM
     const btnEntrar = document.getElementById('btnEntrar');
     const userPinInput = document.getElementById('userPin');
     const userSelect = document.getElementById('userSelect');
     const pasoRestaurante = document.getElementById('pasoRestaurante');
     const pasoLogin = document.getElementById('pasoLogin');
     const tituloRestaurante = document.getElementById('tituloRestaurante');
+    const formRest = document.getElementById('formRestaurante');
+    const formLogin = document.getElementById('formLogin');
 
-    // 1. Verificar si ya hay un restaurante configurado localmente
+    // 2. Verificar configuración previa de la terminal
     const restGuardado = JSON.parse(localStorage.getItem('config_restaurante'));
 
     if (restGuardado) {
-        mostrarPasoLogin(restGuardado);
+        pasoRestaurante.classList.add('hidden');
+        pasoLogin.classList.remove('hidden');
+        tituloRestaurante.textContent = restGuardado.nombre;
+        cargarUsuarios(restGuardado.id);
     }
 
-    // 2. Configurar Restaurante (Paso 1)
-    const formRest = document.getElementById('formRestaurante');
+    // 3. Paso 1: Buscar y Guardar Restaurante
     if (formRest) {
         formRest.addEventListener('submit', async (e) => {
             e.preventDefault();
             const nombreBusqueda = document.getElementById('nombreRestaurante').value.trim();
             
-            if (!nombreBusqueda) return alert("Escribe el nombre de tu negocio");
+            if (!window.db) return alert("Error: No hay conexión con la base de datos.");
 
-            // BUSQUEDA MEJORADA: ilike permite encontrar "Cafe" aunque escribas "cafe"
-            const { data, error } = await db.from('restaurantes')
-                .select('*')
-                .ilike('nombre', nombreBusqueda) 
+            const { data, error } = await window.db
+                .from('restaurantes')
+                .select('id, nombre')
+                .ilike('nombre', nombreBusqueda) // Insensible a mayúsculas
                 .maybeSingle();
 
-            if (error) {
-                console.error("Error Supabase:", error);
-                return alert("Error de conexión con la base de datos.");
+            if (error) return alert("Error al buscar: " + error.message);
+            
+            if (!data) {
+                return alert("No se encontró el restaurante. Asegúrate de escribir el nombre exacto con el que lo registraste.");
             }
 
-            if (data) {
-                // Guardamos en LocalStorage para que la terminal quede "vinculada"
-                localStorage.setItem('config_restaurante', JSON.stringify(data));
-                mostrarPasoLogin(data);
-            } else {
-                alert("❌ Este restaurante no está registrado. Verifica el nombre exactamente como lo creaste.");
-            }
+            // Guardar configuración de terminal (persistente)
+            localStorage.setItem('config_restaurante', JSON.stringify({
+                id: data.id,
+                nombre: data.nombre
+            }));
+            
+            location.reload();
         });
     }
 
-    function mostrarPasoLogin(rest) {
-        pasoRestaurante.classList.add('hidden');
-        pasoLogin.classList.remove('hidden');
-        tituloRestaurante.textContent = rest.nombre;
-        cargarUsuarios(rest.id);
-    }
+    // 4. Cargar Personal del Restaurante
+    async function cargarUsuarios(restauranteId) {
+        const { data, error } = await window.db
+            .from('perfiles')
+            .select('id, nombre, rol')
+            .eq('restaurante_id', restauranteId)
+            .order('nombre', { ascending: true });
 
-    async function cargarUsuarios(restId) {
-        userSelect.innerHTML = '<option disabled selected>Cargando personal...</option>';
-        
-        const { data, error } = await db.from('perfiles')
-            .select('*')
-            .eq('restaurante_id', restId);
-
-        if (error || !data) {
-            userSelect.innerHTML = '<option disabled>Error al cargar usuarios</option>';
+        if (error) {
+            console.error("Error cargando usuarios:", error);
             return;
         }
 
-        userSelect.innerHTML = '<option value="" disabled selected>Selecciona tu nombre</option>';
-        data.forEach(u => {
-            const opt = document.createElement('option');
-            opt.value = u.id;
-            opt.textContent = `${u.nombre} (${u.rol})`;
-            // Guardamos el PIN en un atributo de datos para validar rápido (u oculto según prefieras)
-            opt.dataset.pin = u.pin; 
-            userSelect.appendChild(opt);
-        });
+        if (data && userSelect) {
+            userSelect.innerHTML = '<option value="" disabled selected>Selecciona tu nombre</option>';
+            data.forEach(u => {
+                const option = document.createElement('option');
+                option.value = u.id;
+                option.textContent = `${u.nombre} (${u.rol})`;
+                userSelect.appendChild(option);
+            });
+        }
     }
 
-    // 3. Login Final (Validar PIN)
-    const formLogin = document.getElementById('formLogin');
+    // 5. Paso 2: Login y Registro de Asistencia
     if (formLogin) {
         formLogin.addEventListener('submit', async (e) => {
             e.preventDefault();
+            
             const userId = userSelect.value;
-            const pinIngresado = userPinInput.value;
-            const optionSeleccionada = userSelect.options[userSelect.selectedIndex];
-            const pinReal = optionSeleccionada.dataset.pin;
+            const pin = userPinInput.value;
+            const configRest = JSON.parse(localStorage.getItem('config_restaurante'));
 
-            if (pinIngresado === pinReal) {
-                const restData = JSON.parse(localStorage.getItem('config_restaurante'));
-                
-                // CREAR SESIÓN ACTIVA (Regla de Oro)
-                const sesion = {
-                    id: userId,
-                    nombre: optionSeleccionada.text.split('(')[0].trim(),
-                    rol: optionSeleccionada.text.match(/\(([^)]+)\)/)[1].toLowerCase(),
-                    restaurante_id: restData.id,
-                    nombre_restaurante: restData.nombre,
-                    horaEntrada: new Date().toLocaleTimeString()
-                };
+            if (!userId) return alert("Por favor, selecciona tu nombre.");
+            if (pin.length !== 4) return alert("El PIN debe ser de 4 dígitos.");
 
-                localStorage.setItem('sesion_activa', JSON.stringify(sesion));
+            btnEntrar.disabled = true;
+            btnEntrar.innerText = "Verificando...";
 
-                // Registrar en tabla asistencia
-                await db.from('asistencia').insert([{
-                    empleado_id: userId,
-                    nombre_empleado: sesion.nombre,
-                    restaurante_id: restData.id,
-                    hora_entrada: new Date().toISOString()
-                }]);
+            try {
+                // Verificar PIN y Usuario contra Supabase
+                const { data: usuario, error } = await window.db
+                    .from('perfiles')
+                    .select('*')
+                    .eq('id', userId)
+                    .eq('pin', pin)
+                    .eq('restaurante_id', configRest.id)
+                    .single();
 
-                window.location.href = redirigirPorRol(sesion.rol);
-            } else {
-                alert("❌ PIN Incorrecto");
-                userPinInput.value = "";
+                if (error || !usuario) {
+                    alert("⛔ PIN incorrecto o usuario no válido.");
+                    userPinInput.value = "";
+                } else {
+                    // Crear objeto de sesión (Regla de Oro para el resto de la app)
+                    const sesion = {
+                        id: usuario.id,
+                        nombre: usuario.nombre,
+                        rol: usuario.rol.toLowerCase(),
+                        restaurante_id: configRest.id,
+                        nombre_restaurante: configRest.nombre,
+                        horaEntrada: new Date().toLocaleTimeString()
+                    };
+                    
+                    localStorage.setItem('sesion_activa', JSON.stringify(sesion));
+
+                    // Registrar registro histórico de asistencia
+                    await window.db.from('asistencia').insert([{
+                        empleado_id: usuario.id,
+                        nombre_empleado: usuario.nombre,
+                        restaurante_id: configRest.id,
+                        hora_entrada: new Date().toISOString()
+                    }]);
+
+                    // Redirección según rol
+                    redirigirUsuario(sesion.rol);
+                }
+            } catch (err) {
+                alert("Error crítico: " + err.message);
+            } finally {
+                btnEntrar.disabled = false;
+                btnEntrar.innerText = "Registrar Entrada";
             }
         });
     }
 
-    function redirigirPorRol(rol) {
+    // 6. Utilidades
+    function redirigirUsuario(rol) {
         const rutas = {
+            'cocinero': 'cocina.html', // Corregido a cocina.html según tus archivos
             'dueño': 'ventas.html',
-            'cocinero': 'cocina.html',
-            'mesero': 'mesas.html'
+            'mesero': 'mesas.html',
+            'encargado': 'mesas.html'
         };
-        return rutas[rol] || 'mesas.html';
+        window.location.href = rutas[rol] || 'mesas.html';
     }
 
-    // Botón para desvincular restaurante
-    document.getElementById('btnCambiarRestaurante').onclick = (e) => {
-        e.preventDefault();
-        if(confirm("¿Quieres desvincular esta terminal del restaurante actual?")) {
-            localStorage.clear();
-            window.location.reload();
-        }
-    };
+    // Reloj en tiempo real
+    setInterval(() => {
+        const reloj = document.getElementById('relojActual');
+        if(reloj) reloj.textContent = new Date().toLocaleTimeString();
+    }, 1000);
+
+    // Botón para resetear terminal
+    const btnCambiar = document.getElementById('btnCambiarRestaurante');
+    if (btnCambiar) {
+        btnCambiar.onclick = (e) => {
+            e.preventDefault();
+            if(confirm("¿Vincular esta terminal a otro restaurante? Se borrará la configuración actual.")) {
+                localStorage.clear();
+                location.reload();
+            }
+        };
+    }
 });

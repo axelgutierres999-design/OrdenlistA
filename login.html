@@ -14,9 +14,10 @@
             justify-content: center; 
             background: var(--color-fondo); 
             background-image: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+            margin: 0;
         }
         .login-card { width: 100%; max-width: 420px; padding: 2rem; border-radius: 15px; background: white; box-shadow: 0 10px 30px rgba(0,0,0,0.1); }
-        .hidden { display: none; }
+        .hidden { display: none !important; }
         .reloj { font-size: 1.2rem; font-weight: bold; text-align: center; margin-bottom: 1rem; color: #10ad93; }
         .brand-logo { font-size: 3rem; text-align: center; margin-bottom: 0.5rem; display: block; }
     </style>
@@ -26,15 +27,15 @@
     <article id="pasoRestaurante" class="login-card">
         <span class="brand-logo">☕</span>
         <h2 style="text-align: center;">OrdenLista</h2>
-        <p style="text-align: center; color: #666; margin-bottom: 2rem;">Ingresa el nombre de tu negocio para empezar</p>
+        <p style="text-align: center; color: #666; margin-bottom: 2rem;">Ingresa el nombre exacto de tu negocio</p>
         
         <form id="formRestaurante">
-            <label>Nombre de tu Restaurante</label>
+            <label for="nombreRestaurante">Nombre del Restaurante</label>
             <input type="text" id="nombreRestaurante" placeholder="Ej. Café Central" required>
-            <button type="submit" class="contrast">Continuar</button>
+            <button type="submit" class="contrast">Configurar Terminal</button>
         </form>
         <footer style="text-align:center; margin-top:1rem;">
-            <a href="index.html" style="font-size: 0.85rem;">¿No tienes cuenta? Regístrate aquí</a>
+            <a href="index.html" style="font-size: 0.85rem;">¿Eres nuevo? Registra tu negocio aquí</a>
         </footer>
     </article>
 
@@ -46,16 +47,16 @@
         </header>
         
         <form id="formLogin">
-            <label>Usuario</label>
+            <label for="userSelect">Empleado / Usuario</label>
             <select id="userSelect" required>
-                <option value="" disabled selected>Cargando usuarios...</option>
+                <option value="" disabled selected>Cargando personal...</option>
             </select>
             
-            <label>PIN de Acceso</label>
-            <input type="password" id="userPin" placeholder="****" maxlength="4" required>
+            <label for="userPin">PIN de Acceso (4 dígitos)</label>
+            <input type="password" id="userPin" placeholder="****" maxlength="4" pattern="\d{4}" inputmode="numeric" required>
             
             <button id="btnEntrar" type="submit" class="contrast">Registrar Entrada</button>
-            <a href="#" id="btnCambiarRestaurante" style="display:block; text-align:center; margin-top:1rem; font-size:0.9rem;">Cambiar de Restaurante</a>
+            <a href="#" id="btnCambiarRestaurante" style="display:block; text-align:center; margin-top:1rem; font-size:0.9rem;">Vincular a otro restaurante</a>
         </form>
     </article>
 
