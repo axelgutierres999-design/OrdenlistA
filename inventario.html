@@ -12,6 +12,18 @@
         .suficiente { background-color: #28a745; }
         .bajo { background-color: #ffc107; color: #212529; }
         .agotado { background-color: #dc3545; }
+        
+        /* Estilo extra para la lista de ingredientes */
+        .item-ingrediente {
+            display: flex; 
+            justify-content: space-between; 
+            align-items: center;
+            background: #f9f9f9; 
+            margin-bottom: 8px; 
+            padding: 10px; 
+            border-radius: 6px;
+            border-left: 4px solid #10ad93;
+        }
     </style>
 </head>
 <body>
@@ -22,8 +34,12 @@
 
     <main class="container panel">
         <h1>📦 Gestión de Stock / Suministros</h1>
+        
         <div class="grid">
-            <button role="button" onclick="abrirNuevoInsumo()" class="contrast">+ Añadir Nuevo Insumo</button>
+            <button role="button" onclick="nuevoInsumo()" class="contrast">+ Nuevo Insumo</button>
+            
+            <button role="button" onclick="abrirGestorRecetas()" class="secondary">📖 Configurar Recetas</button>
+            
             <div style="display: flex; gap: 10px;">
                 <input type="text" id="busquedaInventario" placeholder="Buscar insumo..." />
             </div>
@@ -35,8 +51,7 @@
                     <th>Producto/Insumo</th>
                     <th>Categoría</th>
                     <th>Cantidad</th>
-                    <th>Editar</th>
-                    <th>Borrar</th>
+                    <th>Acciones</th>
                 </tr>
             </thead>
             <tbody id="tablaInventario"></tbody>
@@ -46,21 +61,68 @@
     <dialog id="modalEditarStock">
         <article>
             <header>
-                <button aria-label="Close" class="close" onclick="cerrarModalStock()"></button>
+                <button aria-label="Close" class="close" onclick="document.getElementById('modalEditarStock').close()"></button>
                 <h3 id="modalTitulo">Gestionar Stock</h3>
             </header>
             <form id="formStock">
                 <input type="hidden" id="stockId">
+                
                 <label>Nombre del Insumo <input type="text" id="stockNombre" placeholder="Ej. Leche entera" required /></label>
+                
                 <div class="grid">
-                    <label>Cantidad <input type="number" id="stockCantidad" step="0.1" required /></label>
+                    <label>Cantidad <input type="number" id="stockCantidad" step="0.001" required /></label>
                     <label>Unidad <input type="text" id="stockUnidad" placeholder="kg, L, pz" required /></label>
                 </div>
+
+                <label>Categoría <input type="text" id="stockCategoria" placeholder="Ej. Lácteos, Granos, Desechables" /></label>
+
                 <footer>
-                    <button type="button" class="secondary" onclick="cerrarModalStock()">Cancelar</button>
+                    <button type="button" class="secondary" onclick="document.getElementById('modalEditarStock').close()">Cancelar</button>
                     <button type="submit" class="contrast">Guardar</button>
                 </footer>
             </form>
+        </article>
+    </dialog>
+
+    <dialog id="modalRecetas">
+        <article style="min-width: 80%; max-width: 900px;">
+            <header>
+                <button aria-label="Close" class="close" onclick="document.getElementById('modalRecetas').close()"></button>
+                <h3>📖 Libro de Recetas (Costos)</h3>
+            </header>
+            
+            <div class="grid">
+                <div>
+                    <label><strong>1. ¿Qué platillo del menú configurarás?</strong></label>
+                    <select id="selectProductoReceta" style="margin-bottom: 20px;">
+                        <option>Cargando lista...</option>
+                    </select>
+
+                    <hr>
+
+                    <label><strong>2. Agregar Ingrediente a este plato</strong></label>
+                    <small>Selecciona un insumo del inventario:</small>
+                    <select id="selectInsumoReceta">
+                        <option>Cargando lista...</option>
+                    </select>
+                    
+                    <div class="grid">
+                        <label>Cantidad necesaria
+                            <input type="number" id="cantidadReceta" placeholder="Ej. 0.250" step="0.001">
+                        </label>
+                        <button id="btnAgregarIngrediente" style="margin-top: 28px;">➕ Añadir</button>
+                    </div>
+                </div>
+
+                <div style="border-left: 1px solid #eee; padding-left: 2rem;">
+                    <h6>📜 Ingredientes Actuales</h6>
+                    <p><small>Estos productos se descontarán del inventario al vender el plato seleccionado.</small></p>
+                    
+                    <ul id="listaIngredientes" style="list-style: none; padding: 0; max-height: 300px; overflow-y: auto;">
+                        <li style="color: #888; font-style: italic;">Selecciona un platillo para ver su receta.</li>
+                    </ul>
+                </div>
+            </div>
         </article>
     </dialog>
 

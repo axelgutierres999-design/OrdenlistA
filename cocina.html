@@ -3,73 +3,71 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>OrdenLista | Producción / Taller</title>
+  <title>OrdenLista | Producción / Cocina</title>
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@picocss/pico@1/css/pico.min.css" />
   <link rel="stylesheet" href="css/app.css" />
   <style>
       .panel-cocina { padding: 2rem 0; }
       .columna-kanban {
-          background-color: var(--color-superficie);
+          background-color: #f4f7f6;
           padding: 1rem;
           border-radius: 8px;
-          min-height: 60vh;
-          border: 1px solid #eee;
+          min-height: 70vh;
+          border: 1px solid #e0e0e0;
       }
       .tarjeta-orden {
           background-color: white;
-          border-radius: 4px;
-          box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+          border-radius: 6px;
+          box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
           animation: fadeIn 0.3s ease;
           padding: 1rem;
-          margin-bottom: 1rem;
+          margin-bottom: 1.2rem;
       }
       @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
       
-      /* Estilo para resaltar la página activa en el menú */
       .nav-botones a.activo {
           background: var(--color-acento-principal);
           color: white;
       }
+      h3 { font-size: 1.1rem; text-transform: uppercase; letter-spacing: 1px; }
   </style>
 </head>
 <body>
   <nav class="container-fluid nav-inicio nav-cuadros">
     <ul>
-      <li><strong>☕ OrdenLista</strong></li>
+      <li><strong>☕ OrdenLista | Producción</strong></li>
     </ul>
     <ul id="menuNavegacion" class="nav-botones"></ul>
   </nav>
 
   <main class="container panel-cocina">
-      <h1>🛠️ Panel de Producción</h1>
-      <p style="margin-bottom: 2rem;">Sistema KDS (Kitchen Display System)</p>
+      <header>
+          <h1>🛠️ Monitor de Producción</h1>
+          <p>Los pedidos finalizados descuentan automáticamente el stock del inventario.</p>
+      </header>
 
       <div class="grid" style="grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 1.5rem;">
           <div>
-              <h3 style="color: #c0392b;">🔥 Pendientes</h3>
+              <h3 style="color: #c0392b;">🔥 Entrantes</h3>
               <div class="columna-kanban" id="tareasPendientes"></div>
           </div>
 
           <div>
-              <h3 style="color: #f39c12;">🍳 En Proceso</h3>
+              <h3 style="color: #f39c12;">🍳 Preparando</h3>
               <div class="columna-kanban" id="tareasEnProceso"></div>
           </div>
 
           <div>
-              <h3 style="color: #27ae60;">✅ Terminadas</h3>
+              <h3 style="color: #27ae60;">✅ Listo para Entrega</h3>
               <div class="columna-kanban" id="tareasTerminadas"></div>
           </div>
       </div>
   </main>
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  
   <script src="js/supabase-client.js"></script>
-  
   <script src="js/logout.js"></script>
-  
   <script src="js/app.js"></script>
-  
   <script src="js/cocina.js"></script>
 </body>
 </html>

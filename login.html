@@ -26,12 +26,16 @@
     
     <article id="pasoRestaurante" class="login-card">
         <span class="brand-logo">☕</span>
-        <h2 style="text-align: center;">OrdenLista</h2>
-        <p style="text-align: center; color: #666; margin-bottom: 2rem;">Ingresa el nombre exacto de tu negocio</p>
+        <h2 style="text-align: center;">Vincular Negocio</h2>
+        <p style="text-align: center; color: #666; margin-bottom: 2rem;">Confirma los datos de administrador para activar esta terminal.</p>
         
         <form id="formRestaurante">
             <label for="nombreRestaurante">Nombre del Restaurante</label>
             <input type="text" id="nombreRestaurante" placeholder="Ej. Café Central" required>
+            
+            <label for="correoAdmin">Correo del Administrador</label>
+            <input type="email" id="correoAdmin" placeholder="admin@correo.com" required>
+            
             <button type="submit" class="contrast">Configurar Terminal</button>
         </form>
         <footer style="text-align:center; margin-top:1rem;">
@@ -52,11 +56,11 @@
                 <option value="" disabled selected>Cargando personal...</option>
             </select>
             
-            <label for="userPin">PIN de Acceso (4 dígitos)</label>
+            <label for="userPin">PIN de Acceso</label>
             <input type="password" id="userPin" placeholder="****" maxlength="4" pattern="\d{4}" inputmode="numeric" required>
             
             <button id="btnEntrar" type="submit" class="contrast">Registrar Entrada</button>
-            <a href="#" id="btnCambiarRestaurante" style="display:block; text-align:center; margin-top:1rem; font-size:0.9rem;">Vincular a otro restaurante</a>
+            <a href="#" id="btnCambiarRestaurante" style="display:block; text-align:center; margin-top:1rem; font-size:0.9rem;">Cambiar de Restaurante</a>
         </form>
     </article>
 

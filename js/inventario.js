@@ -1,134 +1,216 @@
-// js/inventario.js - GESTIÓN DE SUMINISTROS (CORREGIDO MULTINEGOCIO)
+// js/inventario.js - GESTIÓN DE STOCK Y RECETAS (SOLUCIÓN DEFINITIVA)
 
-document.addEventListener('DOMContentLoaded', () => {
+document.addEventListener('DOMContentLoaded', async () => {
     
-    // Obtener sesión para la REGLA DE ORO
+    // 1. VERIFICACIÓN DE SESIÓN (REGLA DE ORO)
     const sesion = JSON.parse(localStorage.getItem('sesion_activa'));
-    if (!sesion) return;
+    if (!sesion || !sesion.restaurante_id) {
+        alert("Sesión no válida. Redirigiendo...");
+        window.location.href = 'index.html';
+        return;
+    }
     const restoId = sesion.restaurante_id;
 
-    // Elementos del DOM
+    // --- VARIABLES GLOBALES DE INVENTARIO ---
     const tablaBody = document.getElementById('tablaInventario');
     const inputBusqueda = document.getElementById('busquedaInventario');
-    const modal = document.getElementById('modalEditarStock');
-    
-    // Elementos del Formulario
-    const inputId = document.getElementById('stockId');
-    const inputNombre = document.getElementById('stockNombre');
-    const inputCantidad = document.getElementById('stockCantidad');
-    const inputUnidad = document.getElementById('stockUnidad');
+    const modalStock = document.getElementById('modalEditarStock');
     const formStock = document.getElementById('formStock');
+    
+    // --- VARIABLES GLOBALES DE RECETAS ---
+    const modalRecetas = document.getElementById('modalRecetas'); // Necesitas agregar este HTML
+    const selectProductoReceta = document.getElementById('selectProductoReceta');
+    const selectInsumoReceta = document.getElementById('selectInsumoReceta');
+    const listaIngredientes = document.getElementById('listaIngredientes');
+    
+    // ========================================================================
+    // PARTE A: GESTIÓN DE INVENTARIO (CORREGIDO)
+    // ========================================================================
 
-    // --- RENDERIZADO ---
-    function renderizarInventario(filtro = "") {
-        if (!tablaBody || typeof App === 'undefined') return;
-        
-        // App.getSuministros() ya debería venir filtrado por app.js
-        const suministros = App.getSuministros();
-        const textoFiltro = filtro.toLowerCase();
+    async function cargarInventario(filtro = "") {
+        if (!tablaBody) return;
 
-        const filtrados = suministros.filter(s => 
-            s.nombre.toLowerCase().includes(textoFiltro) || 
-            (s.categoria && s.categoria.toLowerCase().includes(textoFiltro))
-        );
+        const { data: suministros, error } = await window.db
+            .from('suministros')
+            .select('*')
+            .eq('restaurante_id', restoId) // SIEMPRE FILTRAR POR RESTAURANTE
+            .ilike('nombre', `%${filtro}%`)
+            .order('nombre');
 
-        tablaBody.innerHTML = filtrados.map(s => {
-            const estiloAlerta = s.cantidad < 5 ? 'color: #d93526; font-weight: bold;' : '';
-            const badgeClase = s.cantidad <= 0 ? 'agotado' : (s.cantidad < 5 ? 'bajo' : 'suficiente');
-            
+        if (error) return console.error(error);
+
+        tablaBody.innerHTML = suministros.map(s => {
+            const alerta = s.cantidad < 5 ? 'color:red; font-weight:bold;' : 'color:green;';
             return `
             <tr>
-                <td><strong>${s.nombre}</strong></td>
-                <td><mark>${s.categoria || 'General'}</mark></td>
-                <td style="${estiloAlerta}">
-                    <span class="estado-inv ${badgeClase}">${s.cantidad} ${s.unidad || ''}</span>
+                <td>${s.nombre}</td>
+                <td><small>${s.categoria || 'Gral.'}</small></td>
+                <td style="${alerta}">${parseFloat(s.cantidad).toFixed(3)} ${s.unidad}</td>
+                <td>
+                    <button class="outline" onclick="editarInsumo('${s.id}')">✏️</button>
+                    <button class="outline secondary" onclick="borrarInsumo('${s.id}')">🗑️</button>
                 </td>
-                <td><button class="outline" onclick="abrirModalEditar('${s.id}')">✏️</button></td>
-                <td><button class="outline secondary" onclick="eliminarProducto('${s.id}')">🗑️</button></td>
-            </tr>
-            `;
+            </tr>`;
         }).join('');
     }
 
-    // --- FUNCIONES GLOBALES ---
-    
-    window.abrirModalEditar = (id) => {
-        const item = App.getSuministros().find(s => s.id == id);
-        if (item && modal) {
-            document.getElementById('modalTitulo').innerText = "Editar Insumo";
-            inputId.value = item.id;
-            inputNombre.value = item.nombre;
-            inputCantidad.value = item.cantidad;
-            inputUnidad.value = item.unidad || '';
-            modal.showModal();
+    // --- ABRIR MODAL STOCK ---
+    window.editarInsumo = async (id) => {
+        const { data } = await window.db.from('suministros').select('*').eq('id', id).single();
+        if (data) {
+            document.getElementById('stockId').value = data.id;
+            document.getElementById('stockNombre').value = data.nombre;
+            document.getElementById('stockCantidad').value = data.cantidad;
+            document.getElementById('stockUnidad').value = data.unidad;
+            document.getElementById('stockCategoria').value = data.categoria || '';
+            modalStock.showModal();
         }
     };
 
-    window.abrirNuevoInsumo = () => {
-        if (formStock) formStock.reset();
-        document.getElementById('modalTitulo').innerText = "Nuevo Insumo";
-        inputId.value = ""; // ID vacío significa "Nuevo"
-        modal.showModal();
+    window.nuevoInsumo = () => {
+        formStock.reset();
+        document.getElementById('stockId').value = "";
+        modalStock.showModal();
     };
 
-    window.cerrarModalStock = () => {
-        if (modal) modal.close();
-    };
-
-    // --- GUARDAR (CREAR O EDITAR) ---
+    // --- GUARDAR STOCK (CORRECCIÓN CRÍTICA AQUI) ---
     if (formStock) {
         formStock.onsubmit = async (e) => {
             e.preventDefault();
-            const id = inputId.value;
+            
+            // LEEMOS LA SESIÓN JUSTO ANTES DE GUARDAR PARA EVITAR ERRORES
+            const sesionActual = JSON.parse(localStorage.getItem('sesion_activa'));
+            if (!sesionActual) return alert("Error de sesión");
+
+            const id = document.getElementById('stockId').value;
             const datos = {
-                nombre: inputNombre.value,
-                cantidad: parseFloat(inputCantidad.value),
-                unidad: inputUnidad.value,
-                restaurante_id: restoId // REGLA DE ORO
+                nombre: document.getElementById('stockNombre').value.trim(),
+                cantidad: parseFloat(document.getElementById('stockCantidad').value),
+                unidad: document.getElementById('stockUnidad').value,
+                categoria: document.getElementById('stockCategoria').value,
+                restaurante_id: sesionActual.restaurante_id // <--- LA CLAVE DEL ÉXITO
             };
 
-            let resultado;
-            if (id) {
-                // UPDATE con filtro de seguridad
-                resultado = await db.from('suministros').update(datos).eq('id', id).eq('restaurante_id', restoId);
-            } else {
-                // INSERT
-                resultado = await db.from('suministros').insert([datos]);
-            }
+            const query = id 
+                ? window.db.from('suministros').update(datos).eq('id', id)
+                : window.db.from('suministros').insert([datos]);
 
-            if (!resultado.error) {
-                await App.init(); // Recarga datos de Supabase
-                cerrarModalStock();
+            const { error } = await query;
+
+            if (!error) {
+                modalStock.close();
+                cargarInventario();
             } else {
-                alert("Error: " + resultado.error.message);
+                alert("Error al guardar: " + error.message);
             }
         };
     }
 
-    // --- ELIMINAR ---
-    window.eliminarProducto = async (id) => {
-        if(confirm("¿Eliminar este insumo del inventario?")) {
-            const { error } = await db.from('suministros')
-                .delete()
-                .eq('id', id)
-                .eq('restaurante_id', restoId); // REGLA DE ORO
-            
-            if (!error) {
-                await App.init();
-            } else {
-                alert("Error: " + error.message);
-            }
+    window.borrarInsumo = async (id) => {
+        if (confirm("¿Borrar este insumo? Si es parte de una receta, afectará el cálculo.")) {
+            await window.db.from('suministros').delete().eq('id', id);
+            cargarInventario();
         }
     };
 
-    // Búsqueda
-    if (inputBusqueda) {
-        inputBusqueda.addEventListener('input', (e) => renderizarInventario(e.target.value));
+    // ========================================================================
+    // PARTE B: GESTIÓN DE RECETAS (NUEVA FUNCIÓN)
+    // ========================================================================
+
+    // 1. Abrir el Panel de Recetas
+    window.abrirGestorRecetas = async () => {
+        if (!modalRecetas) return alert("Falta agregar el HTML del modal de recetas.");
+        
+        // Cargar Productos en el Select
+        const { data: productos } = await window.db.from('productos').select('id, nombre').eq('restaurante_id', restoId);
+        selectProductoReceta.innerHTML = '<option value="" disabled selected>Selecciona un Platillo</option>';
+        productos.forEach(p => {
+            selectProductoReceta.innerHTML += `<option value="${p.id}">${p.nombre}</option>`;
+        });
+
+        // Cargar Insumos en el Select
+        const { data: insumos } = await window.db.from('suministros').select('id, nombre, unidad').eq('restaurante_id', restoId);
+        selectInsumoReceta.innerHTML = '<option value="" disabled selected>Selecciona un Ingrediente</option>';
+        insumos.forEach(i => {
+            selectInsumoReceta.innerHTML += `<option value="${i.id}" data-unidad="${i.unidad}">${i.nombre} (${i.unidad})</option>`;
+        });
+
+        modalRecetas.showModal();
+    };
+
+    // 2. Cuando seleccionas un producto, cargar sus ingredientes actuales
+    if (selectProductoReceta) {
+        selectProductoReceta.addEventListener('change', async (e) => {
+            cargarIngredientesDeReceta(e.target.value);
+        });
     }
 
-    // Registro en el sistema central
-    if (typeof App !== 'undefined') {
-        App.registerRender('inventario', () => renderizarInventario(inputBusqueda?.value || ""));
-        renderizarInventario();
+    async function cargarIngredientesDeReceta(productoId) {
+        listaIngredientes.innerHTML = 'Cargando...';
+        
+        const { data: receta, error } = await window.db
+            .from('recetas')
+            .select(`
+                id,
+                cantidad_necesaria,
+                suministros ( nombre, unidad )
+            `)
+            .eq('producto_id', productoId)
+            .eq('restaurante_id', restoId); // Seguridad
+
+        listaIngredientes.innerHTML = '';
+        
+        if (receta && receta.length > 0) {
+            receta.forEach(r => {
+                const nombreInsumo = r.suministros ? r.suministros.nombre : 'Insumo borrado';
+                const unidad = r.suministros ? r.suministros.unidad : '';
+                
+                listaIngredientes.innerHTML += `
+                    <li style="display:flex; justify-content:space-between; margin-bottom:0.5rem; padding:0.5rem; background:#f4f4f4; border-radius:5px;">
+                        <span>${nombreInsumo}: <strong>${r.cantidad_necesaria} ${unidad}</strong></span>
+                        <a href="#" onclick="quitarIngrediente('${r.id}', '${productoId}')" style="color:red; text-decoration:none;">❌</a>
+                    </li>
+                `;
+            });
+        } else {
+            listaIngredientes.innerHTML = '<small>Este producto aún no tiene receta configurada.</small>';
+        }
     }
+
+    // 3. Agregar Ingrediente a la Receta
+    document.getElementById('btnAgregarIngrediente').onclick = async (e) => {
+        e.preventDefault();
+        const prodId = selectProductoReceta.value;
+        const insumoId = selectInsumoReceta.value;
+        const cantidad = parseFloat(document.getElementById('cantidadReceta').value);
+
+        if (!prodId || !insumoId || isNaN(cantidad)) return alert("Completa los datos de la receta");
+
+        const { error } = await window.db.from('recetas').insert([{
+            restaurante_id: restoId,
+            producto_id: prodId,
+            suministro_id: insumoId,
+            cantidad_necesaria: cantidad
+        }]);
+
+        if (!error) {
+            cargarIngredientesDeReceta(prodId);
+            document.getElementById('cantidadReceta').value = "";
+        } else {
+            alert("Error al agregar ingrediente: " + error.message);
+        }
+    };
+
+    // 4. Eliminar Ingrediente
+    window.quitarIngrediente = async (recetaId, prodId) => {
+        await window.db.from('recetas').delete().eq('id', recetaId);
+        cargarIngredientesDeReceta(prodId);
+    };
+
+    // --- INICIALIZACIÓN ---
+    if (inputBusqueda) {
+        inputBusqueda.addEventListener('input', (e) => cargarInventario(e.target.value));
+    }
+    
+    cargarInventario();
 });
