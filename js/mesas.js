@@ -1,44 +1,33 @@
-// js/mesas.js - GESTIÓN DE SALÓN (CORREGIDO MULTINEGOCIO)
+// js/mesas.js - GESTIÓN DE SALÓN (CORREGIDO Y CONECTADO)
 
-document.addEventListener('DOMContentLoaded', () => {
+document.addEventListener('DOMContentLoaded', async () => {
     const contenedorMesas = document.getElementById('contenedorMesas');
     const inputNumMesas = document.getElementById('numMesasInput');
     
-    // Obtener sesión activa para asegurar que guardamos la config por restaurante
+    // Obtener sesión activa
     const sesion = JSON.parse(localStorage.getItem('sesion_activa'));
-    if (!sesion) return;
+    if (!sesion) return window.location.href = 'login.html';
 
-    // La cantidad de mesas se guarda en localStorage pero con el prefijo del restaurante_id
-    const keyMesas = `total_mesas_${sesion.restaurante_id}`;
-    let totalMesas = parseInt(localStorage.getItem(keyMesas)) || 10;
-    if (inputNumMesas) inputNumMesas.value = totalMesas;
+    let totalMesas = 10; // Valor por defecto
 
-    // --- GENERADOR DE QR ---
-    window.generarQR = (numMesa) => {
-        const urlBase = window.location.href.substring(0, window.location.href.lastIndexOf('/'));
-        // Pasamos tanto la mesa como el restaurante_id para que el cliente ordene al lugar correcto
-        const urlFinal = `${urlBase}/menu.html?mesa=${numMesa}&rid=${sesion.restaurante_id}`;
-        
-        const ventana = window.open("", "_blank", "width=400,height=550");
-        ventana.document.write(`
-            <html>
-            <head><title>QR Mesa ${numMesa}</title>
-            <script src="https://cdnjs.cloudflare.com/ajax/libs/qrious/4.0.2/qrious.min.js"></script>
-            <style>body{text-align:center; font-family:sans-serif; padding:20px; color: #333;} #qr{margin: 20px 0;} .btn{padding:10px 20px; background:black; color:white; border:none; border-radius:5px; cursor:pointer; font-weight:bold;}</style>
-            </head>
-            <body>
-                <h1 style="margin-bottom:0;">${sesion.nombre_restaurante || 'Mi Café'}</h1>
-                <h2 style="margin-top:5px;">Mesa ${numMesa}</h2>
-                <canvas id="qr"></canvas>
-                <p>Escanea el código para ver el menú y ordenar directamente desde tu móvil.</p>
-                <button class="btn" onclick="window.print()">Imprimir Código</button>
-                <script>new QRious({element: document.getElementById('qr'), value: '${urlFinal}', size: 250, level: 'H'});</script>
-            </body></html>
-        `);
-        ventana.document.close();
-    };
+    // 1. CARGAR CONFIGURACIÓN REAL (Desde Base de Datos)
+    // Esto asegura que si cambias el número de mesas, se actualice en todos los dispositivos
+    async function cargarConfiguracion() {
+        if (typeof db !== 'undefined') {
+            const { data, error } = await db.from('restaurantes')
+                .select('num_mesas')
+                .eq('id', sesion.restaurante_id)
+                .single();
+            
+            if (data && data.num_mesas) {
+                totalMesas = data.num_mesas;
+                if (inputNumMesas) inputNumMesas.value = totalMesas;
+                renderizarMesas(); // Re-renderizar con el número correcto
+            }
+        }
+    }
 
-    // --- RENDERIZADO REACTIVO ---
+    // --- RENDERIZADO REACTIVO DE LAS MESAS ---
     function renderizarMesas() {
         if (!contenedorMesas || typeof App === 'undefined') return;
         contenedorMesas.innerHTML = '';
@@ -47,7 +36,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         for (let i = 1; i <= totalMesas; i++) {
             const nombreMesa = `Mesa ${i}`;
-            // Buscar orden activa del negocio (App ya filtra por restaurante_id)
+            // Buscar si esta mesa tiene una orden activa
             const orden = ordenes.find(o => o.mesa === nombreMesa && o.estado !== 'pagado' && o.estado !== 'cancelado');
             
             let clase = 'mesa-libre';
@@ -56,27 +45,43 @@ document.addEventListener('DOMContentLoaded', () => {
 
             if (orden) {
                 if (orden.estado === 'por_confirmar') {
+                    // CASO: Cliente pidió por QR y espera confirmación
                     clase = 'mesa-urgente'; 
-                    estadoTexto = '🔔 PEDIDO QR';
+                    estadoTexto = '🔔 SOLICITUD QR';
                     contenido = `
-                        <button onclick="App.aceptarOrdenQR('${orden.id}')" class="primary" style="width:100%; margin-bottom:5px;">✅ Aceptar</button>
-                        <button onclick="App.eliminarOrden('${orden.id}')" class="secondary outline" style="width:100%;">❌ Rechazar</button>
+                        <div style="background: white; padding: 5px; border-radius: 4px; margin-bottom: 5px;">
+                            <small>Solicita abrir cuenta</small>
+                        </div>
+                        <div class="grid">
+                            <button onclick="App.aceptarOrdenQR('${orden.id}')" class="primary" style="font-size:0.8rem;">✅ Aceptar</button>
+                            <button onclick="App.eliminarOrden('${orden.id}')" class="secondary outline" style="font-size:0.8rem;">❌</button>
+                        </div>
                     `;
                 } else {
+                    // CASO: Mesa ocupada con orden en curso
                     clase = 'mesa-ocupada';
                     estadoTexto = `Ocupada ($${parseFloat(orden.total).toFixed(2)})`;
+                    
+                    // Botón COBRAR conectado a App.liberarMesaManual (La solución al problema)
                     contenido = `
-                        <button onclick="abrirModalCobro('${orden.id}')" style="width:100%; background:#27ae60; border:none; color:white; margin-bottom:5px; font-weight:bold;">💰 Cobrar</button>
+                        <button onclick="App.liberarMesaManual('${orden.id}')" style="width:100%; background:#27ae60; border:none; color:white; margin-bottom:5px; font-weight:bold; padding: 10px;">
+                            💰 Cobrar $${parseFloat(orden.total).toFixed(2)}
+                        </button>
                         <div class="grid">
-                            <button class="secondary outline" style="padding:5px;" onclick="window.location.href='ordenes.html'">Monitor</button>
-                            <button class="outline" style="padding:5px;" onclick="window.location.href='menu.html?mesa=${i}'">+ Item</button>
+                            <button class="secondary outline" style="padding:5px;" onclick="window.location.href='ordenes.html'">Ver Estado</button>
+                            <button class="outline" style="padding:5px;" onclick="window.location.href='menu.html?mesa=${i}'">+ Agregar</button>
                         </div>
                     `;
                 }
             } else {
+                // CASO: Mesa Libre
                 contenido = `
-                    <button class="outline" onclick="window.location.href='menu.html?mesa=${i}'" style="width:100%; margin-bottom:10px;">📝 Abrir Cuenta</button>
-                    <button class="secondary outline" onclick="generarQR('${i}')" style="width:100%; border-style: dashed;">📱 Generar QR</button>
+                    <button class="outline" onclick="window.location.href='menu.html?mesa=${i}'" style="width:100%; margin-bottom:10px;">
+                        📝 Nueva Orden
+                    </button>
+                    <button class="secondary outline" onclick="generarQR('${i}')" style="width:100%; border-style: dashed; font-size: 0.8rem;">
+                        📱 Ver QR
+                    </button>
                 `;
             }
 
@@ -84,11 +89,12 @@ document.addEventListener('DOMContentLoaded', () => {
             div.className = `mesa-card ${clase}`;
             div.innerHTML = `
                 <div class="mesa-header">
-                    <span class="mesa-icon">${orden ? '☕' : '🪑'}</span>
+                    <span class="mesa-icon">${orden ? '🍽️' : '🪑'}</span>
                     <h3 style="margin:0;">${nombreMesa}</h3>
-                    <span class="badge" style="font-size:0.7rem;">${estadoTexto}</span>
                 </div>
-                <hr style="margin: 10px 0;">
+                <div style="text-align:center; margin-bottom:10px;">
+                    <span class="badge" style="font-size:0.75rem; background:${orden ? '' : '#7f8c8d'}">${estadoTexto}</span>
+                </div>
                 <div class="mesa-body">
                     ${contenido}
                 </div>
@@ -97,53 +103,58 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    // --- LÓGICA DE COBRO (MODAL) ---
-    window.abrirModalCobro = (ordenId) => {
-        const o = App.getOrdenes().find(item => item.id === ordenId);
-        if (!o) return;
+    // --- GENERADOR DE QR ---
+    window.generarQR = (numMesa) => {
+        const urlBase = window.location.href.substring(0, window.location.href.lastIndexOf('/'));
+        const urlFinal = `${urlBase}/menu.html?mesa=${numMesa}&rid=${sesion.restaurante_id}`;
         
-        const modal = document.getElementById('modalTicket');
-        document.getElementById('t-folio').textContent = o.id.slice(-6).toUpperCase();
-        document.getElementById('t-mesa').textContent = o.mesa;
-        document.getElementById('t-total').textContent = parseFloat(o.total).toFixed(2);
-        document.getElementById('t-fecha').textContent = new Date().toLocaleString();
-        
-        const tbody = document.getElementById('t-items');
-        tbody.innerHTML = '';
-        o.productos.split(',').forEach(p => {
-            tbody.innerHTML += `<tr><td style="padding:4px 0;">${p.trim()}</td><td style="text-align:right;">-</td></tr>`;
-        });
-
-        // Configurar botones de pago final
-        document.getElementById('btnEfectivo').onclick = () => procesarPago(ordenId, 'efectivo');
-        document.getElementById('btnTarjeta').onclick = () => procesarPago(ordenId, 'tarjeta');
-
-        modal.style.display = 'flex';
+        const ventana = window.open("", "_blank", "width=400,height=550");
+        ventana.document.write(`
+            <html>
+            <head><title>QR Mesa ${numMesa}</title>
+            <script src="https://cdnjs.cloudflare.com/ajax/libs/qrious/4.0.2/qrious.min.js"></script>
+            <style>
+                body{text-align:center; font-family:'Segoe UI', sans-serif; padding:40px 20px; color: #333;} 
+                .btn{padding:12px 24px; background:#333; color:white; border:none; border-radius:6px; cursor:pointer; font-weight:bold; margin-top:20px;}
+            </style>
+            </head>
+            <body>
+                <h1 style="margin:0;">${sesion.nombre_restaurante || 'Mi Restaurante'}</h1>
+                <p style="color:#666;">Escanea para ver el menú</p>
+                <canvas id="qr"></canvas>
+                <h2 style="margin-top:10px;">Mesa ${numMesa}</h2>
+                <button class="btn" onclick="window.print()">🖨️ Imprimir QR</button>
+                <script>new QRious({element: document.getElementById('qr'), value: '${urlFinal}', size: 250, level: 'H'});</script>
+            </body></html>
+        `);
+        ventana.document.close();
     };
 
-    async function procesarPago(id, metodo) {
-        if (confirm(`¿Confirmar pago en ${metodo.toUpperCase()}?`)) {
-            // Llamamos a la función centralizada en App.js
-            const exito = await App.cambiarEstadoOrden(id, 'pagado', metodo);
-            if (exito) {
-                document.getElementById('modalTicket').style.display = 'none';
-                // El render se dispara automáticamente por la suscripción de App.js
-            }
-        }
-    }
-
-    window.guardarConfig = () => {
+    // --- GUARDAR CONFIGURACIÓN EN DB ---
+    window.guardarConfig = async () => {
         const val = parseInt(inputNumMesas.value);
         if (val > 0) {
-            localStorage.setItem(keyMesas, val);
-            totalMesas = val;
-            renderizarMesas();
+            // Guardamos en la base de datos para persistencia real
+            const { error } = await db.from('restaurantes')
+                .update({ num_mesas: val })
+                .eq('id', sesion.restaurante_id);
+            
+            if (!error) {
+                totalMesas = val;
+                alert("Configuración guardada correctamente");
+                renderizarMesas();
+            } else {
+                alert("Error al guardar: " + error.message);
+            }
         }
     };
 
-    // CONEXIÓN CON APP.JS
+    // INICIALIZACIÓN
+    await cargarConfiguracion();
+
+    // Conectar con App.js para que se actualice solo cuando cambien las órdenes
     if (typeof App !== 'undefined') {
         App.registerRender('mesas', renderizarMesas);
-        renderizarMesas();
+        renderizarMesas(); // Render inicial
     }
 });
