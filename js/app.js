@@ -1,4 +1,4 @@
-// js/app.js - LÓGICA INTEGRAL CENTRALIZADA (ORDENLISTA)
+// js/app.js - LÓGICA INTEGRAL CENTRALIZADA (ORDENLISTA) - ACTUALIZADO
 const App = (function() {
   let ordenes = [];
   let suministros = [];
@@ -10,20 +10,7 @@ const App = (function() {
     return sesion ? sesion.restaurante_id : null;
   };
 
-  // Base de datos de recetas para descuento de inventario
-  let recetas = JSON.parse(localStorage.getItem('recetas_db')) || {
-    'cafe americano': { 'cafe en grano': 0.015 },
-    'cafe con leche': { 'cafe en grano': 0.015, 'leche entera': 0.150 },
-    'te de hierbas': { 'te de hierbas': 1 },
-    'pastel de chocolate': { 'pastel de chocolate': 1 },
-    'jugo de naranja': { 'jugo de naranja': 1 }
-  };
-
   const renderCallbacks = {};
-
-  // Normalizador para comparar nombres de productos e ingredientes
-  const normalizar = (texto) =>
-    texto ? texto.toLowerCase().trim().normalize("NFD").replace(/[\u0300-\u036f]/g, "") : "";
 
   // 1. CARGA DE DATOS DESDE SUPABASE
   const cargarDatosIniciales = async () => {
@@ -114,7 +101,7 @@ const App = (function() {
     }).join('');
 
     ventana.document.write(`
-        <html><head><title>Ticket #${venta.id.slice(-5)}</title>
+        <html><head><title>Ticket #${venta.id.toString().slice(-5)}</title>
             <style>body { font-family: 'Courier New', monospace; font-size: 13px; padding: 10px; text-align: center; } table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 12px; } th { border-bottom: 1px dashed black; } .total { font-size: 18px; font-weight: bold; margin-top: 15px; border-top: 1px dashed black; padding-top: 10px; } @media print { .no-print { display: none; } }</style>
         </head><body>
             <h3>${JSON.parse(localStorage.getItem('sesion_activa'))?.nombre_restaurante || 'ORDENLISTA'}</h3><p>Ticket de Venta</p>
@@ -131,7 +118,6 @@ const App = (function() {
     getOrdenes: () => ordenes,
     getSuministros: () => suministros,
     getVentas: () => ventas,
-    getRecetas: () => recetas,
 
     // AGREGAR O ACTUALIZAR ORDEN (LÓGICA MULTI-PRODUCTO POR MESA)
     addOrden: async (orden) => {
@@ -139,25 +125,19 @@ const App = (function() {
       if (!restoId) return;
       let nuevaOrden = { ...orden, restaurante_id: restoId };
       
-      if (orden.estado === 'por_confirmar') {
-          nuevaOrden.id = `PEND-${Date.now()}`;
-      } else {
-          // Si la mesa ya tiene una orden abierta, acumulamos los productos
-          const existente = ordenes.find(o => o.mesa === orden.mesa && o.estado !== 'pagado' && o.estado !== 'cancelado');
-          if (existente) {
-             const prodActualizado = existente.productos + `, ${orden.productos}`;
-             const totalActualizado = existente.total + orden.total;
-             const comActualizado = (existente.comentarios ? existente.comentarios + " | " : "") + (orden.comentarios || "");
-             
-             await db.from('ordenes').update({
-                 productos: prodActualizado,
-                 total: totalActualizado,
-                 comentarios: comActualizado,
-                 estado: 'pendiente' // Regresa a pendiente para que cocina lo vea
-             }).eq('id', existente.id);
-             return { id: existente.id };
-          }
-          nuevaOrden.estado = 'pendiente';
+      const existente = ordenes.find(o => o.mesa === orden.mesa && o.estado !== 'pagado' && o.estado !== 'cancelado');
+      if (existente) {
+         const prodActualizado = existente.productos + `, ${orden.productos}`;
+         const totalActualizado = existente.total + orden.total;
+         const comActualizado = (existente.comentarios ? existente.comentarios + " | " : "") + (orden.comentarios || "");
+         
+         await db.from('ordenes').update({
+             productos: prodActualizado,
+             total: totalActualizado,
+             comentarios: comActualizado,
+             estado: 'pendiente'
+         }).eq('id', existente.id);
+         return { id: existente.id };
       }
 
       await db.from('ordenes').insert([nuevaOrden]);
@@ -166,11 +146,8 @@ const App = (function() {
 
     // CAMBIO DE ESTADO (COCINA -> LISTO)
     updateEstado: async (id, nuevoEstado) => {
-      const orden = ordenes.find(o => o.id === id);
-      // Cuando la orden pasa a 'terminado' (Lista para entrega), descontamos stock
-      if(orden && nuevoEstado === 'terminado') {
-          App.descontarInventario(orden.productos);
-      }
+      // IMPORTANTE: El descuento de inventario se hace ahora vía TRIGGER en SQL
+      // al detectar el estado 'terminado'. No hace falta llamar a JS.
       await db.from('ordenes').update({ estado: nuevoEstado }).eq('id', id);
     },
 
@@ -186,54 +163,17 @@ const App = (function() {
           mesa: orden.mesa,
           productos: orden.productos,
           total: orden.total,
-          metodo_pago: metodo,
-          created_at: new Date().toISOString()
+          metodo_pago: metodo
         };
 
-        // 1. Registrar la venta en el historial
         const { data: vtaGuardada, error } = await db.from('ventas').insert([venta]).select().single();
         
         if (!error) {
-            // 2. Marcar la orden como pagada (esto la quita de la vista de mesas y cocina)
             await db.from('ordenes').update({ estado: 'pagado' }).eq('id', id);
-            
-            // 3. Imprimir ticket
             imprimirTicketVenta(vtaGuardada);
-            
-            // 4. Actualizar datos locales
             App.init();
         } else {
             alert("Error al procesar venta: " + error.message);
-        }
-      });
-    },
-
-    // LÓGICA DE DESCUENTO DE STOCK
-    descontarInventario: (productosString) => {
-      if (!productosString) return;
-      const items = productosString.split(',');
-      items.forEach(async item => {
-        // Formato esperado: "1x Cafe Americano"
-        const partes = item.trim().split('x '); 
-        if (partes.length < 2) return;
-        
-        const cantidadPedida = parseInt(partes[0]);
-        const nombreProducto = normalizar(partes[1]);
-        const receta = recetas[nombreProducto];
-
-        if (receta) {
-          for (let ingrediente in receta) {
-            const insumo = suministros.find(s => normalizar(s.nombre) === normalizar(ingrediente));
-            if (insumo) {
-              const cantidadADescontar = receta[ingrediente] * cantidadPedida;
-              const nuevaCant = parseFloat((insumo.cantidad - cantidadADescontar).toFixed(3));
-              
-              await db.from('suministros')
-                .update({ cantidad: nuevaCant })
-                .eq('id', insumo.id)
-                .eq('restaurante_id', getRestoId());
-            }
-          }
         }
       });
     },
@@ -275,7 +215,7 @@ function renderizarMenuSeguro() {
             <li><a href="empleados.html" class="${pag === 'empleados.html' ? 'activo' : ''}">👥 Empleados</a></li>
             <li><a href="ventas.html" class="${pag === 'ventas.html' ? 'activo' : ''}">📊 Ventas</a></li>
         ` : ''}
-        <li><button onclick="cerrarSesion()" class="outline contrast" style="padding:4px 10px; margin-left:10px;">Salir</button></li>
+        <li><button onclick="localStorage.removeItem('sesion_activa'); location.reload();" class="outline contrast" style="padding:4px 10px; margin-left:10px;">Salir</button></li>
     `;
 }
 
@@ -287,7 +227,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
   const restoId = JSON.parse(localStorage.getItem('sesion_activa'))?.restaurante_id;
   if (typeof db !== 'undefined' && restoId) {
-      // Suscripción a cambios en tiempo real para Órdenes del negocio actual
       db.channel('cambios-ordenes')
       .on('postgres_changes', { 
           event: '*', 
