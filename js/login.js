@@ -19,7 +19,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         cargarUsuarios(restGuardado.id);
     }
 
-    // 2. Paso 1: Vincular Negocio (CORRECCIÓN DE LÓGICA)
+    // 2. Paso 1: Vincular Negocio
     if (formRest) {
         formRest.addEventListener('submit', async (e) => {
             e.preventDefault();
@@ -28,8 +28,6 @@ document.addEventListener('DOMContentLoaded', async () => {
             
             if (!window.db) return alert("Sin conexión a la base de datos");
 
-            // CAMBIO CLAVE: Buscamos directamente en la tabla 'restaurantes' 
-            // usando el campo correo_admin que definimos en el SQL
             const { data: restaurante, error: errRest } = await window.db
                 .from('restaurantes')
                 .select('id, nombre, correo_admin')
@@ -45,12 +43,10 @@ document.addEventListener('DOMContentLoaded', async () => {
                 return alert("No existe ningún restaurante registrado con el correo: " + correoBusqueda);
             }
 
-            // Validar que el nombre coincida (ignorando mayúsculas/minúsculas)
             if (restaurante.nombre.toLowerCase() !== nombreBusqueda.toLowerCase()) {
                 return alert("El nombre del restaurante no coincide con el correo proporcionado.");
             }
 
-            // Éxito: Guardamos la vinculación en el navegador
             localStorage.setItem('config_restaurante', JSON.stringify({
                 id: restaurante.id,
                 nombre: restaurante.nombre
@@ -61,7 +57,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         });
     }
 
-    // 3. Cargar Usuarios del restaurante vinculado
+    // 3. Cargar Usuarios (AJUSTE DE SEGURIDAD PARA LLENAR EL SELECTOR)
     async function cargarUsuarios(restauranteId) {
         const { data, error } = await window.db
             .from('perfiles')
@@ -69,12 +65,19 @@ document.addEventListener('DOMContentLoaded', async () => {
             .eq('restaurante_id', restauranteId)
             .order('nombre', { ascending: true });
 
-        if (error) console.error("Error cargando usuarios:", error);
+        if (error) {
+            console.error("Error cargando usuarios:", error);
+            return;
+        }
 
         if (data && userSelect) {
+            // Limpiamos y aseguramos la opción por defecto
             userSelect.innerHTML = '<option value="" disabled selected>Selecciona tu nombre</option>';
             data.forEach(u => {
-                userSelect.innerHTML += `<option value="${u.id}">${u.nombre} (${u.rol})</option>`;
+                const opt = document.createElement('option');
+                opt.value = u.id;
+                opt.textContent = `${u.nombre} (${u.rol})`;
+                userSelect.appendChild(opt);
             });
         }
     }
@@ -114,7 +117,6 @@ document.addEventListener('DOMContentLoaded', async () => {
                     };
                     localStorage.setItem('sesion_activa', JSON.stringify(sesion));
 
-                    // Registro de Asistencia
                     await window.db.from('asistencia').insert([{
                         empleado_id: usuario.id,
                         nombre_empleado: usuario.nombre,
@@ -143,18 +145,16 @@ document.addEventListener('DOMContentLoaded', async () => {
         window.location.href = rutas[rol] || 'mesas.html';
     }
 
-    // Reloj digital
     setInterval(() => {
         const reloj = document.getElementById('relojActual');
         if(reloj) reloj.textContent = new Date().toLocaleTimeString();
     }, 1000);
 
-    // Botón para desvincular
     const btnCambiar = document.getElementById('btnCambiarRestaurante');
     if (btnCambiar) {
         btnCambiar.onclick = (e) => {
             e.preventDefault();
-            if(confirm("¿Deseas desvincular esta terminal? Se borrarán los datos de sesión.")) {
+            if(confirm("¿Deseas desvincular esta terminal?")) {
                 localStorage.clear();
                 location.reload();
             }
