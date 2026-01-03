@@ -1,7 +1,7 @@
-// js/menu.js - TOMA DE PEDIDOS Y GESTIÓN DE PRODUCTOS (ACTUALIZADO)
+// js/menu.js - TOMA DE PEDIDOS Y GESTIÓN DE PRODUCTOS (CORREGIDO)
 document.addEventListener('DOMContentLoaded', async () => {
     const params = new URLSearchParams(window.location.search);
-    const mesaURL = params.get('mesa'); // Mesa específica desde mesas.html
+    const mesaURL = params.get('mesa'); 
     const restauranteIdURL = params.get('rid'); 
     
     const sesion = JSON.parse(localStorage.getItem('sesion_activa')) || { rol: 'invitado' };
@@ -17,11 +17,10 @@ document.addEventListener('DOMContentLoaded', async () => {
     let ordenActual = [];
     let productosMenu = [];
 
-    // 1. CARGA INICIAL DINÁMICA
+    // 1. CARGA INICIAL
     async function inicializar() {
         if (!restoIdActivo) return;
 
-        // A. Sincronizar Mesas
         if (mesaURL) {
             if (selectMesa) {
                 selectMesa.innerHTML = `<option value="Mesa ${mesaURL}" selected>Mesa ${mesaURL}</option>`;
@@ -37,7 +36,6 @@ document.addEventListener('DOMContentLoaded', async () => {
             }
         }
 
-        // B. Cargar Productos y Sincronizar con Stock
         const { data: productos } = await db.from('productos').select('*').eq('restaurante_id', restoIdActivo);
         const { data: suministros } = await db.from('suministros').select('nombre, cantidad').eq('restaurante_id', restoIdActivo);
         
@@ -54,7 +52,6 @@ document.addEventListener('DOMContentLoaded', async () => {
         if (!contenedorProductos) return;
         contenedorProductos.innerHTML = '';
 
-        // Botón Nuevo Producto (Solo dueños)
         if (sesion.rol === 'dueño') {
             const btnNuevo = document.createElement('article');
             btnNuevo.className = "tarjeta-producto nuevo-producto-btn";
@@ -118,7 +115,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         if (!mesaLabel) return alert("Selecciona una mesa");
 
         const nuevaOrden = {
-            id: 'ORD-' + Date.now(), // ID Temporal único
+            id: 'ORD-' + Date.now(),
             mesa: mesaLabel,
             productos: ordenActual.map(i => `${i.cantidad}x ${i.nombre}`).join(', '),
             total: parseFloat(ordenTotalSpan.textContent.replace('$', '')),
@@ -129,46 +126,64 @@ document.addEventListener('DOMContentLoaded', async () => {
 
         const { error } = await db.from('ordenes').insert([nuevaOrden]);
         if (!error) {
-            alert("¡Orden enviada a cocina!");
+            alert("¡Orden enviada!");
             window.location.href = "mesas.html";
-        } else {
-            alert("Error al enviar orden: " + error.message);
         }
     };
 
-    // 4. EDITOR DE PRODUCTOS (CRUD)
+    // 4. EDITOR DE PRODUCTOS
     window.abrirEditor = (id = null, e = null) => {
         if(e) e.stopPropagation();
         const form = document.getElementById('formProducto');
         form.reset();
+        
+        // Reset de imagen preview
+        const preview = document.getElementById('imgPreview');
+        if(preview) preview.src = 'https://via.placeholder.com/150';
+
         document.getElementById('editId').value = id || "";
         
         if (id) {
             const p = productosMenu.find(x => x.id === id);
             document.getElementById('editNombre').value = p.nombre;
             document.getElementById('editPrecio').value = p.precio;
-            document.getElementById('editImg').value = p.imagen_url || "";
+            // Aseguramos que cargue en el input de texto editImg
+            const inputImg = document.getElementById('editImg');
+            if(inputImg) {
+                inputImg.value = p.imagen_url || "";
+                if(preview && p.imagen_url) preview.src = p.imagen_url;
+            }
+            if(document.getElementById('editCategoria')) {
+                document.getElementById('editCategoria').value = p.categoria || "Otros";
+            }
         }
         document.getElementById('modalEditarMenu').showModal();
     };
 
-    // CORRECCIÓN CLAVE EN EL ENVÍO DEL FORMULARIO
+    // ENVÍO DEL FORMULARIO - SINCRONIZADO CON HTML
     document.getElementById('formProducto').onsubmit = async (e) => {
         e.preventDefault();
+        
         const id = document.getElementById('editId').value;
+        const nombre = document.getElementById('editNombre').value;
+        const precio = parseFloat(document.getElementById('editPrecio').value);
+        const inputImg = document.getElementById('editImg'); // ID correcto según el nuevo HTML
+        const inputCat = document.getElementById('editCategoria');
+
         const submitBtn = e.target.querySelector('button[type="submit"]');
         if(submitBtn) submitBtn.disabled = true;
 
         const datos = {
-            nombre: document.getElementById('editNombre').value,
-            precio: parseFloat(document.getElementById('editPrecio').value),
-            imagen_url: document.getElementById('editImg').value || null,
+            nombre: nombre,
+            precio: precio,
+            imagen_url: inputImg ? inputImg.value : null,
+            categoria: inputCat ? inputCat.value : 'General',
             restaurante_id: restoIdActivo
         };
 
         try {
             let error;
-            if (id) {
+            if (id && id !== "") {
                 const res = await db.from('productos').update(datos).eq('id', id);
                 error = res.error;
             } else {
@@ -179,18 +194,17 @@ document.addEventListener('DOMContentLoaded', async () => {
             if (error) throw error;
 
             document.getElementById('modalEditarMenu').close();
-            await inicializar(); // Recargar lista
+            await inicializar(); 
             alert("¡Producto guardado!");
 
         } catch (err) {
-            console.error("Error en Menú:", err);
-            alert("Error de guardado: " + err.message);
+            console.error("Error al guardar:", err);
+            alert("Error: " + err.message);
         } finally {
             if(submitBtn) submitBtn.disabled = false;
         }
     };
 
-    // 5. REALTIME
     db.channel('productos-cambios').on('postgres_changes', { event: '*', schema: 'public', table: 'suministros' }, () => inicializar()).subscribe();
 
     inicializar();
