@@ -21,7 +21,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     async function inicializar() {
         if (!restoIdActivo) return;
 
-        // A. Sincronizar Mesas: Si no hay mesa fija en URL, cargar del restaurante
+        // A. Sincronizar Mesas
         if (mesaURL) {
             if (selectMesa) {
                 selectMesa.innerHTML = `<option value="Mesa ${mesaURL}" selected>Mesa ${mesaURL}</option>`;
@@ -37,12 +37,11 @@ document.addEventListener('DOMContentLoaded', async () => {
             }
         }
 
-        // B. Cargar Productos y Sincronizar con Stock de Suministros
+        // B. Cargar Productos y Sincronizar con Stock
         const { data: productos } = await db.from('productos').select('*').eq('restaurante_id', restoIdActivo);
         const { data: suministros } = await db.from('suministros').select('nombre, cantidad').eq('restaurante_id', restoIdActivo);
         
         if (productos) { 
-            // Cruzar datos para mostrar stock disponible (si el nombre coincide)
             productosMenu = productos.map(p => {
                 const insumo = suministros?.find(s => s.nombre.toLowerCase() === p.nombre.toLowerCase());
                 return { ...p, stock: insumo ? Math.floor(insumo.cantidad) : '∞' };
@@ -59,7 +58,8 @@ document.addEventListener('DOMContentLoaded', async () => {
         if (sesion.rol === 'dueño') {
             const btnNuevo = document.createElement('article');
             btnNuevo.className = "tarjeta-producto nuevo-producto-btn";
-            btnNuevo.innerHTML = `<h3>+</h3><p>Nuevo Platillo</p>`;
+            btnNuevo.style.cursor = "pointer";
+            btnNuevo.innerHTML = `<div style="font-size:3rem; color:#10ad93;">+</div><p>Nuevo Platillo</p>`;
             btnNuevo.onclick = () => abrirEditor();
             contenedorProductos.appendChild(btnNuevo);
         }
@@ -67,7 +67,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         productosMenu.forEach(p => {
             const art = document.createElement('article');
             art.className = "tarjeta-producto";
-            const img = p.imagen_url || 'https://via.placeholder.com/150?text=Sin+Imagen';
+            const img = p.imagen_url || 'https://via.placeholder.com/150?text=Platillo';
             
             art.innerHTML = `
                 <img src="${img}" alt="${p.nombre}" style="width:100%; height:120px; object-fit:cover; border-radius:8px;">
@@ -93,10 +93,11 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
 
     function renderizarCarrito() {
+        if(!listaItemsOrden) return;
         listaItemsOrden.innerHTML = ordenActual.map(item => `
-            <div class="item-carrito">
+            <div class="item-carrito" style="display:flex; justify-content:space-between; align-items:center; margin-bottom:5px;">
                 <span>${item.cantidad}x ${item.nombre}</span>
-                <button onclick="event.stopPropagation(); window.quitarUno('${item.id}')"> - </button>
+                <button onclick="event.stopPropagation(); window.quitarUno('${item.id}')" style="padding:2px 8px;"> - </button>
             </div>
         `).join('');
         const total = ordenActual.reduce((acc, i) => acc + (i.precio * i.cantidad), 0);
@@ -117,6 +118,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         if (!mesaLabel) return alert("Selecciona una mesa");
 
         const nuevaOrden = {
+            id: 'ORD-' + Date.now(), // ID Temporal único
             mesa: mesaLabel,
             productos: ordenActual.map(i => `${i.cantidad}x ${i.nombre}`).join(', '),
             total: parseFloat(ordenTotalSpan.textContent.replace('$', '')),
@@ -127,15 +129,18 @@ document.addEventListener('DOMContentLoaded', async () => {
 
         const { error } = await db.from('ordenes').insert([nuevaOrden]);
         if (!error) {
-            alert("Orden enviada!");
+            alert("¡Orden enviada a cocina!");
             window.location.href = "mesas.html";
+        } else {
+            alert("Error al enviar orden: " + error.message);
         }
     };
 
     // 4. EDITOR DE PRODUCTOS (CRUD)
     window.abrirEditor = (id = null, e = null) => {
         if(e) e.stopPropagation();
-        document.getElementById('formProducto').reset();
+        const form = document.getElementById('formProducto');
+        form.reset();
         document.getElementById('editId').value = id || "";
         
         if (id) {
@@ -147,27 +152,45 @@ document.addEventListener('DOMContentLoaded', async () => {
         document.getElementById('modalEditarMenu').showModal();
     };
 
+    // CORRECCIÓN CLAVE EN EL ENVÍO DEL FORMULARIO
     document.getElementById('formProducto').onsubmit = async (e) => {
         e.preventDefault();
         const id = document.getElementById('editId').value;
+        const submitBtn = e.target.querySelector('button[type="submit"]');
+        if(submitBtn) submitBtn.disabled = true;
+
         const datos = {
             nombre: document.getElementById('editNombre').value,
             precio: parseFloat(document.getElementById('editPrecio').value),
-            imagen_url: document.getElementById('editImg').value,
+            imagen_url: document.getElementById('editImg').value || null,
             restaurante_id: restoIdActivo
         };
 
-        const { error } = id ? await db.from('productos').update(datos).eq('id', id) : await db.from('productos').insert([datos]);
+        try {
+            let error;
+            if (id) {
+                const res = await db.from('productos').update(datos).eq('id', id);
+                error = res.error;
+            } else {
+                const res = await db.from('productos').insert([datos]);
+                error = res.error;
+            }
 
-        if (!error) {
+            if (error) throw error;
+
             document.getElementById('modalEditarMenu').close();
-            inicializar();
-        } else {
-            alert("Error: revisa que el restaurante ID sea válido y las políticas RLS");
+            await inicializar(); // Recargar lista
+            alert("¡Producto guardado!");
+
+        } catch (err) {
+            console.error("Error en Menú:", err);
+            alert("Error de guardado: " + err.message);
+        } finally {
+            if(submitBtn) submitBtn.disabled = false;
         }
     };
 
-    // 5. REALTIME: Escuchar cambios para actualizar inventario visualmente
+    // 5. REALTIME
     db.channel('productos-cambios').on('postgres_changes', { event: '*', schema: 'public', table: 'suministros' }, () => inicializar()).subscribe();
 
     inicializar();

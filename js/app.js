@@ -206,8 +206,11 @@ function renderizarMenuSeguro() {
     const navContenedor = document.getElementById('menuNavegacion');
     if (!navContenedor) return;
 
+    // --- AQUÍ ESTÁ EL CAMBIO PRINCIPAL ---
+    // Se agregó la línea de <li><a href="ordenes.html"...
     navContenedor.innerHTML = `
         <li><a href="mesas.html" class="${pag === 'mesas.html' ? 'activo' : ''}">🪑 Mesas</a></li> 
+        <li><a href="ordenes.html" class="${pag === 'ordenes.html' ? 'activo' : ''}">📋 Órdenes</a></li>
         <li><a href="menu.html" class="${pag === 'menu.html' ? 'activo' : ''}">📜 Menú</a></li>
         <li><a href="cocina.html" class="${pag === 'cocina.html' ? 'activo' : ''}">👨‍🍳 Cocina</a></li>
         ${esDueño ? `
