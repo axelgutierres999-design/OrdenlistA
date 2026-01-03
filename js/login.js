@@ -1,5 +1,4 @@
-// js/login.js - CORREGIDO PARA VINCULACIÓN DIRECTA POR CORREO ADMIN
-
+// js/login.js - VERSIÓN FINAL INTEGRADA
 document.addEventListener('DOMContentLoaded', async () => {
     const btnEntrar = document.getElementById('btnEntrar');
     const userPinInput = document.getElementById('userPin');
@@ -19,14 +18,14 @@ document.addEventListener('DOMContentLoaded', async () => {
         cargarUsuarios(restGuardado.id);
     }
 
-    // 2. Paso 1: Vincular Negocio
+    // 2. Paso 1: Vincular Negocio (Búsqueda por correo_admin)
     if (formRest) {
         formRest.addEventListener('submit', async (e) => {
             e.preventDefault();
             const nombreBusqueda = document.getElementById('nombreRestaurante').value.trim();
-            const correoBusqueda = document.getElementById('correoAdmin').value.trim();
+            const correoBusqueda = document.getElementById('correoAdmin').value.trim().toLowerCase();
             
-            if (!window.db) return alert("Sin conexión a la base de datos");
+            if (!window.db) return alert("❌ Sin conexión a la base de datos");
 
             const { data: restaurante, error: errRest } = await window.db
                 .from('restaurantes')
@@ -44,9 +43,10 @@ document.addEventListener('DOMContentLoaded', async () => {
             }
 
             if (restaurante.nombre.toLowerCase() !== nombreBusqueda.toLowerCase()) {
-                return alert("El nombre del restaurante no coincide con el correo proporcionado.");
+                return alert("El nombre del restaurante no coincide con el registro oficial.");
             }
 
+            // Éxito: Guardamos la vinculación
             localStorage.setItem('config_restaurante', JSON.stringify({
                 id: restaurante.id,
                 nombre: restaurante.nombre
@@ -57,8 +57,10 @@ document.addEventListener('DOMContentLoaded', async () => {
         });
     }
 
-    // 3. Cargar Usuarios (AJUSTE DE SEGURIDAD PARA LLENAR EL SELECTOR)
+    // 3. Cargar Usuarios (LLENAR EL SELECTOR)
     async function cargarUsuarios(restauranteId) {
+        if (!window.db) return;
+
         const { data, error } = await window.db
             .from('perfiles')
             .select('id, nombre, rol')
@@ -70,19 +72,22 @@ document.addEventListener('DOMContentLoaded', async () => {
             return;
         }
 
-        if (data && userSelect) {
-            // Limpiamos y aseguramos la opción por defecto
+        if (userSelect) {
             userSelect.innerHTML = '<option value="" disabled selected>Selecciona tu nombre</option>';
-            data.forEach(u => {
-                const opt = document.createElement('option');
-                opt.value = u.id;
-                opt.textContent = `${u.nombre} (${u.rol})`;
-                userSelect.appendChild(opt);
-            });
+            if (data && data.length > 0) {
+                data.forEach(u => {
+                    const opt = document.createElement('option');
+                    opt.value = u.id;
+                    opt.textContent = `${u.nombre} (${u.rol})`;
+                    userSelect.appendChild(opt);
+                });
+            } else {
+                userSelect.innerHTML = '<option value="" disabled>No hay usuarios registrados</option>';
+            }
         }
     }
 
-    // 4. Login de Empleado (PIN)
+    // 4. Login de Empleado (Validación de PIN y Asistencia)
     if (formLogin) {
         formLogin.addEventListener('submit', async (e) => {
             e.preventDefault();
@@ -90,7 +95,9 @@ document.addEventListener('DOMContentLoaded', async () => {
             const pin = userPinInput.value;
             const configRest = JSON.parse(localStorage.getItem('config_restaurante'));
 
-            if (!userId || pin.length < 4) return alert("Por favor selecciona un usuario e ingresa tu PIN de 4 dígitos");
+            if (!userId || pin.length < 4) {
+                return alert("Selecciona un usuario e ingresa tu PIN de 4 dígitos");
+            }
 
             btnEntrar.disabled = true;
             btnEntrar.innerText = "Verificando...";
@@ -101,11 +108,10 @@ document.addEventListener('DOMContentLoaded', async () => {
                     .select('*')
                     .eq('id', userId)
                     .eq('pin', pin)
-                    .eq('restaurante_id', configRest.id)
                     .single();
 
                 if (error || !usuario) {
-                    alert("⛔ PIN incorrecto o usuario no válido");
+                    alert("⛔ PIN incorrecto");
                     userPinInput.value = "";
                 } else {
                     const sesion = {
@@ -117,6 +123,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                     };
                     localStorage.setItem('sesion_activa', JSON.stringify(sesion));
 
+                    // Registro de Asistencia
                     await window.db.from('asistencia').insert([{
                         empleado_id: usuario.id,
                         nombre_empleado: usuario.nombre,
@@ -145,11 +152,13 @@ document.addEventListener('DOMContentLoaded', async () => {
         window.location.href = rutas[rol] || 'mesas.html';
     }
 
+    // Reloj digital
     setInterval(() => {
         const reloj = document.getElementById('relojActual');
         if(reloj) reloj.textContent = new Date().toLocaleTimeString();
     }, 1000);
 
+    // Botón para desvincular
     const btnCambiar = document.getElementById('btnCambiarRestaurante');
     if (btnCambiar) {
         btnCambiar.onclick = (e) => {

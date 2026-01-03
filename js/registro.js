@@ -1,4 +1,4 @@
-// js/registro.js - VERSIÓN FINAL INTEGRADA
+// js/registro.js - VERSIÓN FINAL INTEGRADA Y CORREGIDA
 document.getElementById('formRegistro').addEventListener('submit', async (e) => {
     e.preventDefault();
 
@@ -45,29 +45,28 @@ document.getElementById('formRegistro').addEventListener('submit', async (e) => 
         const userId = authData.user.id; 
 
         // PASO B: Crear el Restaurante
-        // Incluimos correo_admin para que la lógica de login/vinculación funcione
+        // Usamos el userId de Auth como ID de la tabla para mantener la relación maestra
         const { error: dbError } = await db
             .from('restaurantes')
             .insert([{
                 id: userId, 
                 nombre: nombreNegocio,
-                correo_admin: email, // <-- Crucial para la vinculación
+                correo_admin: email, // Crucial para que el login.js encuentre el restaurante
                 direccion: direccion,
                 num_mesas: 10 
             }]);
 
         if (dbError) {
             console.error("Error en Paso B (Tabla Restaurantes):", dbError);
-            throw new Error("Error al guardar los datos del negocio.");
+            throw new Error("Error al guardar los datos del negocio: " + dbError.message);
         }
 
         // PASO C: Crear el Perfil del Dueño
-        // Usamos el userId como ID del perfil para asegurar que el login lo encuentre siempre
+        // Vinculamos el perfil al restaurante usando restaurante_id: userId
         const { error: perfilError } = await db
             .from('perfiles')
             .insert([{
-                id: userId, 
-                restaurante_id: userId,
+                restaurante_id: userId, // Vínculo directo con el restaurante
                 nombre: nombreAdmin,
                 pin: pinAdmin,
                 rol: 'dueño',
@@ -76,13 +75,13 @@ document.getElementById('formRegistro').addEventListener('submit', async (e) => 
 
         if (perfilError) {
             console.error("Error en Paso C (Tabla Perfiles):", perfilError);
-            throw new Error("Error al crear tu perfil de administrador.");
+            throw new Error("Error al crear tu perfil de administrador: " + perfilError.message);
         }
 
         // --- TODO SALIÓ BIEN ---
         alert("¡Registro exitoso! 🎉\n\nTu restaurante '" + nombreNegocio + "' ha sido creado.\nAhora vincula esta terminal con tu correo administrador.");
         
-        // Limpiar rastro de sesiones anteriores para evitar conflictos
+        // Limpiar rastro de sesiones anteriores para evitar conflictos de ID
         localStorage.clear();
         sessionStorage.clear();
 
