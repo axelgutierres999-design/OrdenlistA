@@ -7,116 +7,189 @@
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@picocss/pico@1/css/pico.min.css" />
     <link rel="stylesheet" href="css/app.css" />
     <style>
+        /* Estilos de las Tarjetas de Producto */
         .tarjeta-producto {
             padding: 1rem;
             border: 1px solid #eee;
-            border-radius: 8px;
+            border-radius: 12px;
             cursor: pointer;
             transition: all 0.2s ease;
             text-align: center;
             position: relative;
             background: white;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
         }
         .tarjeta-producto:hover {
-            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-            transform: translateY(-3px);
+            box-shadow: 0 8px 16px rgba(0, 0, 0, 0.1);
+            transform: translateY(-4px);
             border-color: #10ad93;
         }
+        .tarjeta-producto img {
+            width: 100%;
+            height: 120px;
+            object-fit: cover;
+            border-radius: 8px;
+            margin-bottom: 0.5rem;
+        }
+
+        /* Botón Editar Flotante */
         .edit-btn {
             position: absolute;
-            top: 5px;
-            right: 5px;
+            top: 8px;
+            right: 8px;
             font-size: 0.8rem;
-            padding: 2px 8px;
+            padding: 4px 8px;
             z-index: 10;
-            background: rgba(255,255,255,0.8);
+            background: rgba(255,255,255,0.9);
+            border: 1px solid #ddd;
             border-radius: 50%;
+            cursor: pointer;
         }
+
+        /* Panel Lateral de Orden */
         .panel-orden {
-            background-color: #f8f9fa;
+            background-color: #ffffff;
             padding: 1.5rem;
-            border-radius: 12px;
-            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
+            border-radius: 16px;
+            border: 1px solid #eef0f2;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.05);
             height: fit-content;
             position: sticky;
-            top: 1rem;
+            top: 2rem;
         }
+
+        /* Ítems del Carrito y botón de eliminar (Tache) */
+        .item-carrito {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0.6rem 0;
+            border-bottom: 1px dashed #eee;
+        }
+        .btn-tache {
+            background: none;
+            border: none;
+            color: #ff4d4d;
+            cursor: pointer;
+            padding: 0 5px;
+            font-weight: bold;
+            font-size: 1.1rem;
+        }
+        .btn-tache:hover {
+            color: #cc0000;
+            background: none;
+        }
+
         .stock-tag {
-            display: block;
-            color: #777;
-            font-size: 0.75rem;
-            margin-top: 5px;
+            font-size: 0.7rem;
+            color: #666;
+            background: #f0f0f0;
+            padding: 2px 6px;
+            border-radius: 4px;
+        }
+        .sin-stock {
+            color: #d93526;
+            background: #ffebe9;
+        }
+
+        /* Estilo para el botón de "Nuevo Platillo" */
+        .nuevo-producto-btn {
+            border: 2px dashed #10ad93;
+            color: #10ad93;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            min-height: 200px;
+        }
+        .plus-icon {
+            font-size: 3rem;
+            margin-bottom: 0.5rem;
         }
     </style>
 </head>
 <body>
-    <nav class="container-fluid">
-        <ul><li><strong>☕ OrdenLista</strong></li></ul>
-        <ul id="menuNavegacion"></ul>
+    <nav class="container-fluid nav-inicio">
+        <ul>
+            <li><strong>☕ OrdenLista</strong></li>
+        </ul>
+        <ul class="nav-botones">
+            <li><a href="mesas.html" class="outline">🪑 Mesas</a></li>
+            <li><a href="ordenes.html" class="outline">📋 Órdenes</a></li>
+            <li><a href="menu.html" class="secondary">📜 Menú</a></li>
+            <li><a href="cocina.html" class="outline">👨‍🍳 Cocina</a></li>
+            <li><a href="stock.html" class="outline">📦 Stock</a></li>
+            <li><button onclick="cerrarSesion()" class="contrast" style="padding: 5px 15px;">Salir</button></li>
+        </ul>
     </nav>
 
     <main class="container">
-        <h1>📜 Menú y Pedidos</h1>
+        <header>
+            <h1>📜 Menú y Pedidos</h1>
+            <p>Selecciona los productos para generar una nueva orden.</p>
+        </header>
         
         <div class="grid">
             <section>
                 <h3>Productos Disponibles</h3>
-                <div id="contenedorProductos" class="grid" style="grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 1rem;">
-                    <article aria-busy="true">Cargando productos...</article>
+                <div id="contenedorProductos" class="grid" style="grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 1.5rem;">
+                    <article aria-busy="true">Cargando catálogo...</article>
                 </div>
             </section>
 
             <section class="panel-orden">
                 <h3>🛒 Tu Orden</h3>
-                <div id="listaItemsOrden" style="min-height: 100px; margin-bottom: 1rem;">
-                    <small>Selecciona productos del menú...</small>
+                <div id="listaItemsOrden" style="min-height: 120px; margin-bottom: 1rem;">
+                    <small>No hay productos seleccionados.</small>
                 </div>
                 
                 <label for="comentarioPedido">📝 Notas Especiales:</label>
-                <textarea id="comentarioPedido" placeholder="Ej: Sin sal, término medio..." rows="2"></textarea>
+                <textarea id="comentarioPedido" placeholder="Ej: Sin cebolla, extra picante..." rows="2"></textarea>
 
                 <hr>
-                <div style="display: flex; justify-content: space-between; font-weight: bold; font-size: 1.2rem; color: #10ad93;">
+                <div style="display: flex; justify-content: space-between; font-weight: bold; font-size: 1.3rem; color: #10ad93; margin-bottom: 1rem;">
                     <span>Total:</span>
                     <span id="ordenTotal">$0.00</span>
                 </div>
 
-                <label for="selectMesa">🪑 Asignar Mesa:</label>
+                <label for="selectMesa">🪑 Destino del Pedido:</label>
                 <select id="selectMesa" required>
-                    <option value="" disabled selected>Seleccione...</option>
+                    <option value="" disabled selected>Selecciona mesa o para llevar...</option>
                 </select>
 
-                <button id="btnProcesarOrden" class="contrast" style="width: 100%; margin-top: 1rem;" disabled>
-                    🚀 Enviar a Cocina
+                <button id="btnProcesarOrden" class="contrast" style="width: 100%;" disabled>
+                    🚀 Procesar Pedido
                 </button>
             </section>
         </div>
     </main>
 
     <dialog id="modalEditarMenu">
-        <article style="max-width: 450px;">
+        <article style="max-width: 500px; border-radius: 15px;">
             <header>
                 <button aria-label="Close" rel="prev" onclick="document.getElementById('modalEditarMenu').close()"></button>
-                <h3>Configurar Platillo</h3>
+                <h3>Configuración de Producto</h3>
             </header>
             
             <form id="formProducto">
                 <input type="hidden" id="editId">
                 
-                <div style="text-align: center; margin-bottom: 1rem;">
-                    <img id="imgPreview" src="https://via.placeholder.com/150" style="width: 120px; height: 120px; object-fit: cover; border-radius: 10px; border: 2px solid #eee;">
+                <div style="text-align: center; margin-bottom: 1.5rem;">
+                    <img id="imgPreview" src="https://via.placeholder.com/150" style="width: 140px; height: 140px; object-fit: cover; border-radius: 12px; border: 3px solid #f0f0f0;">
+                    <p style="font-size: 0.8rem; color: #888; margin-top: 5px;">Vista previa de imagen</p>
                 </div>
 
-                <label>Nombre del Producto
-                    <input type="text" id="editNombre" placeholder="Nombre visible" required>
+                <label>Nombre del Platillo / Bebida
+                    <input type="text" id="editNombre" placeholder="Ej: Enchiladas Verdes" required>
                 </label>
 
-                <label>URL de la Imagen (Opcional)
-                    <input type="url" id="editImg" placeholder="https://ejemplo.com/imagen.jpg" oninput="document.getElementById('imgPreview').src = this.value">
+                <label>Enlace de Imagen (URL)
+                    <input type="url" id="editImg" placeholder="https://link-de-la-foto.jpg" oninput="document.getElementById('imgPreview').src = this.value">
                 </label>
 
                 <div class="grid">
-                    <label>Precio ($)
+                    <label>Precio Unitario ($)
                         <input type="number" id="editPrecio" step="0.01" required>
                     </label>
                     <label>Categoría
@@ -129,9 +202,9 @@
                     </label>
                 </div>
 
-                <footer style="margin-top: 1rem; display: flex; gap: 10px;">
+                <footer style="margin-top: 1rem; display: flex; gap: 15px;">
                     <button type="button" class="secondary" onclick="document.getElementById('modalEditarMenu').close()" style="flex: 1;">Cancelar</button>
-                    <button type="submit" style="flex: 2;">Guardar Producto</button>
+                    <button type="submit" style="flex: 2;">Guardar Cambios</button>
                 </footer>
             </form>
         </article>
@@ -139,6 +212,8 @@
 
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="js/supabase-client.js"></script>
-    <script src="js/app.js"></script> <script src="js/menu.js"></script>
+    <script src="js/logout.js"></script>
+    <script src="js/app.js"></script> 
+    <script src="js/menu.js"></script>
 </body>
 </html>
