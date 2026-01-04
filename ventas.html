@@ -12,7 +12,7 @@
         .card-stat { 
             background: white; 
             border-radius: 12px; 
-            padding: 1.5rem; 
+            padding: 1.2rem; 
             text-align: center;
             border-bottom: 4px solid #10ad93;
             box-shadow: 0 4px 10px rgba(0,0,0,0.05);
@@ -30,40 +30,43 @@
             width: 100%; 
             margin-top: 1rem;
         }
-        .badge-metodo {
-            background: #f0f0f0;
-            padding: 2px 8px;
-            border-radius: 6px;
-            font-size: 0.75rem;
-            font-weight: bold;
-            text-transform: uppercase;
-        }
         @media print { 
-            .nav-inicio, button, .chart-container { display: none !important; } 
+            .nav-inicio, button, .chart-container, .outline { display: none !important; } 
             .panel-blanco { border: none; padding: 0; }
+            h1 { font-size: 1.5rem; text-align: center; }
         }
     </style>
 </head>
 <body>
     <nav class="container-fluid nav-inicio">
         <ul><li><strong>☕ OrdenLista</strong></li></ul>
-        <ul id="menuNavegacion" class="nav-botones">
-            </ul>
+        <ul id="menuNavegacion" class="nav-botones"></ul>
     </nav>
 
     <main class="container">
         <header>
             <h1>📊 Corte de Caja y Ventas</h1>
-            <p>Resumen detallado de las transacciones del día de hoy.</p>
+            <p>Resumen financiero y métricas del día actual.</p>
         </header>
 
         <section class="grid">
             <div class="card-stat">
-                <small style="color: #888;">Ingresos Totales (Hoy)</small>
+                <small style="color: #888;">Total General (Hoy)</small>
                 <h2 id="totalDia" style="color: #10ad93; margin: 0;">$0.00</h2>
             </div>
+            <div class="card-stat" style="border-bottom-color: #10ad93;">
+                <small style="color: #888;">💵 Efectivo</small>
+                <h2 id="totalEfectivo" style="margin: 0; color: #2ecc71;">$0.00</h2>
+            </div>
             <div class="card-stat" style="border-bottom-color: #3498db;">
-                <small style="color: #888;">Transacciones</small>
+                <small style="color: #888;">💳 Tarjeta</small>
+                <h2 id="totalTarjeta" style="margin: 0; color: #3498db;">$0.00</h2>
+            </div>
+        </section>
+
+        <section class="grid" style="margin-top: 1rem;">
+            <div class="card-stat" style="border-bottom-color: #9b59b6;">
+                <small style="color: #888;">Nº de Ventas</small>
                 <h2 id="numVentasDia" style="margin: 0;">0</h2>
             </div>
             <div class="card-stat" style="border-bottom-color: #f39c12;">
@@ -72,40 +75,44 @@
             </div>
         </section>
 
-        <div class="panel-blanco">
-            <h3 style="text-align:center; margin-bottom: 0;">📈 Productos Más Vendidos</h3>
-            <div class="chart-container">
-                <canvas id="graficoCategorias"></canvas>
+        <div class="grid">
+            <div class="panel-blanco">
+                <h3 style="text-align:center; margin-bottom: 0;">📈 Top 5 Productos</h3>
+                <div class="chart-container">
+                    <canvas id="graficoCategorias"></canvas>
+                </div>
+            </div>
+
+            <div class="panel-blanco">
+                <h3>📋 Registro de Ventas</h3>
+                <figure>
+                    <table role="grid">
+                        <thead>
+                            <tr>
+                                <th>Folio</th>
+                                <th>Mesa</th>
+                                <th>Total</th>
+                                <th>Método</th>
+                                <th>Hora</th>
+                            </tr>
+                        </thead>
+                        <tbody id="listaUltimasVentas">
+                            <tr>
+                                <td colspan="5" style="text-align:center; color: #888; padding: 2rem;">
+                                    Cargando transacciones...
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </figure>
             </div>
         </div>
 
-        <div class="panel-blanco">
-            <h3>📋 Registro de Últimas Ventas</h3>
-            <figure>
-                <table role="grid">
-                    <thead>
-                        <tr>
-                            <th>Folio</th>
-                            <th>Mesa</th>
-                            <th>Total</th>
-                            <th>Método</th>
-                            <th>Hora</th>
-                        </tr>
-                    </thead>
-                    <tbody id="listaUltimasVentas">
-                        <tr>
-                            <td colspan="5" style="text-align:center; color: #888; padding: 2rem;">
-                                Cargando transacciones del día...
-                            </td>
-                        </tr>
-                    </tbody>
-                </table>
-            </figure>
-        </div>
-
         <div style="display: flex; gap: 1rem; justify-content: flex-end; margin-top: 2rem; margin-bottom: 3rem;">
-            <button class="outline secondary" onclick="location.reload()">🔄 Actualizar</button>
-            <button class="contrast" onclick="imprimirCorteCaja()">🖨️ Imprimir Corte de Caja</button>
+            <button class="outline secondary" onclick="location.reload()">🔄 Actualizar Datos</button>
+            <button class="contrast" onclick="imprimirCorteCaja()" style="background-color: #10ad93; border: none;">
+                🖨️ Imprimir Corte de Caja
+            </button>
         </div>
     </main>
 

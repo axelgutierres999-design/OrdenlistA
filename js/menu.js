@@ -1,4 +1,4 @@
-// js/menu.js - GESTIÓN PROFESIONAL DE MENÚ, PEDIDOS E INVENTARIO (ACTUALIZADO V4)
+// js/menu.js - GESTIÓN PROFESIONAL DE MENÚ, PEDIDOS E INVENTARIO (V5 - PAGO PARA LLEVAR)
 document.addEventListener('DOMContentLoaded', async () => {
     const params = new URLSearchParams(window.location.search);
     const mesaURL = params.get('mesa'); 
@@ -34,7 +34,6 @@ document.addEventListener('DOMContentLoaded', async () => {
                     selectMesa.innerHTML += `<option value="${optionValue}" ${selected}>Mesa ${i}</option>`;
                 }
             }
-            // Si viene de una mesa específica, bloquear el select
             if (mesaURL) selectMesa.disabled = true;
         }
 
@@ -48,7 +47,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                 return { 
                     ...p, 
                     stock: insumo ? Math.floor(insumo.cantidad) : '∞',
-                    categoria: p.categoria || 'Otros' // Aseguramos que tenga categoría
+                    categoria: p.categoria || 'Otros'
                 };
             });
             dibujarMenu(); 
@@ -132,28 +131,52 @@ document.addEventListener('DOMContentLoaded', async () => {
         renderizarCarrito();
     };
 
-    // 3. PROCESAR ORDEN (VINCULADO A APP.JS)
+    // 3. PROCESAR ORDEN (CON PAGO SI ES PARA LLEVAR)
     btnProcesar.onclick = async () => {
         const mesaLabel = selectMesa.value;
         if (!mesaLabel) return alert("Selecciona una mesa");
 
+        let metodoPago = null;
+
+        // Si es para llevar, pedimos el método de pago antes de continuar
+        if (mesaLabel === "Para Llevar") {
+            const confirmPago = confirm("¿El pago es con TARJETA o QR? \n(Aceptar = Tarjeta, Cancelar = Efectivo)");
+            metodoPago = confirmPago ? 'tarjeta' : 'efectivo';
+        }
+
         btnProcesar.disabled = true;
         btnProcesar.innerText = "Enviando...";
 
+        const totalFinal = parseFloat(ordenTotalSpan.textContent.replace('$', ''));
+        const productosTexto = ordenActual.map(i => `${i.cantidad}x ${i.nombre}`).join(', ');
+
         const datosOrden = {
             mesa: mesaLabel,
-            productos: ordenActual.map(i => `${i.cantidad}x ${i.nombre}`).join(', '),
-            total: parseFloat(ordenTotalSpan.textContent.replace('$', '')),
+            productos: productosTexto,
+            total: totalFinal,
             comentarios: comentarioInput.value || '',
-            estado: 'pendiente'
+            estado: 'pendiente',
+            restaurante_id: restoIdActivo,
+            metodo_pago: metodoPago // Campo opcional para cocina/mesas
         };
 
         try {
-            // USAMOS LA FUNCIÓN DE APP.JS PARA QUE SUME SI LA MESA YA ESTÁ OCUPADA
-            const { error } = await App.addOrden(datosOrden);
-            if (error) throw error;
+            // A. Registrar en cocina
+            const { error: errorOrden } = await App.addOrden(datosOrden);
+            if (errorOrden) throw errorOrden;
 
-            alert("🚀 Orden enviada a cocina");
+            // B. Si fue "Para Llevar", registrar la venta de una vez en las estadísticas
+            if (mesaLabel === "Para Llevar") {
+                await db.from('ventas').insert([{
+                    restaurante_id: restoIdActivo,
+                    total: totalFinal,
+                    metodo_pago: metodoPago,
+                    productos: productosTexto,
+                    mesa: "LLEVAR"
+                }]);
+            }
+
+            alert("🚀 Orden enviada a cocina" + (metodoPago ? ` (Pago: ${metodoPago})` : ""));
             window.location.href = "mesas.html";
         } catch (err) {
             alert("Error: " + err.message);
@@ -198,7 +221,6 @@ document.addEventListener('DOMContentLoaded', async () => {
             : await db.from('productos').insert([datos]);
 
         if (!error) {
-            // Sincronizar con suministros para el Stock si es nuevo
             if (!id) {
                 await db.from('suministros').insert([{
                     nombre: nombre,
