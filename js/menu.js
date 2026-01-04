@@ -1,4 +1,4 @@
-// js/menu.js - GESTIÓN PROFESIONAL DE MENÚ, PEDIDOS E INVENTARIO (V5 - PAGO PARA LLEVAR)
+// js/menu.js - GESTIÓN DE PEDIDOS E INVENTARIO (V5.1 - FIX METODO_PAGO)
 document.addEventListener('DOMContentLoaded', async () => {
     const params = new URLSearchParams(window.location.search);
     const mesaURL = params.get('mesa'); 
@@ -17,27 +17,30 @@ document.addEventListener('DOMContentLoaded', async () => {
     let ordenActual = [];
     let productosMenu = [];
 
-    // 1. CARGA INICIAL
+    // --- 1. CARGA INICIAL ---
     async function inicializar() {
         if (!restoIdActivo) return;
 
-        // Configuración de Mesas en el Select
+        // Cargar número de mesas para el Select
         if (selectMesa) {
             selectMesa.innerHTML = '<option value="" disabled selected>Selecciona mesa...</option>';
             selectMesa.innerHTML += `<option value="Para Llevar">🥡 Para Llevar</option>`;
             
-            const { data: resto } = await db.from('restaurantes').select('num_mesas').eq('id', restoIdActivo).single();
-            if (resto) {
-                for (let i = 1; i <= resto.num_mesas; i++) {
-                    const optionValue = `Mesa ${i}`;
-                    const selected = (mesaURL === i.toString()) ? 'selected' : '';
-                    selectMesa.innerHTML += `<option value="${optionValue}" ${selected}>Mesa ${i}</option>`;
+            try {
+                const { data: resto } = await db.from('restaurantes').select('num_mesas').eq('id', restoIdActivo).single();
+                if (resto) {
+                    for (let i = 1; i <= resto.num_mesas; i++) {
+                        const optionValue = `Mesa ${i}`;
+                        const isSelected = (mesaURL === i.toString()) ? 'selected' : '';
+                        selectMesa.innerHTML += `<option value="${optionValue}" ${isSelected}>Mesa ${i}</option>`;
+                    }
                 }
-            }
+            } catch (e) { console.error("Error cargando mesas", e); }
+            
             if (mesaURL) selectMesa.disabled = true;
         }
 
-        // Cargar productos y cruzar con Stock
+        // Cargar productos y cruzar con Stock de suministros
         const { data: productos } = await db.from('productos').select('*').eq('restaurante_id', restoIdActivo);
         const { data: suministros } = await db.from('suministros').select('nombre, cantidad').eq('restaurante_id', restoIdActivo);
         
@@ -58,11 +61,11 @@ document.addEventListener('DOMContentLoaded', async () => {
         if (!contenedorProductos) return;
         contenedorProductos.innerHTML = '';
 
+        // Botón "Nuevo" solo para dueños
         if (sesion.rol === 'dueño') {
             const btnNuevo = document.createElement('article');
             btnNuevo.className = "tarjeta-producto nuevo-producto-btn";
-            btnNuevo.style.border = "2px dashed #10ad93";
-            btnNuevo.innerHTML = `<div class="plus-icon" style="color:#10ad93; font-size:2rem; font-weight:bold;">+</div><p>Nuevo Platillo</p>`;
+            btnNuevo.innerHTML = `<div style="font-size:2rem; color:#10ad93;">+</div><p>Nuevo Platillo</p>`;
             btnNuevo.onclick = () => abrirEditor();
             contenedorProductos.appendChild(btnNuevo);
         }
@@ -78,9 +81,9 @@ document.addEventListener('DOMContentLoaded', async () => {
                     ${sesion.rol === 'dueño' ? `<button class="edit-btn" onclick="abrirEditor('${p.id}', event)">✏️</button>` : ''}
                 </div>
                 <div class="info">
-                    <h4>${p.nombre}</h4>
-                    <p class="precio" style="color:#10ad93; font-weight:bold;">$${parseFloat(p.precio).toFixed(2)}</p>
-                    <small class="stock-tag ${p.stock <= 0 ? 'sin-stock' : ''}">${p.stock <= 0 ? 'Agotado' : 'Disp: ' + p.stock}</small>
+                    <h4 style="margin:5px 0;">${p.nombre}</h4>
+                    <p style="color:#10ad93; font-weight:bold; margin:0;">$${parseFloat(p.precio).toFixed(2)}</p>
+                    <small class="stock-tag ${p.stock <= 0 ? 'sin-stock' : ''}">${p.stock <= 0 ? 'Agotado' : 'Stock: ' + p.stock}</small>
                 </div>
             `;
             art.onclick = (e) => { if(!e.target.classList.contains('edit-btn')) agregarItem(p); };
@@ -88,33 +91,33 @@ document.addEventListener('DOMContentLoaded', async () => {
         });
     }
 
-    // 2. LÓGICA DEL CARRITO
+    // --- 2. LÓGICA DEL CARRITO ---
     function agregarItem(producto) {
-        if (producto.stock !== '∞' && producto.stock <= 0) return alert("Producto agotado");
+        if (producto.stock !== '∞' && producto.stock <= 0) return alert("Producto sin existencias");
         const existe = ordenActual.find(i => i.id === producto.id);
-        if (existe) existe.cantidad++;
-        else ordenActual.push({ ...producto, cantidad: 1 });
+        if (existe) {
+            existe.cantidad++;
+        } else {
+            ordenActual.push({ ...producto, cantidad: 1 });
+        }
         renderizarCarrito();
     }
 
     function renderizarCarrito() {
         if(!listaItemsOrden) return;
         if(ordenActual.length === 0) {
-            listaItemsOrden.innerHTML = '<div style="text-align:center; padding:1rem; color:#888;">La orden está vacía.</div>';
+            listaItemsOrden.innerHTML = '<small>No hay productos seleccionados.</small>';
             ordenTotalSpan.textContent = '$0.00';
             btnProcesar.disabled = true;
             return;
         }
 
         listaItemsOrden.innerHTML = ordenActual.map(item => `
-            <div class="item-carrito" style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px; border-bottom:1px solid #eee; padding-bottom:5px;">
+            <div class="item-carrito">
+                <div><strong>${item.cantidad}x</strong> ${item.nombre}</div>
                 <div>
-                    <strong>${item.cantidad}x</strong> ${item.nombre}
-                    <br><small style="color:#888;">${item.categoria}</small>
-                </div>
-                <div style="display:flex; align-items:center; gap:10px;">
-                    <span style="font-weight:bold;">$${(item.precio * item.cantidad).toFixed(2)}</span>
-                    <button onclick="window.quitarUno('${item.id}')" style="background:none; border:none; color:red; cursor:pointer;">❌</button>
+                    <span>$${(item.precio * item.cantidad).toFixed(2)}</span>
+                    <button onclick="window.quitarUno('${item.id}')" style="background:none; border:none; color:#e53935; margin-left:10px; cursor:pointer;">✕</button>
                 </div>
             </div>
         `).join('');
@@ -131,16 +134,16 @@ document.addEventListener('DOMContentLoaded', async () => {
         renderizarCarrito();
     };
 
-    // 3. PROCESAR ORDEN (CON PAGO SI ES PARA LLEVAR)
+    // --- 3. PROCESAR ORDEN (CORRECCIÓN DE ERROR SQL) ---
     btnProcesar.onclick = async () => {
         const mesaLabel = selectMesa.value;
-        if (!mesaLabel) return alert("Selecciona una mesa");
+        if (!mesaLabel) return alert("Por favor, selecciona una mesa o 'Para Llevar'");
 
         let metodoPago = null;
 
-        // Si es para llevar, pedimos el método de pago antes de continuar
+        // Si es para llevar, consultamos el pago de antemano
         if (mesaLabel === "Para Llevar") {
-            const confirmPago = confirm("¿El pago es con TARJETA o QR? \n(Aceptar = Tarjeta, Cancelar = Efectivo)");
+            const confirmPago = confirm("¿El pago es con TARJETA o QR? (Aceptar = Tarjeta/QR, Cancelar = Efectivo)");
             metodoPago = confirmPago ? 'tarjeta' : 'efectivo';
         }
 
@@ -150,22 +153,22 @@ document.addEventListener('DOMContentLoaded', async () => {
         const totalFinal = parseFloat(ordenTotalSpan.textContent.replace('$', ''));
         const productosTexto = ordenActual.map(i => `${i.cantidad}x ${i.nombre}`).join(', ');
 
+        // OBJETO CORREGIDO: No enviamos 'metodo_pago' a la tabla 'ordenes'
         const datosOrden = {
             mesa: mesaLabel,
             productos: productosTexto,
             total: totalFinal,
             comentarios: comentarioInput.value || '',
             estado: 'pendiente',
-            restaurante_id: restoIdActivo,
-            metodo_pago: metodoPago // Campo opcional para cocina/mesas
+            restaurante_id: restoIdActivo
         };
 
         try {
-            // A. Registrar en cocina
-            const { error: errorOrden } = await App.addOrden(datosOrden);
-            if (errorOrden) throw errorOrden;
+            // A. Registrar en cocina/ordenes (usando la función central de App)
+            const res = await App.addOrden(datosOrden);
+            if (res?.error) throw res.error;
 
-            // B. Si fue "Para Llevar", registrar la venta de una vez en las estadísticas
+            // B. Si fue "Para Llevar", registrar directamente en Ventas (porque ya se pagó)
             if (mesaLabel === "Para Llevar") {
                 await db.from('ventas').insert([{
                     restaurante_id: restoIdActivo,
@@ -176,31 +179,35 @@ document.addEventListener('DOMContentLoaded', async () => {
                 }]);
             }
 
-            alert("🚀 Orden enviada a cocina" + (metodoPago ? ` (Pago: ${metodoPago})` : ""));
+            alert("✅ Orden procesada con éxito");
             window.location.href = "mesas.html";
         } catch (err) {
-            alert("Error: " + err.message);
+            console.error(err);
+            alert("Error al procesar: " + (err.message || "Error desconocido"));
             btnProcesar.disabled = false;
-            btnProcesar.innerText = "Confirmar Orden";
+            btnProcesar.innerText = "🚀 Procesar Pedido";
         }
     };
 
-    // 4. EDITOR DE PRODUCTOS
+    // --- 4. EDITOR DE PRODUCTOS (SOLO DUEÑOS) ---
     window.abrirEditor = (id = null, e = null) => {
         if(e) e.stopPropagation();
+        const modal = document.getElementById('modalEditarMenu');
         const form = document.getElementById('formProducto');
-        if(!form) return;
-        form.reset();
+        if(!modal || !form) return;
         
+        form.reset();
         document.getElementById('editId').value = id || "";
+        
         if (id) {
             const p = productosMenu.find(x => x.id === id);
             document.getElementById('editNombre').value = p.nombre;
             document.getElementById('editPrecio').value = p.precio;
             document.getElementById('editImg').value = p.imagen_url || "";
             document.getElementById('editCategoria').value = p.categoria || "Platillo";
+            document.getElementById('imgPreview').src = p.imagen_url || "https://via.placeholder.com/150";
         }
-        document.getElementById('modalEditarMenu').showModal();
+        modal.showModal();
     };
 
     document.getElementById('formProducto').onsubmit = async (e) => {
@@ -216,11 +223,14 @@ document.addEventListener('DOMContentLoaded', async () => {
             restaurante_id: restoIdActivo
         };
 
-        const { error } = id 
-            ? await db.from('productos').update(datos).eq('id', id)
-            : await db.from('productos').insert([datos]);
+        try {
+            const { error } = id 
+                ? await db.from('productos').update(datos).eq('id', id)
+                : await db.from('productos').insert([datos]);
 
-        if (!error) {
+            if (error) throw error;
+
+            // Si es producto nuevo, crear entrada en suministros para control de stock
             if (!id) {
                 await db.from('suministros').insert([{
                     nombre: nombre,
@@ -229,10 +239,11 @@ document.addEventListener('DOMContentLoaded', async () => {
                     restaurante_id: restoIdActivo
                 }]);
             }
+            
             document.getElementById('modalEditarMenu').close();
-            inicializar();
-        } else {
-            alert("Error al guardar: " + error.message);
+            inicializar(); // Recargar menú
+        } catch (err) {
+            alert("Error al guardar: " + err.message);
         }
     };
 

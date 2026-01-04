@@ -1,5 +1,4 @@
-// js/cocina.js - KDS FUNCIONAL CON DESCUENTO SELECTIVO
-
+// js/cocina.js - MONITOR DE COCINA PROFESIONAL (V6 - TRIGGER SYNC)
 document.addEventListener('DOMContentLoaded', () => {
     const pendientes = document.getElementById('tareasPendientes');
     const enProceso = document.getElementById('tareasEnProceso');
@@ -7,85 +6,46 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const estadosContainer = {
         'pendiente': pendientes,
-        'proceso': enProceso,
+        'preparando': enProceso, // Cambiado 'proceso' por 'preparando' para ser fiel al SQL
         'terminado': terminadas
     };
-    
-    // 1. FUNCIÓN PARA DESCONTAR STOCK (SOLO PLATILLOS)
-    async function procesarDescuentoStock(productosTexto) {
-        const sesion = JSON.parse(localStorage.getItem('sesion_activa'));
-        const restoId = sesion?.restaurante_id;
-        if (!restoId || !productosTexto) return;
 
-        const items = productosTexto.split(',').map(p => p.trim());
-
-        for (const item of items) {
-            try {
-                const partes = item.split('x ');
-                if (partes.length < 2) continue;
-                
-                const cantidad = parseInt(partes[0]) || 1;
-                const nombreProducto = partes[1];
-
-                // Verificar si es "Platillo"
-                const { data: productoInfo } = await db
-                    .from('productos')
-                    .select('categoria')
-                    .eq('nombre', nombreProducto)
-                    .eq('restaurante_id', restoId)
-                    .single();
-
-                if (productoInfo && productoInfo.categoria === 'Platillo') {
-                    const { data: insumo } = await db
-                        .from('suministros')
-                        .select('id, cantidad')
-                        .eq('nombre', nombreProducto)
-                        .eq('restaurante_id', restoId)
-                        .single();
-
-                    if (insumo) {
-                        const nuevaCantidad = Math.max(0, insumo.cantidad - cantidad);
-                        await db.from('suministros')
-                            .update({ cantidad: nuevaCantidad })
-                            .eq('id', insumo.id);
-                        console.log(`✅ Stock descontado: ${nombreProducto}`);
-                    }
-                }
-            } catch (err) {
-                console.error("Error al descontar stock de item:", item, err);
-            }
-        }
-    }
+    // NOTA: Ya no necesitamos "procesarDescuentoStock" aquí. 
+    // Tu SQL Trigger lo hace automáticamente cuando el estado cambia a 'terminado'.
 
     function crearTarjetaOrden(orden) {
         let botonHTML = '';
         let colorBorde = '#10ad93'; 
 
+        // Definición de botones y colores según el estado
         if (orden.estado === 'pendiente') {
             colorBorde = '#e53935'; 
-            botonHTML = `<button class="contrast" data-id="${orden.id}" data-next-status="proceso">Iniciar Tarea</button>`;
-        } else if (orden.estado === 'proceso') {
+            botonHTML = `<button class="contrast" data-id="${orden.id}" data-action="iniciar">👨‍🍳 Iniciar Tarea</button>`;
+        } else if (orden.estado === 'preparando') {
             colorBorde = '#ffb300'; 
-            botonHTML = `<button class="secondary" data-id="${orden.id}" data-action="finalizar">Finalizar (Restar Platillos)</button>`;
+            botonHTML = `<button class="secondary" data-id="${orden.id}" data-action="finalizar">✅ Terminar y Descontar</button>`;
         } else if (orden.estado === 'terminado') {
             colorBorde = '#10ad93'; 
-            botonHTML = `<button style="background: #c62828; border:none; color:white;" data-id="${orden.id}" data-action="eliminar">Quitar de Pantalla</button>`;
+            botonHTML = `<button style="background: #c62828; border:none; color:white;" data-id="${orden.id}" data-action="quitar">🗑️ Quitar de Pantalla</button>`;
         }
 
-        const itemsList = orden.productos.split(/,|\n/).filter(p => p.trim() !== "");
+        const itemsList = orden.productos.split(',').filter(p => p.trim() !== "");
         const productosHTML = itemsList.map(item => `<li>${item.trim()}</li>`).join('');
-        const idVisual = orden.id.toString().includes('-') ? orden.id.split('-')[1] : orden.id.toString().slice(-4);
+        
+        // ID Visual corto
+        const idVisual = orden.id.toString().slice(-4);
         
         return `
-            <article class="tarjeta-orden" style="border-left: 5px solid ${colorBorde}; margin-bottom:1.2rem; padding:1rem; background:white; border-radius:8px; box-shadow:0 2px 5px rgba(0,0,0,0.1);">
-                <header style="border-bottom:1px solid #eee; padding-bottom:5px; margin-bottom: 10px;">
-                    <h6 style="margin:0;">#${idVisual} | ${orden.mesa}</h6>
+            <article class="tarjeta-orden" style="border-left: 5px solid ${colorBorde}; margin-bottom:1.2rem; padding:1rem; background:white; border-radius:8px; box-shadow:0 2px 5px rgba(0,0,0,0.1); color: #333;">
+                <header style="border-bottom:1px solid #eee; padding-bottom:5px; margin-bottom: 10px; display:flex; justify-content:space-between;">
+                    <strong style="font-size:1.1rem;">${orden.mesa}</strong>
+                    <small style="color:#888;">#${idVisual}</small>
                 </header>
-                <ul style="font-size: 0.9rem; padding-left: 1.2rem; margin-bottom: 10px;">
+                <ul style="font-size: 1rem; padding-left: 1.2rem; margin-bottom: 10px; font-weight: 500;">
                     ${productosHTML}
                 </ul>
-                ${orden.comentarios ? `<div style="background:#fff3cd; color:#856404; padding:5px; font-size:0.8rem; border-radius:4px; border: 1px dashed #ffeeba;">📝 ${orden.comentarios}</div>` : ''}
-                <footer style="margin-top: 15px;">
+                ${orden.comentarios ? `<div style="background:#fff3cd; color:#856404; padding:8px; font-size:0.85rem; border-radius:4px; border: 1px dashed #ffeeba; margin-bottom:10px;">📝 <strong>Nota:</strong> ${orden.comentarios}</div>` : ''}
+                <footer style="margin-top: 10px;">
                     ${botonHTML}
                 </footer>
             </article>`;
@@ -99,56 +59,53 @@ document.addEventListener('DOMContentLoaded', () => {
         Object.values(estadosContainer).forEach(c => { if(c) c.innerHTML = ''; });
         
         ordenes.forEach(orden => {
-            // Solo mostrar estados de cocina
-            if (['pendiente', 'proceso', 'terminado'].includes(orden.estado)) {
+            // Mapeo de estados para asegurar que caigan en el contenedor correcto
+            let estadoKey = orden.estado;
+            if (estadoKey === 'preparando' || estadoKey === 'proceso') estadoKey = 'preparando';
+
+            if (estadosContainer[estadoKey]) {
                 const html = crearTarjetaOrden(orden);
-                if (estadosContainer[orden.estado]) {
-                    estadosContainer[orden.estado].insertAdjacentHTML('beforeend', html);
-                }
+                estadosContainer[estadoKey].insertAdjacentHTML('beforeend', html);
             }
         });
     }
 
-    // --- CORRECCIÓN EN EL MANEJO DE CLICS ---
     async function manejarClickPanel(event) {
-        const target = event.target;
-        const ordenId = target.getAttribute('data-id');
+        const button = event.target.closest('button');
+        if (!button) return;
+
+        const ordenId = button.getAttribute('data-id');
+        const action = button.getAttribute('data-action');
         if (!ordenId) return;
 
-        // 1. Iniciar Tarea (De Pendiente a Proceso)
-        const nextStatus = target.getAttribute('data-next-status');
-        if (nextStatus === 'proceso') {
-            await App.updateEstado(ordenId, 'proceso');
-        } 
-        
-        // 2. Finalizar (Descuenta stock y pasa a Terminado)
-        else if (target.getAttribute('data-action') === 'finalizar') {
-            const orden = App.getOrdenes().find(o => o.id.toString() === ordenId.toString());
-            if (orden) {
-                target.disabled = true;
-                target.innerText = "Procesando...";
-                await procesarDescuentoStock(orden.productos);
+        button.disabled = true;
+
+        try {
+            if (action === 'iniciar') {
+                await App.updateEstado(ordenId, 'preparando');
+            } 
+            else if (action === 'finalizar') {
+                // Al cambiar a 'terminado', el TRIGGER de SQL descuenta el stock automáticamente
                 await App.updateEstado(ordenId, 'terminado');
+                console.log("Orden terminada. El SQL se encarga del stock.");
             }
-        }
-        
-        // 3. Eliminar de pantalla
-        else if (target.getAttribute('data-action') === 'eliminar') {
-            if(confirm('¿Quitar orden de la pantalla?')) {
-                // Usamos eliminarOrden para que desaparezca totalmente
-                await App.eliminarOrden(ordenId);
+            else if (action === 'quitar') {
+                // Solo quitamos de pantalla (no eliminamos de DB para no perder historial de cocina)
+                // O si prefieres borrarla: await App.eliminarOrden(ordenId);
+                await App.updateEstado(ordenId, 'entregado'); 
             }
+        } catch (err) {
+            console.error("Error en acción de cocina:", err);
+            button.disabled = false;
         }
     }
 
-    // Escuchar clics en todo el MAIN para que no falle la delegación
-    const mainCocina = document.querySelector('main.panel-cocina');
-    if (mainCocina) {
-        mainCocina.addEventListener('click', manejarClickPanel);
-    }
+    // Delegación de eventos en los contenedores
+    const mainCocina = document.querySelector('main') || document.body;
+    mainCocina.addEventListener('click', manejarClickPanel);
     
+    // Registro en el núcleo App para Realtime
     if (typeof App !== 'undefined') {
         App.registerRender('cocina', renderizarCocina);
-        renderizarCocina();
     }
 });
