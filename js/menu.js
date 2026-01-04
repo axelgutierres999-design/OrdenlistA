@@ -1,4 +1,4 @@
-// js/menu.js - GESTIÓN DE PEDIDOS E INVENTARIO (V5.1 - FIX METODO_PAGO)
+// js/menu.js - GESTIÓN DE PEDIDOS E INVENTARIO (V5.2 - INTEGRADO)
 document.addEventListener('DOMContentLoaded', async () => {
     const params = new URLSearchParams(window.location.search);
     const mesaURL = params.get('mesa'); 
@@ -41,20 +41,22 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
 
         // Cargar productos y cruzar con Stock de suministros
-        const { data: productos } = await db.from('productos').select('*').eq('restaurante_id', restoIdActivo);
-        const { data: suministros } = await db.from('suministros').select('nombre, cantidad').eq('restaurante_id', restoIdActivo);
-        
-        if (productos) { 
-            productosMenu = productos.map(p => {
-                const insumo = suministros?.find(s => s.nombre.toLowerCase() === p.nombre.toLowerCase());
-                return { 
-                    ...p, 
-                    stock: insumo ? Math.floor(insumo.cantidad) : '∞',
-                    categoria: p.categoria || 'Otros'
-                };
-            });
-            dibujarMenu(); 
-        }
+        try {
+            const { data: productos } = await db.from('productos').select('*').eq('restaurante_id', restoIdActivo);
+            const { data: suministros } = await db.from('suministros').select('nombre, cantidad').eq('restaurante_id', restoIdActivo);
+            
+            if (productos) { 
+                productosMenu = productos.map(p => {
+                    const insumo = suministros?.find(s => s.nombre.toLowerCase() === p.nombre.toLowerCase());
+                    return { 
+                        ...p, 
+                        stock: insumo ? Math.floor(insumo.cantidad) : '∞',
+                        categoria: p.categoria || 'Otros'
+                    };
+                });
+                dibujarMenu(); 
+            }
+        } catch (err) { console.error("Error al inicializar menú:", err); }
     }
 
     function dibujarMenu() {
@@ -86,7 +88,9 @@ document.addEventListener('DOMContentLoaded', async () => {
                     <small class="stock-tag ${p.stock <= 0 ? 'sin-stock' : ''}">${p.stock <= 0 ? 'Agotado' : 'Stock: ' + p.stock}</small>
                 </div>
             `;
-            art.onclick = (e) => { if(!e.target.classList.contains('edit-btn')) agregarItem(p); };
+            art.onclick = (e) => { 
+                if(!e.target.classList.contains('edit-btn')) agregarItem(p); 
+            };
             contenedorProductos.appendChild(art);
         });
     }
@@ -134,14 +138,12 @@ document.addEventListener('DOMContentLoaded', async () => {
         renderizarCarrito();
     };
 
-    // --- 3. PROCESAR ORDEN (CORRECCIÓN DE ERROR SQL) ---
+    // --- 3. PROCESAR ORDEN ---
     btnProcesar.onclick = async () => {
         const mesaLabel = selectMesa.value;
         if (!mesaLabel) return alert("Por favor, selecciona una mesa o 'Para Llevar'");
 
         let metodoPago = null;
-
-        // Si es para llevar, consultamos el pago de antemano
         if (mesaLabel === "Para Llevar") {
             const confirmPago = confirm("¿El pago es con TARJETA o QR? (Aceptar = Tarjeta/QR, Cancelar = Efectivo)");
             metodoPago = confirmPago ? 'tarjeta' : 'efectivo';
@@ -153,7 +155,6 @@ document.addEventListener('DOMContentLoaded', async () => {
         const totalFinal = parseFloat(ordenTotalSpan.textContent.replace('$', ''));
         const productosTexto = ordenActual.map(i => `${i.cantidad}x ${i.nombre}`).join(', ');
 
-        // OBJETO CORREGIDO: No enviamos 'metodo_pago' a la tabla 'ordenes'
         const datosOrden = {
             mesa: mesaLabel,
             productos: productosTexto,
@@ -164,11 +165,11 @@ document.addEventListener('DOMContentLoaded', async () => {
         };
 
         try {
-            // A. Registrar en cocina/ordenes (usando la función central de App)
-            const res = await App.addOrden(datosOrden);
-            if (res?.error) throw res.error;
+            // A. Registrar en cocina
+            const { error: errorOrden } = await db.from('ordenes').insert([datosOrden]);
+            if (errorOrden) throw errorOrden;
 
-            // B. Si fue "Para Llevar", registrar directamente en Ventas (porque ya se pagó)
+            // B. Si fue "Para Llevar", registrar directamente en Ventas
             if (mesaLabel === "Para Llevar") {
                 await db.from('ventas').insert([{
                     restaurante_id: restoIdActivo,
@@ -180,7 +181,8 @@ document.addEventListener('DOMContentLoaded', async () => {
             }
 
             alert("✅ Orden procesada con éxito");
-            window.location.href = "mesas.html";
+            window.location.href = (sesion.rol === 'invitado') ? `menu.html?rid=${restoIdActivo}` : "mesas.html";
+            
         } catch (err) {
             console.error(err);
             alert("Error al procesar: " + (err.message || "Error desconocido"));
@@ -210,42 +212,44 @@ document.addEventListener('DOMContentLoaded', async () => {
         modal.showModal();
     };
 
-    document.getElementById('formProducto').onsubmit = async (e) => {
-        e.preventDefault();
-        const id = document.getElementById('editId').value;
-        const nombre = document.getElementById('editNombre').value;
+    const formProducto = document.getElementById('formProducto');
+    if (formProducto) {
+        formProducto.onsubmit = async (e) => {
+            e.preventDefault();
+            const id = document.getElementById('editId').value;
+            const nombre = document.getElementById('editNombre').value;
 
-        const datos = {
-            nombre: nombre,
-            precio: parseFloat(document.getElementById('editPrecio').value),
-            imagen_url: document.getElementById('editImg').value || null,
-            categoria: document.getElementById('editCategoria').value,
-            restaurante_id: restoIdActivo
-        };
+            const datos = {
+                nombre: nombre,
+                precio: parseFloat(document.getElementById('editPrecio').value),
+                imagen_url: document.getElementById('editImg').value || null,
+                categoria: document.getElementById('editCategoria').value,
+                restaurante_id: restoIdActivo
+            };
 
-        try {
-            const { error } = id 
-                ? await db.from('productos').update(datos).eq('id', id)
-                : await db.from('productos').insert([datos]);
+            try {
+                const { error } = id 
+                    ? await db.from('productos').update(datos).eq('id', id)
+                    : await db.from('productos').insert([datos]);
 
-            if (error) throw error;
+                if (error) throw error;
 
-            // Si es producto nuevo, crear entrada en suministros para control de stock
-            if (!id) {
-                await db.from('suministros').insert([{
-                    nombre: nombre,
-                    cantidad: 0,
-                    unidad: 'unidades',
-                    restaurante_id: restoIdActivo
-                }]);
+                if (!id) {
+                    await db.from('suministros').insert([{
+                        nombre: nombre,
+                        cantidad: 0,
+                        unidad: 'unidades',
+                        restaurante_id: restoIdActivo
+                    }]);
+                }
+                
+                document.getElementById('modalEditarMenu').close();
+                inicializar(); 
+            } catch (err) {
+                alert("Error al guardar: " + err.message);
             }
-            
-            document.getElementById('modalEditarMenu').close();
-            inicializar(); // Recargar menú
-        } catch (err) {
-            alert("Error al guardar: " + err.message);
-        }
-    };
+        };
+    }
 
     inicializar();
 });
