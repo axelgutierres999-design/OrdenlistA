@@ -60,26 +60,13 @@
             top: 2rem;
         }
 
-        /* Ítems del Carrito y botón de eliminar (Tache) */
+        /* Ítems del Carrito */
         .item-carrito {
             display: flex;
             justify-content: space-between;
             align-items: center;
             padding: 0.6rem 0;
             border-bottom: 1px dashed #eee;
-        }
-        .btn-tache {
-            background: none;
-            border: none;
-            color: #ff4d4d;
-            cursor: pointer;
-            padding: 0 5px;
-            font-weight: bold;
-            font-size: 1.1rem;
-        }
-        .btn-tache:hover {
-            color: #cc0000;
-            background: none;
         }
 
         .stock-tag {
@@ -94,7 +81,7 @@
             background: #ffebe9;
         }
 
-        /* Estilo para el botón de "Nuevo Platillo" */
+        /* Botón Nuevo Platillo */
         .nuevo-producto-btn {
             border: 2px dashed #10ad93;
             color: #10ad93;
@@ -114,14 +101,8 @@
         <ul>
             <li><strong>☕ OrdenLista</strong></li>
         </ul>
-        <ul class="nav-botones">
-            <li><a href="mesas.html" class="outline">🪑 Mesas</a></li>
-            <li><a href="ordenes.html" class="outline">📋 Órdenes</a></li>
-            <li><a href="menu.html" class="secondary">📜 Menú</a></li>
-            <li><a href="cocina.html" class="outline">👨‍🍳 Cocina</a></li>
-            <li><a href="stock.html" class="outline">📦 Stock</a></li>
-            <li><button onclick="cerrarSesion()" class="contrast" style="padding: 5px 15px;">Salir</button></li>
-        </ul>
+        <ul id="menuNavegacion" class="nav-botones">
+            </ul>
     </nav>
 
     <main class="container">
@@ -158,7 +139,7 @@
                     <option value="" disabled selected>Selecciona mesa o para llevar...</option>
                 </select>
 
-                <button id="btnProcesarOrden" class="contrast" style="width: 100%;" disabled>
+                <button id="btnProcesarOrden" style="width: 100%; background-color: #10ad93; border: none;" disabled>
                     🚀 Procesar Pedido
                 </button>
             </section>
@@ -194,17 +175,17 @@
                     </label>
                     <label>Categoría
                         <select id="editCategoria">
-                            <option value="Comida">Comida</option>
-                            <option value="Bebidas">Bebidas</option>
-                            <option value="Postres">Postres</option>
-                            <option value="Otros">Otros</option>
+                            <option value="Platillo">🍱 Platillo (Resta Stock)</option>
+                            <option value="Bebidas">🥤 Bebidas</option>
+                            <option value="Postres">🍰 Postres</option>
+                            <option value="Otros">✨ Otros</option>
                         </select>
                     </label>
                 </div>
 
                 <footer style="margin-top: 1rem; display: flex; gap: 15px;">
-                    <button type="button" class="secondary" onclick="document.getElementById('modalEditarMenu').close()" style="flex: 1;">Cancelar</button>
-                    <button type="submit" style="flex: 2;">Guardar Cambios</button>
+                    <button type="button" class="secondary outline" onclick="document.getElementById('modalEditarMenu').close()" style="flex: 1;">Cancelar</button>
+                    <button type="submit" style="flex: 2; background-color: #10ad93; border: none;">Guardar Cambios</button>
                 </footer>
             </form>
         </article>
@@ -212,8 +193,6 @@
 
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="js/supabase-client.js"></script>
-    <script src="js/logout.js"></script>
-    <script src="js/app.js"></script> 
-    <script src="js/menu.js"></script>
+    <script src="js/app.js"></script> <script src="js/menu.js"></script>
 </body>
 </html>

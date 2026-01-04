@@ -1,10 +1,13 @@
-// js/estadisticas.js - REPORTES Y KPIs DE VENTAS (ACTUALIZADO)
+// js/estadisticas.js - REPORTES Y KPIs DE VENTAS (DIVISIÓN EFECTIVO/TARJETA)
 
 document.addEventListener('DOMContentLoaded', async () => {
     const sesion = JSON.parse(localStorage.getItem('sesion_activa'));
     if (!sesion || typeof db === 'undefined') return;
 
+    // Elementos de la UI
     const spanTotalDia = document.getElementById('totalDia');
+    const spanEfectivo = document.getElementById('totalEfectivo');
+    const spanTarjeta = document.getElementById('totalTarjeta');
     const spanNumVentas = document.getElementById('numVentasDia');
     const spanTicketPromedio = document.getElementById('ticketPromedio');
     const listaVentas = document.getElementById('listaUltimasVentas');
@@ -12,12 +15,10 @@ document.addEventListener('DOMContentLoaded', async () => {
     let chartInstancia = null;
     let ventasHoy = [];
 
-    // --- 1. CARGAR DATOS DESDE TABLA VENTAS ---
     async function cargarEstadisticas() {
         const hoy = new Date();
         hoy.setHours(0,0,0,0);
         
-        // Consultamos la tabla 'ventas' (Historial definitivo)
         const { data, error } = await db
             .from('ventas')
             .select('*')
@@ -36,60 +37,60 @@ document.addEventListener('DOMContentLoaded', async () => {
         dibujarGrafico();
     }
 
-    // --- 2. KPIs (Total, Cantidad y Promedio) ---
     function actualizarKPIs() {
-        const total = ventasHoy.reduce((acc, v) => acc + parseFloat(v.total), 0);
-        const cantidad = ventasHoy.length;
-        const promedio = cantidad > 0 ? total / cantidad : 0;
+        let totalGeneral = 0;
+        let totalEfec = 0;
+        let totalTarj = 0;
 
-        if (spanTotalDia) spanTotalDia.innerText = `$${total.toFixed(2)}`;
+        ventasHoy.forEach(v => {
+            const monto = parseFloat(v.total);
+            totalGeneral += monto;
+            if (v.metodo_pago === 'tarjeta') totalTarj += monto;
+            else totalEfec += monto; // Default a efectivo
+        });
+
+        const cantidad = ventasHoy.length;
+        const promedio = cantidad > 0 ? totalGeneral / cantidad : 0;
+
+        if (spanTotalDia) spanTotalDia.innerText = `$${totalGeneral.toFixed(2)}`;
+        if (spanEfectivo) spanEfectivo.innerText = `$${totalEfec.toFixed(2)}`;
+        if (spanTarjeta) spanTarjeta.innerText = `$${totalTarj.toFixed(2)}`;
         if (spanNumVentas) spanNumVentas.innerText = cantidad;
         if (spanTicketPromedio) spanTicketPromedio.innerText = `$${promedio.toFixed(2)}`;
     }
 
-    // --- 3. TABLA DE HISTORIAL ---
     function renderizarTabla() {
         if (!listaVentas) return;
-        
         if (ventasHoy.length === 0) {
             listaVentas.innerHTML = '<tr><td colspan="5" style="text-align:center;">No hay ventas registradas hoy.</td></tr>';
             return;
         }
 
-        listaVentas.innerHTML = ventasHoy.map(v => {
-            const fecha = new Date(v.created_at);
-            const hora = fecha.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-            
-            return `
-                <tr>
-                    <td><small>#${v.id.toString().slice(-5).toUpperCase()}</small></td>
-                    <td>${v.mesa}</td>
-                    <td><strong>$${parseFloat(v.total).toFixed(2)}</strong></td>
-                    <td><span class="badge-metodo">${v.metodo_pago || 'efectivo'}</span></td>
-                    <td>${hora}</td>
-                </tr>
-            `;
-        }).join('');
+        listaVentas.innerHTML = ventasHoy.map(v => `
+            <tr>
+                <td><small>#${v.id.toString().slice(-5).toUpperCase()}</small></td>
+                <td>${v.mesa}</td>
+                <td><strong>$${parseFloat(v.total).toFixed(2)}</strong></td>
+                <td><span class="badge" style="background:${v.metodo_pago === 'tarjeta' ? '#3498db' : '#10ad93'}; color:white; padding:2px 8px; border-radius:5px; font-size:0.7rem;">${v.metodo_pago.toUpperCase()}</span></td>
+                <td>${new Date(v.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</td>
+            </tr>
+        `).join('');
     }
 
-    // --- 4. GRÁFICO DE PRODUCTOS (Lógica de limpieza mejorada) ---
     function dibujarGrafico() {
         const canvas = document.getElementById('graficoCategorias');
         if (!canvas || typeof Chart === 'undefined' || ventasHoy.length === 0) return;
 
-        // Si ya existe un gráfico, lo destruimos para evitar errores de renderizado
         if (chartInstancia) chartInstancia.destroy();
 
         const resumen = {};
         ventasHoy.forEach(v => {
-            // Separamos productos y limpiamos el formato "1x Producto"
             v.productos.split(',').forEach(p => {
                 const nombreLimpio = p.trim().replace(/^\d+x\s/, ''); 
                 resumen[nombreLimpio] = (resumen[nombreLimpio] || 0) + 1;
             });
         });
 
-        // Ordenar por más vendidos y tomar los mejores 5
         const labels = Object.keys(resumen).sort((a,b) => resumen[b] - resumen[a]).slice(0, 5);
         const values = labels.map(l => resumen[l]);
 
@@ -106,19 +107,14 @@ document.addEventListener('DOMContentLoaded', async () => {
             options: {
                 responsive: true,
                 maintainAspectRatio: false,
-                plugins: {
-                    legend: { position: 'bottom', labels: { usePointStyle: true } }
-                }
+                plugins: { legend: { position: 'bottom' } }
             }
         });
     }
 
-    // --- 5. FUNCIÓN DE IMPRESIÓN DE CORTE ---
     window.imprimirCorteCaja = () => {
-        const total = spanTotalDia.innerText;
-        const num = spanNumVentas.innerText;
-        const promedio = spanTicketPromedio.innerText;
         const fecha = new Date().toLocaleDateString();
+        const hora = new Date().toLocaleTimeString();
 
         const ventana = window.open("", "_blank", "width=400,height=600");
         ventana.document.write(`
@@ -126,39 +122,29 @@ document.addEventListener('DOMContentLoaded', async () => {
             <head>
                 <title>Corte de Caja</title>
                 <style>
-                    body { font-family: 'Courier New', monospace; padding: 20px; text-align: center; font-size: 14px; }
-                    .line { border-top: 1px dashed #000; margin: 15px 0; }
-                    .total-box { font-size: 22px; font-weight: bold; margin: 10px 0; }
-                    table { width: 100%; font-size: 11px; text-align: left; }
+                    body { font-family: 'Courier New', monospace; padding: 20px; color: #000; }
+                    .center { text-align: center; }
+                    .bold { font-weight: bold; }
+                    .line { border-top: 1px dashed #000; margin: 10px 0; }
+                    .flex { display: flex; justify-content: space-between; }
                 </style>
             </head>
             <body>
-                <h2 style="margin:0;">CORTE DE CAJA</h2>
-                <p style="margin:5px;">${sesion.nombre_restaurante}</p>
-                <p>Fecha: ${fecha}</p>
+                <div class="center">
+                    <h2 style="margin:0;">CORTE DE CAJA</h2>
+                    <p>${sesion.nombre_restaurante}</p>
+                    <p>${fecha} - ${hora}</p>
+                </div>
                 <div class="line"></div>
-                <div class="total-box">TOTAL: ${total}</div>
-                <p>Ventas Realizadas: ${num}</p>
-                <p>Ticket Promedio: ${promedio}</p>
+                <div class="flex bold"><span>VENTAS TOTALES:</span><span>${spanTotalDia.innerText}</span></div>
                 <div class="line"></div>
-                <p>Resumen de movimientos:</p>
-                <table>
-                    <thead>
-                        <tr><th>ID</th><th>Mesa</th><th>Total</th><th>Hora</th></tr>
-                    </thead>
-                    <tbody>
-                        ${ventasHoy.map(v => `
-                            <tr>
-                                <td>${v.id.toString().slice(-4)}</td>
-                                <td>${v.mesa}</td>
-                                <td>$${parseFloat(v.total).toFixed(2)}</td>
-                                <td>${new Date(v.created_at).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})}</td>
-                            </tr>
-                        `).join('')}
-                    </tbody>
-                </table>
+                <div class="flex"><span>Efectivo:</span><span>${spanEfectivo.innerText}</span></div>
+                <div class="flex"><span>Tarjeta:</span><span>${spanTarjeta.innerText}</span></div>
                 <div class="line"></div>
-                <p>OrdenLista - Sistema de Gestión</p>
+                <div class="flex"><span>Tickets:</span><span>${spanNumVentas.innerText}</span></div>
+                <div class="flex"><span>Promedio:</span><span>${spanTicketPromedio.innerText}</span></div>
+                <div class="line"></div>
+                <p class="center">*** Fin de Reporte ***</p>
                 <script>window.print(); setTimeout(()=>window.close(), 500);</script>
             </body>
             </html>
@@ -166,6 +152,5 @@ document.addEventListener('DOMContentLoaded', async () => {
         ventana.document.close();
     };
 
-    // Carga inicial
     cargarEstadisticas();
 });

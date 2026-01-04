@@ -1,4 +1,4 @@
-// js/mesas.js - GESTIÓN DE SALÓN, COBROS Y TICKETS (ACTUALIZADO)
+// js/mesas.js - GESTIÓN DE SALÓN, COBROS Y TICKETS (Sincronizado con App.js V4)
 document.addEventListener('DOMContentLoaded', async () => {
     const contenedorMesas = document.getElementById('contenedorMesas');
     const inputNumMesas = document.getElementById('numMesasInput');
@@ -33,7 +33,6 @@ document.addEventListener('DOMContentLoaded', async () => {
 
         for (let i = 1; i <= totalMesas; i++) {
             const nombreMesa = `Mesa ${i}`;
-            // Buscar orden activa (excluyendo pagadas y canceladas)
             const orden = ordenes.find(o => o.mesa === nombreMesa && o.estado !== 'pagado' && o.estado !== 'cancelado');
             
             let clase = 'mesa-libre';
@@ -42,11 +41,10 @@ document.addEventListener('DOMContentLoaded', async () => {
 
             if (orden) {
                 if (orden.estado === 'por_confirmar') {
-                    // MESA SOLICITANDO APERTURA QR
                     clase = 'mesa-urgente'; 
                     estadoTexto = '🔔 SOLICITUD QR';
                     contenido = `
-                        <div style="background: #fff3cd; padding: 5px; border-radius: 4px; margin-bottom: 8px; font-size: 0.8rem; color: #856404;">
+                        <div style="background: #fff3cd; padding: 5px; border-radius: 4px; margin-bottom: 8px; font-size: 0.8rem; color: #856404; text-align:center;">
                             Cliente escaneó QR
                         </div>
                         <div class="grid">
@@ -55,22 +53,20 @@ document.addEventListener('DOMContentLoaded', async () => {
                         </div>
                     `;
                 } else {
-                    // MESA OCUPADA
                     clase = 'mesa-ocupada';
                     estadoTexto = `Ocupada ($${parseFloat(orden.total).toFixed(2)})`;
                     
                     contenido = `
-                        <button onclick="window.abrirModalCobro('${orden.id}', ${orden.total})" style="width:100%; background:#27ae60; border:none; color:white; margin-bottom:8px; font-weight:bold; padding: 12px; border-radius: 8px;">
+                        <button onclick="App.liberarMesaManual('${orden.id}')" style="width:100%; background:#10ad93; border:none; color:white; margin-bottom:8px; font-weight:bold; padding: 12px; border-radius: 8px; cursor:pointer;">
                             💰 Cobrar Mesa
                         </button>
                         <div class="grid">
-                            <button class="secondary outline" style="padding:5px; font-size:0.75rem;" onclick="window.location.href='ordenes.html?mesa=${i}&verTicket=true'">🧾 Ver Ticket</button>
+                            <button class="secondary outline" style="padding:5px; font-size:0.75rem;" onclick="App.verDetalleMesa('${orden.id}')">🧾 Ver Ticket</button>
                             <button class="outline" style="padding:5px; font-size:0.75rem;" onclick="window.location.href='menu.html?mesa=${i}'">+ Agregar</button>
                         </div>
                     `;
                 }
             } else {
-                // MESA LIBRE
                 contenido = `
                     <button class="outline" onclick="window.location.href='menu.html?mesa=${i}'" style="width:100%; margin-bottom:8px; border-radius: 8px;">
                         📝 Nueva Orden
@@ -86,10 +82,10 @@ document.addEventListener('DOMContentLoaded', async () => {
             div.innerHTML = `
                 <div class="mesa-header" style="display:flex; align-items:center; gap:10px; margin-bottom:10px;">
                     <span style="font-size:1.5rem;">${orden ? '🍽️' : '🪑'}</span>
-                    <h3 style="margin:0; font-size:1.1rem;">Mesa ${i}</h3>
+                    <h3 style="margin:0; font-size:1.1rem; color:#333;">Mesa ${i}</h3>
                 </div>
                 <div style="text-align:center; margin-bottom:12px;">
-                    <span class="badge" style="font-size:0.7rem; background:${orden ? (orden.estado === 'por_confirmar' ? '#e67e22' : '#2ecc71') : '#95a5a6'}; color:white; padding:2px 8px; border-radius:10px;">
+                    <span class="badge" style="font-size:0.7rem; background:${orden ? (orden.estado === 'por_confirmar' ? '#e67e22' : '#10ad93') : '#95a5a6'}; color:white; padding:2px 8px; border-radius:10px; font-weight:bold;">
                         ${estadoTexto}
                     </span>
                 </div>
@@ -101,7 +97,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
     }
 
-    // 3. GENERADOR DE QR MEJORADO
+    // 3. GENERADOR DE QR
     window.generarQR = (numMesa) => {
         const urlBase = window.location.origin + window.location.pathname.replace('mesas.html', '');
         const urlFinal = `${urlBase}menu.html?mesa=${numMesa}&rid=${sesion.restaurante_id}`;
@@ -113,15 +109,15 @@ document.addEventListener('DOMContentLoaded', async () => {
                 <title>QR Mesa ${numMesa}</title>
                 <script src="https://cdnjs.cloudflare.com/ajax/libs/qrious/4.0.2/qrious.min.js"></script>
                 <style>
-                    body { text-align:center; font-family:sans-serif; padding:20px; }
-                    .card { border: 2px solid #333; padding: 20px; border-radius: 15px; display: inline-block; }
-                    .btn { margin-top: 20px; padding: 10px 20px; background: #10ad93; color: white; border: none; border-radius: 5px; cursor: pointer; }
+                    body { text-align:center; font-family:sans-serif; padding:20px; color:#333; }
+                    .card { border: 2px solid #10ad93; padding: 20px; border-radius: 15px; display: inline-block; }
+                    .btn { margin-top: 20px; padding: 10px 20px; background: #10ad93; color: white; border: none; border-radius: 5px; cursor: pointer; font-weight:bold; }
                 </style>
             </head>
             <body>
                 <div class="card">
                     <h1>${sesion.nombre_restaurante || 'OrdenLista'}</h1>
-                    <p>Escanea para ver el menú y pedir</p>
+                    <p>Escanea para pedir</p>
                     <canvas id="qr"></canvas>
                     <h2>MESA ${numMesa}</h2>
                 </div><br>
@@ -130,18 +126,6 @@ document.addEventListener('DOMContentLoaded', async () => {
             </body></html>
         `);
         ventana.document.close();
-    };
-
-    // 4. LÓGICA DE COBRO (VINCULADA A APP.JS)
-    window.abrirModalCobro = (ordenId, total) => {
-        // Usamos la función de App.js que ya maneja el proceso de pago
-        if (typeof App !== 'undefined' && App.mostrarModalPago) {
-            App.mostrarModalPago(ordenId, total);
-        } else {
-            // Fallback si App no está cargada del todo
-            const confirmacion = confirm(`Total a cobrar: $${total}\n\n¿Proceder con el pago?`);
-            if (confirmacion) App.liberarMesaManual(ordenId);
-        }
     };
 
     window.guardarConfig = async () => {

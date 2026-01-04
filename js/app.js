@@ -1,4 +1,4 @@
-// js/app.js - LÓGICA INTEGRAL CENTRALIZADA (ORDENLISTA) - ACTUALIZADO V3
+// js/app.js - LÓGICA INTEGRAL CENTRALIZADA (ORDENLISTA) - ACTUALIZADO V4
 const App = (function() {
   let ordenes = [];
   let suministros = [];
@@ -11,7 +11,7 @@ const App = (function() {
 
   const renderCallbacks = {};
 
-  // 1. CARGA DE DATOS Y SINCRONIZACIÓN
+  // 1. CARGA DE DATOS
   const cargarDatosIniciales = async () => {
     if (typeof db === 'undefined') return;
     const restoId = getRestoId();
@@ -40,17 +40,18 @@ const App = (function() {
     }
   };
 
-  // 2. INTERFAZ DE COBRO MEJORADA (Efectivo, Tarjeta, QR)
+  // 2. INTERFAZ DE COBRO MEJORADA
   const mostrarModalPago = (orden, callbackPago) => {
     const total = parseFloat(orden.total);
     const modal = document.createElement('div');
     modal.id = "modalGlobalPago";
+    modal.className = "modal-overlay"; // Usar clase para CSS externo si existe
     modal.style = "position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.8);display:flex;justify-content:center;align-items:center;z-index:10000;padding:15px;";
     
     modal.innerHTML = `
-      <article style="background:white;padding:1.5rem;border-radius:15px;width:100%;max-width:400px;box-shadow:0 20px 40px rgba(0,0,0,0.3);">
+      <article style="background:white;padding:1.5rem;border-radius:15px;width:100%;max-width:400px;box-shadow:0 20px 40px rgba(0,0,0,0.3); color:#333;">
         <header style="text-align:center; border-bottom:1px solid #eee; margin-bottom:1rem; padding-bottom:0.5rem;">
-            <h3 style="margin:0;">Finalizar Mesa ${orden.mesa.replace('Mesa ', '')}</h3>
+            <h3 style="margin:0; color:#333;">Finalizar ${orden.mesa}</h3>
         </header>
         
         <div style="text-align:center; margin-bottom:1.5rem;">
@@ -67,37 +68,35 @@ const App = (function() {
         </div>
 
         <div id="panelEfectivo" style="display:none; background:#f9f9f9; padding:15px; border-radius:10px; margin-bottom:15px;">
-            <label>Monto Recibido:</label>
-            <input type="number" id="inputRecibido" placeholder="0.00" style="font-size:1.5rem; text-align:center; margin-top:5px;">
+            <label style="color:#555;">Monto Recibido:</label>
+            <input type="number" id="inputRecibido" placeholder="0.00" style="font-size:1.5rem; text-align:center; margin-top:5px; width:100%;">
             <div id="txtCambio" style="text-align:center; font-weight:bold; margin-top:10px; color:#e74c3c;">Cambio: $0.00</div>
-            <button id="btnConfirmarEfectivo" disabled style="width:100%; margin-top:10px; background:#27ae60;">REGISTRAR PAGO</button>
+            <button id="btnConfirmarEfectivo" disabled style="width:100%; margin-top:10px; background:#27ae60; color:white;">REGISTRAR VENTA</button>
         </div>
 
         <div id="panelQR" style="display:none; text-align:center; margin-bottom:15px;">
-            <p><small>Muestre este código al cliente</small></p>
-            <img src="assets/tu-qr-de-cobro.png" style="width:180px; border:4px solid #eee; border-radius:10px;">
-            <button id="btnConfirmarQR" style="width:100%; margin-top:10px; background:#f39c12;">YA RECIBÍ LA TRANSFERENCIA</button>
+            <p><small>Muestre el código al cliente</small></p>
+            <div style="background:#eee; height:150px; display:flex; align-items:center; justify-content:center; border-radius:10px; margin-bottom:10px;">[CÓDIGO QR]</div>
+            <button id="btnConfirmarQR" style="width:100%; background:#f39c12; color:white;">PAGO RECIBIDO</button>
         </div>
 
         <footer style="text-align:center; margin-top:10px;">
-            <button id="btnCancelar" class="outline secondary" style="border:none; text-decoration:underline;">Volver a la mesa</button>
+            <button id="btnCancelar" style="background:none; border:none; text-decoration:underline; color:#888; cursor:pointer;">Volver a la mesa</button>
         </footer>
       </article>`;
     
     document.body.appendChild(modal);
 
-    // Lógica de paneles
     const btnEfectivo = document.getElementById('btnEfectivoUI');
     const btnTarjeta = document.getElementById('btnTarjetaUI');
     const btnQR = document.getElementById('btnQRUI');
+    const seccionMetodos = document.getElementById('seccionMetodos');
     const panelEfectivo = document.getElementById('panelEfectivo');
     const panelQR = document.getElementById('panelQR');
-    const seccionMetodos = document.getElementById('seccionMetodos');
 
     btnEfectivo.onclick = () => { seccionMetodos.style.display='none'; panelEfectivo.style.display='block'; document.getElementById('inputRecibido').focus(); };
     btnQR.onclick = () => { seccionMetodos.style.display='none'; panelQR.style.display='block'; };
     
-    // Cálculo de cambio
     const input = document.getElementById('inputRecibido');
     input.addEventListener('input', () => {
         const recibido = parseFloat(input.value) || 0;
@@ -115,9 +114,8 @@ const App = (function() {
         }
     });
 
-    // Finalización de pagos
     document.getElementById('btnConfirmarEfectivo').onclick = () => { callbackPago('efectivo'); modal.remove(); };
-    btnTarjeta.onclick = () => { if(confirm("¿Se procesó el pago en la terminal?")) { callbackPago('tarjeta'); modal.remove(); } };
+    btnTarjeta.onclick = () => { if(confirm("¿Confirmas pago con Tarjeta?")) { callbackPago('tarjeta'); modal.remove(); } };
     document.getElementById('btnConfirmarQR').onclick = () => { callbackPago('qr'); modal.remove(); };
     document.getElementById('btnCancelar').onclick = () => modal.remove();
   };
@@ -125,19 +123,16 @@ const App = (function() {
   // 3. IMPRESIÓN DE TICKET
   const imprimirTicketVenta = (venta) => {
     const ventana = window.open("", "_blank", "width=350,height=550");
-    const items = venta.productos.split(',').map(p => `<tr><td style="text-align:left; padding:5px 0;">${p.trim()}</td><td style="text-align:right;">---</td></tr>`).join('');
-
+    const items = venta.productos.split(',').map(p => `<tr><td style="text-align:left; padding:5px 0;">${p.trim()}</td></tr>`).join('');
     ventana.document.write(`
-        <html><head><style>body{font-family:'Courier New',monospace;padding:15px;text-align:center;} table{width:100%;margin-top:10px;font-size:12px;} .total{font-size:20px;font-weight:bold;border-top:1px dashed #000;margin-top:10px;padding-top:10px;}</style></head>
-        <body>
-            <h2>${JSON.parse(localStorage.getItem('sesion_activa'))?.nombre_restaurante || 'ORDENLISTA'}</h2>
+        <html><body style="font-family:monospace; text-align:center; padding:20px;">
+            <h3>${JSON.parse(localStorage.getItem('sesion_activa'))?.nombre_restaurante || 'ORDENLISTA'}</h3>
             <p>Ticket #${venta.id.toString().slice(-6)}<br>${new Date().toLocaleString()}</p>
-            <hr><h3>${venta.mesa}</h3><hr>
-            <table>${items}</table>
-            <div class="total">TOTAL: $${venta.total.toFixed(2)}</div>
+            <hr><h4>${venta.mesa}</h4><hr>
+            <table style="width:100%">${items}</table>
+            <h2 style="margin-top:20px;">TOTAL: $${venta.total.toFixed(2)}</h2>
             <p>Método: ${venta.metodo_pago.toUpperCase()}</p>
-            <p>¡Vuelva pronto!</p>
-            <script>window.print(); setTimeout(()=>window.close(), 600);</script>
+            <script>window.print(); setTimeout(()=>window.close(), 500);</script>
         </body></html>`);
     ventana.document.close();
   };
@@ -148,16 +143,19 @@ const App = (function() {
     getSuministros: () => suministros,
     getVentas: () => ventas,
 
-    // Lógica para agregar productos a mesa existente
+    // LÓGICA DE SUMA CORREGIDA
     addOrden: async (orden) => {
       const restoId = getRestoId();
       if (!restoId) return;
+      
       const existente = ordenes.find(o => o.mesa === orden.mesa && o.estado !== 'pagado');
       
       if (existente) {
+         // IMPORTANTE: Asegurar suma numérica
+         const nuevoTotal = parseFloat(existente.total) + parseFloat(orden.total);
          await db.from('ordenes').update({
              productos: existente.productos + `, ${orden.productos}`,
-             total: existente.total + orden.total,
+             total: nuevoTotal,
              estado: 'pendiente'
          }).eq('id', existente.id);
          return { id: existente.id };
@@ -165,11 +163,13 @@ const App = (function() {
       return await db.from('ordenes').insert([{ ...orden, restaurante_id: restoId }]);
     },
 
-    updateEstado: async (id, nuevoEstado) => {
-      await db.from('ordenes').update({ estado: nuevoEstado }).eq('id', id);
+    // FUNCIÓN PARA VER TICKET SIN COBRAR (NUEVO)
+    verDetalleMesa: (id) => {
+        const orden = ordenes.find(o => o.id === id);
+        if (!orden) return;
+        alert(`CONSUMO ACTUAL - ${orden.mesa}\n--------------------------\n${orden.productos.split(',').join('\n')}\n--------------------------\nTOTAL: $${parseFloat(orden.total).toFixed(2)}`);
     },
 
-    // FUNCIÓN CENTRAL DE COBRO (Se llama desde mesas.js)
     liberarMesaManual: (id) => {
       const orden = ordenes.find(o => o.id === id);
       if (!orden) return;
@@ -183,17 +183,13 @@ const App = (function() {
                 total: orden.total,
                 metodo_pago: metodo
             };
-
             const { data: vtaGuardada, error } = await db.from('ventas').insert([venta]).select().single();
             if (error) throw error;
 
             await db.from('ordenes').update({ estado: 'pagado' }).eq('id', id);
             imprimirTicketVenta(vtaGuardada);
             App.init(); 
-            alert("Mesa liberada correctamente.");
-        } catch (err) {
-            alert("Error: " + err.message);
-        }
+        } catch (err) { alert("Error al cobrar: " + err.message); }
       });
     },
 
@@ -202,46 +198,46 @@ const App = (function() {
   };
 })();
 
-// --- SEGURIDAD Y NAVEGACIÓN ---
-const Seguridad = {
-  verificarAcceso: () => {
-    const sesion = JSON.parse(localStorage.getItem('sesion_activa'));
-    const pag = window.location.pathname.split("/").pop();
-    if (!sesion && !["login.html", "registro.html", "index.html", ""].includes(pag)) {
-        window.location.href = "login.html";
-    }
-  }
-};
-
+// --- NAVEGACIÓN RESTAURADA (7 BOTONES) ---
 function renderizarMenuSeguro() {
     const sesion = JSON.parse(localStorage.getItem('sesion_activa'));
     if (!sesion) return;
 
     const esDueño = (sesion.rol === 'dueño');
-    const pag = window.location.pathname.split("/").pop();
+    const pag = window.location.pathname.split("/").pop() || "index.html";
     const navContenedor = document.getElementById('menuNavegacion');
     if (!navContenedor) return;
 
-    navContenedor.innerHTML = `
-        <li><a href="mesas.html" class="${pag === 'mesas.html' ? 'activo' : 'outline'}">🪑 Mesas</a></li> 
-        <li><a href="ordenes.html" class="${pag === 'ordenes.html' ? 'activo' : 'outline'}">📋 Órdenes</a></li>
-        <li><a href="menu.html" class="${pag === 'menu.html' ? 'activo' : 'outline'}">📜 Menú</a></li>
-        <li><a href="cocina.html" class="${pag === 'cocina.html' ? 'activo' : 'outline'}">👨‍🍳 Cocina</a></li>
-        ${esDueño ? `
-            <li><a href="stock.html" class="${pag === 'stock.html' ? 'activo' : 'outline'}">📦 Stock</a></li>
-            <li><a href="ventas.html" class="${pag === 'ventas.html' ? 'activo' : 'outline'}">📊 Ventas</a></li>
-        ` : ''}
-        <li><button onclick="localStorage.removeItem('sesion_activa'); location.reload();" class="contrast" style="padding:4px 10px;">Salir</button></li>
-    `;
+    const menuItems = [
+        { h: "mesas.html", i: "🪑", t: "Mesas" },
+        { h: "ordenes.html", i: "📋", t: "Órdenes" },
+        { h: "menu.html", i: "📜", t: "Menú" },
+        { h: "cocina.html", i: "👨‍🍳", t: "Cocina" },
+        { h: "stock.html", i: "📦", t: "Stock" }
+    ];
+
+    if (esDueño) {
+        menuItems.push({ h: "empleados.html", i: "👥", t: "Empleados" });
+        menuItems.push({ h: "ventas.html", i: "📊", t: "Ventas" });
+    }
+
+    navContenedor.innerHTML = menuItems.map(item => `
+        <li>
+            <a href="${item.h}" class="${pag === item.h ? '' : 'outline'}" 
+               style="${pag === item.h ? 'background-color:#10ad93; color:white; border:none;' : ''}">
+               ${item.i} ${item.t}
+            </a>
+        </li>
+    `).join('') + `<li><button onclick="localStorage.removeItem('sesion_activa'); location.reload();" class="outline contrast" style="margin-left:10px;">Salir</button></li>`;
 }
 
+// INICIALIZACIÓN
 document.addEventListener('DOMContentLoaded', () => {
-  Seguridad.verificarAcceso();
+  const sesion = JSON.parse(localStorage.getItem('sesion_activa'));
+  const pag = window.location.pathname.split("/").pop();
+  if (!sesion && !["login.html", "registro.html", "index.html", ""].includes(pag)) {
+      window.location.href = "login.html";
+  }
   renderizarMenuSeguro();
   App.init(); 
-
-  const restoId = JSON.parse(localStorage.getItem('sesion_activa'))?.restaurante_id;
-  if (typeof db !== 'undefined' && restoId) {
-      db.channel('global-sync').on('postgres_changes', { event: '*', schema: 'public', table: 'ordenes', filter: `restaurante_id=eq.${restoId}` }, () => App.init()).subscribe();
-  }
 });

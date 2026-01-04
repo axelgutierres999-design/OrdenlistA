@@ -1,4 +1,4 @@
-// js/menu.js - GESTIÓN PROFESIONAL DE MENÚ, PEDIDOS E INVENTARIO
+// js/menu.js - GESTIÓN PROFESIONAL DE MENÚ, PEDIDOS E INVENTARIO (ACTUALIZADO V4)
 document.addEventListener('DOMContentLoaded', async () => {
     const params = new URLSearchParams(window.location.search);
     const mesaURL = params.get('mesa'); 
@@ -17,36 +17,39 @@ document.addEventListener('DOMContentLoaded', async () => {
     let ordenActual = [];
     let productosMenu = [];
 
-    // 1. CARGA INICIAL Y VINCULACIÓN CON SUMINISTROS
+    // 1. CARGA INICIAL
     async function inicializar() {
         if (!restoIdActivo) return;
 
-        // Configuración de Mesas
-        if (mesaURL) {
-            if (selectMesa) {
-                selectMesa.innerHTML = `<option value="Mesa ${mesaURL}" selected>Mesa ${mesaURL}</option>`;
-                selectMesa.disabled = true;
-            }
-        } else if (selectMesa) {
+        // Configuración de Mesas en el Select
+        if (selectMesa) {
+            selectMesa.innerHTML = '<option value="" disabled selected>Selecciona mesa...</option>';
+            selectMesa.innerHTML += `<option value="Para Llevar">🥡 Para Llevar</option>`;
+            
             const { data: resto } = await db.from('restaurantes').select('num_mesas').eq('id', restoIdActivo).single();
             if (resto) {
-                selectMesa.innerHTML = '<option value="" disabled selected>Selecciona mesa...</option>';
-                // Opción para llevar integrada
-                selectMesa.innerHTML += `<option value="Para Llevar">🥡 Para Llevar</option>`;
                 for (let i = 1; i <= resto.num_mesas; i++) {
-                    selectMesa.innerHTML += `<option value="Mesa ${i}">Mesa ${i}</option>`;
+                    const optionValue = `Mesa ${i}`;
+                    const selected = (mesaURL === i.toString()) ? 'selected' : '';
+                    selectMesa.innerHTML += `<option value="${optionValue}" ${selected}>Mesa ${i}</option>`;
                 }
             }
+            // Si viene de una mesa específica, bloquear el select
+            if (mesaURL) selectMesa.disabled = true;
         }
 
-        // Cargar productos y cruzar con tabla de suministros para el Stock
+        // Cargar productos y cruzar con Stock
         const { data: productos } = await db.from('productos').select('*').eq('restaurante_id', restoIdActivo);
         const { data: suministros } = await db.from('suministros').select('nombre, cantidad').eq('restaurante_id', restoIdActivo);
         
         if (productos) { 
             productosMenu = productos.map(p => {
                 const insumo = suministros?.find(s => s.nombre.toLowerCase() === p.nombre.toLowerCase());
-                return { ...p, stock: insumo ? Math.floor(insumo.cantidad) : '∞' };
+                return { 
+                    ...p, 
+                    stock: insumo ? Math.floor(insumo.cantidad) : '∞',
+                    categoria: p.categoria || 'Otros' // Aseguramos que tenga categoría
+                };
             });
             dibujarMenu(); 
         }
@@ -56,11 +59,11 @@ document.addEventListener('DOMContentLoaded', async () => {
         if (!contenedorProductos) return;
         contenedorProductos.innerHTML = '';
 
-        // Botón Nuevo Platillo (Solo Dueños)
         if (sesion.rol === 'dueño') {
             const btnNuevo = document.createElement('article');
             btnNuevo.className = "tarjeta-producto nuevo-producto-btn";
-            btnNuevo.innerHTML = `<div class="plus-icon">+</div><p>Nuevo Platillo</p>`;
+            btnNuevo.style.border = "2px dashed #10ad93";
+            btnNuevo.innerHTML = `<div class="plus-icon" style="color:#10ad93; font-size:2rem; font-weight:bold;">+</div><p>Nuevo Platillo</p>`;
             btnNuevo.onclick = () => abrirEditor();
             contenedorProductos.appendChild(btnNuevo);
         }
@@ -77,8 +80,8 @@ document.addEventListener('DOMContentLoaded', async () => {
                 </div>
                 <div class="info">
                     <h4>${p.nombre}</h4>
-                    <p class="precio">$${parseFloat(p.precio).toFixed(2)}</p>
-                    <small class="stock-tag ${p.stock <= 0 ? 'sin-stock' : ''}">Disp: ${p.stock}</small>
+                    <p class="precio" style="color:#10ad93; font-weight:bold;">$${parseFloat(p.precio).toFixed(2)}</p>
+                    <small class="stock-tag ${p.stock <= 0 ? 'sin-stock' : ''}">${p.stock <= 0 ? 'Agotado' : 'Disp: ' + p.stock}</small>
                 </div>
             `;
             art.onclick = (e) => { if(!e.target.classList.contains('edit-btn')) agregarItem(p); };
@@ -86,9 +89,9 @@ document.addEventListener('DOMContentLoaded', async () => {
         });
     }
 
-    // 2. LÓGICA DEL CARRITO (CON TACHE DE ELIMINAR ❌)
+    // 2. LÓGICA DEL CARRITO
     function agregarItem(producto) {
-        if (producto.stock !== '∞' && producto.stock <= 0) return alert("Producto agotado en inventario");
+        if (producto.stock !== '∞' && producto.stock <= 0) return alert("Producto agotado");
         const existe = ordenActual.find(i => i.id === producto.id);
         if (existe) existe.cantidad++;
         else ordenActual.push({ ...producto, cantidad: 1 });
@@ -98,20 +101,21 @@ document.addEventListener('DOMContentLoaded', async () => {
     function renderizarCarrito() {
         if(!listaItemsOrden) return;
         if(ordenActual.length === 0) {
-            listaItemsOrden.innerHTML = '<small>La orden está vacía.</small>';
+            listaItemsOrden.innerHTML = '<div style="text-align:center; padding:1rem; color:#888;">La orden está vacía.</div>';
             ordenTotalSpan.textContent = '$0.00';
             btnProcesar.disabled = true;
             return;
         }
 
         listaItemsOrden.innerHTML = ordenActual.map(item => `
-            <div class="item-carrito">
-                <div class="item-info">
+            <div class="item-carrito" style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px; border-bottom:1px solid #eee; padding-bottom:5px;">
+                <div>
                     <strong>${item.cantidad}x</strong> ${item.nombre}
+                    <br><small style="color:#888;">${item.categoria}</small>
                 </div>
-                <div class="item-acciones">
-                    <span>$${(item.precio * item.cantidad).toFixed(2)}</span>
-                    <button class="btn-tache" onclick="event.stopPropagation(); window.quitarUno('${item.id}')">❌</button>
+                <div style="display:flex; align-items:center; gap:10px;">
+                    <span style="font-weight:bold;">$${(item.precio * item.cantidad).toFixed(2)}</span>
+                    <button onclick="window.quitarUno('${item.id}')" style="background:none; border:none; color:red; cursor:pointer;">❌</button>
                 </div>
             </div>
         `).join('');
@@ -128,48 +132,50 @@ document.addEventListener('DOMContentLoaded', async () => {
         renderizarCarrito();
     };
 
-    // 3. PROCESAR ORDEN
+    // 3. PROCESAR ORDEN (VINCULADO A APP.JS)
     btnProcesar.onclick = async () => {
         const mesaLabel = selectMesa.value;
-        if (!mesaLabel) return alert("Por favor, selecciona una mesa o 'Para Llevar'");
+        if (!mesaLabel) return alert("Selecciona una mesa");
 
-        const nuevaOrden = {
-            id: 'ORD-' + Date.now(),
+        btnProcesar.disabled = true;
+        btnProcesar.innerText = "Enviando...";
+
+        const datosOrden = {
             mesa: mesaLabel,
             productos: ordenActual.map(i => `${i.cantidad}x ${i.nombre}`).join(', '),
             total: parseFloat(ordenTotalSpan.textContent.replace('$', '')),
-            comentarios: comentarioInput.value,
-            restaurante_id: restoIdActivo,
+            comentarios: comentarioInput.value || '',
             estado: 'pendiente'
         };
 
-        const { error } = await db.from('ordenes').insert([nuevaOrden]);
-        if (!error) {
-            alert("🚀 ¡Orden enviada con éxito!");
+        try {
+            // USAMOS LA FUNCIÓN DE APP.JS PARA QUE SUME SI LA MESA YA ESTÁ OCUPADA
+            const { error } = await App.addOrden(datosOrden);
+            if (error) throw error;
+
+            alert("🚀 Orden enviada a cocina");
             window.location.href = "mesas.html";
-        } else {
-            alert("Error: " + error.message);
+        } catch (err) {
+            alert("Error: " + err.message);
+            btnProcesar.disabled = false;
+            btnProcesar.innerText = "Confirmar Orden";
         }
     };
 
-    // 4. EDITOR Y VINCULACIÓN CON INVENTARIO
+    // 4. EDITOR DE PRODUCTOS
     window.abrirEditor = (id = null, e = null) => {
         if(e) e.stopPropagation();
         const form = document.getElementById('formProducto');
+        if(!form) return;
         form.reset();
         
-        const preview = document.getElementById('imgPreview');
-        if(preview) preview.src = 'https://via.placeholder.com/150';
-
         document.getElementById('editId').value = id || "";
-        
         if (id) {
             const p = productosMenu.find(x => x.id === id);
             document.getElementById('editNombre').value = p.nombre;
             document.getElementById('editPrecio').value = p.precio;
             document.getElementById('editImg').value = p.imagen_url || "";
-            if(preview && p.imagen_url) preview.src = p.imagen_url;
-            if(document.getElementById('editCategoria')) document.getElementById('editCategoria').value = p.categoria || "Otros";
+            document.getElementById('editCategoria').value = p.categoria || "Platillo";
         }
         document.getElementById('modalEditarMenu').showModal();
     };
@@ -178,53 +184,35 @@ document.addEventListener('DOMContentLoaded', async () => {
         e.preventDefault();
         const id = document.getElementById('editId').value;
         const nombre = document.getElementById('editNombre').value;
-        const submitBtn = e.target.querySelector('button[type="submit"]');
-        if(submitBtn) submitBtn.disabled = true;
 
         const datos = {
             nombre: nombre,
             precio: parseFloat(document.getElementById('editPrecio').value),
             imagen_url: document.getElementById('editImg').value || null,
-            categoria: document.getElementById('editCategoria')?.value || 'General',
+            categoria: document.getElementById('editCategoria').value,
             restaurante_id: restoIdActivo
         };
 
-        try {
-            let error;
-            if (id && id !== "") {
-                const res = await db.from('productos').update(datos).eq('id', id);
-                error = res.error;
-            } else {
-                // INSERTAR PRODUCTO Y CREAR ENTRADA EN INVENTARIO AUTOMÁTICAMENTE
-                const res = await db.from('productos').insert([datos]);
-                error = res.error;
+        const { error } = id 
+            ? await db.from('productos').update(datos).eq('id', id)
+            : await db.from('productos').insert([datos]);
 
-                if(!error) {
-                    // Si es nuevo, creamos el registro en suministros/stock para que aparezca en el inventario
-                    await db.from('suministros').insert([{
-                        nombre: nombre,
-                        cantidad: 0,
-                        unidad: 'unidades',
-                        restaurante_id: restoIdActivo
-                    }]);
-                }
+        if (!error) {
+            // Sincronizar con suministros para el Stock si es nuevo
+            if (!id) {
+                await db.from('suministros').insert([{
+                    nombre: nombre,
+                    cantidad: 0,
+                    unidad: 'unidades',
+                    restaurante_id: restoIdActivo
+                }]);
             }
-
-            if (error) throw error;
-
             document.getElementById('modalEditarMenu').close();
-            await inicializar(); 
-            alert("¡Producto y Stock sincronizados!");
-
-        } catch (err) {
-            alert("Error: " + err.message);
-        } finally {
-            if(submitBtn) submitBtn.disabled = false;
+            inicializar();
+        } else {
+            alert("Error al guardar: " + error.message);
         }
     };
-
-    // Escuchar cambios en stock en tiempo real
-    db.channel('cambios-menu').on('postgres_changes', { event: '*', schema: 'public', table: 'suministros' }, () => inicializar()).subscribe();
 
     inicializar();
 });
