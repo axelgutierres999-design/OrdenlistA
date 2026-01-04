@@ -1,4 +1,4 @@
-// js/menu.js - GESTIÓN DE PEDIDOS CON DESGLOSE (V6.0)
+// js/menu.js - GESTIÓN INTEGRAL (V6.2 - FIX UUID & EDITOR)
 document.addEventListener('DOMContentLoaded', async () => {
     const params = new URLSearchParams(window.location.search);
     const mesaURL = params.get('mesa'); 
@@ -17,10 +17,11 @@ document.addEventListener('DOMContentLoaded', async () => {
     let ordenActual = [];
     let productosMenu = [];
 
+    // --- 1. CARGA INICIAL ---
     async function inicializar() {
         if (!restoIdActivo) return;
 
-        // Cargar Mesas
+        // Cargar Mesas en el Select
         if (selectMesa) {
             selectMesa.innerHTML = '<option value="" disabled selected>Selecciona mesa...</option>';
             selectMesa.innerHTML += `<option value="Para Llevar">🥡 Para Llevar</option>`;
@@ -33,11 +34,14 @@ document.addEventListener('DOMContentLoaded', async () => {
                         selectMesa.innerHTML += `<option value="${mStr}" ${isSelected}>Mesa ${i}</option>`;
                     }
                 }
-            } catch (e) { console.error("Error mesas", e); }
+            } catch (e) { console.error("Error cargando mesas", e); }
             if (mesaURL) selectMesa.disabled = true;
         }
 
-        // Cargar Productos y Stock
+        await cargarDatosMenu();
+    }
+
+    async function cargarDatosMenu() {
         try {
             const { data: productos } = await db.from('productos').select('*').eq('restaurante_id', restoIdActivo);
             const { data: suministros } = await db.from('suministros').select('nombre, cantidad').eq('restaurante_id', restoIdActivo);
@@ -52,12 +56,23 @@ document.addEventListener('DOMContentLoaded', async () => {
                 });
                 dibujarMenu(); 
             }
-        } catch (err) { console.error("Error menú", err); }
+        } catch (err) { console.error("Error al cargar datos:", err); }
     }
 
+    // --- 2. RENDERIZADO DEL MENÚ ---
     function dibujarMenu() {
         if (!contenedorProductos) return;
         contenedorProductos.innerHTML = '';
+
+        // BOTÓN NUEVO PLATILLO (Solo para dueños)
+        if (sesion.rol === 'dueño') {
+            const btnNuevo = document.createElement('article');
+            btnNuevo.className = "tarjeta-producto nuevo-producto-btn";
+            btnNuevo.style = "border: 2px dashed #10ad93; display: flex; flex-direction: column; align-items: center; justify-content: center; cursor: pointer; min-height: 200px;";
+            btnNuevo.innerHTML = `<div style="font-size:3rem; color:#10ad93;">+</div><p style="font-weight:bold; color:#10ad93;">Nuevo Platillo</p>`;
+            btnNuevo.onclick = () => abrirEditor();
+            contenedorProductos.appendChild(btnNuevo);
+        }
 
         productosMenu.forEach(p => {
             const art = document.createElement('article');
@@ -65,6 +80,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             art.innerHTML = `
                 <div class="img-container">
                     <img src="${p.imagen_url || 'https://via.placeholder.com/150'}" alt="${p.nombre}">
+                    ${sesion.rol === 'dueño' ? `<button class="edit-btn" onclick="event.stopPropagation(); abrirEditor('${p.id}')">✏️</button>` : ''}
                 </div>
                 <div class="info">
                     <h4>${p.nombre}</h4>
@@ -77,38 +93,53 @@ document.addEventListener('DOMContentLoaded', async () => {
         });
     }
 
+    // --- 3. GESTIÓN DEL CARRITO ---
     function agregarItem(producto) {
-        if (producto.stock !== '∞' && producto.stock <= 0) return alert("Sin existencias");
+        if (producto.stock !== '∞' && producto.stock <= 0) return alert("Producto sin existencias");
         const existe = ordenActual.find(i => i.id === producto.id);
-        if (existe) existe.cantidad++;
-        else ordenActual.push({ ...producto, cantidad: 1 });
+        if (existe) {
+            existe.cantidad++;
+        } else {
+            ordenActual.push({ ...producto, cantidad: 1 });
+        }
         renderizarCarrito();
     }
 
     function renderizarCarrito() {
         if(!listaItemsOrden) return;
+        if(ordenActual.length === 0) {
+            listaItemsOrden.innerHTML = '<small>No hay productos seleccionados.</small>';
+            ordenTotalSpan.textContent = '$0.00';
+            btnProcesar.disabled = true;
+            return;
+        }
+
         listaItemsOrden.innerHTML = ordenActual.map(item => `
-            <div class="item-carrito" style="display:flex; justify-content:space-between; margin-bottom:8px;">
-                <span><strong>${item.cantidad}x</strong> ${item.nombre}</span>
-                <button onclick="quitarUno('${item.id}')" style="background:none; border:none; color:red;">✕</button>
+            <div class="item-carrito" style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px; border-bottom:1px solid #eee; padding-bottom:5px;">
+                <div><strong>${item.cantidad}x</strong> ${item.nombre}</div>
+                <div>
+                    <span>$${(item.precio * item.cantidad).toFixed(2)}</span>
+                    <button onclick="quitarUno('${item.id}')" style="background:none; border:none; color:#e53935; margin-left:10px; cursor:pointer; font-weight:bold;">✕</button>
+                </div>
             </div>
         `).join('');
+
         const total = ordenActual.reduce((acc, i) => acc + (i.precio * i.cantidad), 0);
         ordenTotalSpan.textContent = `$${total.toFixed(2)}`;
-        btnProcesar.disabled = ordenActual.length === 0;
+        btnProcesar.disabled = false;
     }
 
     window.quitarUno = (id) => {
-        const idx = ordenActual.findIndex(i => i.id === id);
-        if (ordenActual[idx].cantidad > 1) ordenActual[idx].cantidad--;
-        else ordenActual.splice(idx, 1);
+        const item = ordenActual.find(i => i.id === id);
+        if (item.cantidad > 1) item.cantidad--;
+        else ordenActual = ordenActual.filter(i => i.id !== id);
         renderizarCarrito();
     };
 
-    // --- PROCESAR ORDEN (NUEVA LÓGICA DE DETALLES) ---
+    // --- 4. PROCESAR ORDEN (FIX UUID) ---
     btnProcesar.onclick = async () => {
         const mesaLabel = selectMesa.value;
-        if (!mesaLabel) return alert("Selecciona una mesa");
+        if (!mesaLabel) return alert("Por favor, selecciona mesa o destino");
 
         btnProcesar.disabled = true;
         btnProcesar.innerText = "Enviando...";
@@ -117,21 +148,21 @@ document.addEventListener('DOMContentLoaded', async () => {
         const productosTexto = ordenActual.map(i => `${i.cantidad}x ${i.nombre}`).join(', ');
 
         try {
-            // 1. Crear la cabecera de la orden
+            // A. Insertar Orden (El ID se genera automáticamente en la DB)
             const { data: nuevaOrden, error: errO } = await db.from('ordenes').insert([{
+                restaurante_id: restoIdActivo,
                 mesa: mesaLabel,
-                productos: productosTexto, // Resumen para vista rápida
+                productos: productosTexto,
                 total: totalFinal,
                 comentarios: comentarioInput.value || '',
-                estado: 'pendiente',
-                restaurante_id: restoIdActivo
+                estado: 'pendiente'
             }]).select().single();
 
             if (errO) throw errO;
 
-            // 2. Crear los detalles atómicos (Para ver platillo por platillo)
+            // B. Insertar Detalles Atómicos
             const detalles = ordenActual.map(item => ({
-                orden_id: nuevaOrden.id,
+                orden_id: nuevaOrden.id, // Usamos el UUID recién creado
                 producto_id: item.id,
                 cantidad: item.cantidad,
                 precio_unitario: item.precio
@@ -140,29 +171,89 @@ document.addEventListener('DOMContentLoaded', async () => {
             const { error: errD } = await db.from('detalles_orden').insert(detalles);
             if (errD) throw errD;
 
-            // 3. Si es "Para Llevar", cobrar de inmediato
+            // C. Registro directo en Ventas si es "Para Llevar"
             if (mesaLabel === "Para Llevar") {
-                const met = confirm("¿Pago con Tarjeta/QR?") ? 'tarjeta' : 'efectivo';
+                const metodo = confirm("¿El pago es con TARJETA?") ? 'tarjeta' : 'efectivo';
                 await db.from('ventas').insert([{
                     restaurante_id: restoIdActivo,
                     total: totalFinal,
-                    metodo_pago: met,
+                    metodo_pago: metodo,
                     productos: productosTexto,
                     mesa: "LLEVAR"
                 }]);
                 await db.from('ordenes').update({ estado: 'pagado' }).eq('id', nuevaOrden.id);
             }
 
-            alert("✅ Pedido enviado correctamente");
+            alert("✅ Orden procesada con éxito");
             window.location.href = (sesion.rol === 'invitado') ? `menu.html?rid=${restoIdActivo}` : "mesas.html";
-
+            
         } catch (err) {
             console.error(err);
-            alert("Error: " + err.message);
+            alert("Error al procesar: " + err.message);
             btnProcesar.disabled = false;
             btnProcesar.innerText = "🚀 Procesar Pedido";
         }
     };
+
+    // --- 5. EDITOR DE PRODUCTOS (SOLO DUEÑOS) ---
+    window.abrirEditor = (id = null) => {
+        const modal = document.getElementById('modalEditarMenu');
+        const form = document.getElementById('formProducto');
+        if(!modal || !form) return;
+        
+        form.reset();
+        document.getElementById('editId').value = id || "";
+        
+        if (id) {
+            const p = productosMenu.find(x => x.id === id);
+            document.getElementById('editNombre').value = p.nombre;
+            document.getElementById('editPrecio').value = p.precio;
+            document.getElementById('editImg').value = p.imagen_url || "";
+            document.getElementById('editCategoria').value = p.categoria || "General";
+        }
+        modal.showModal();
+    };
+
+    // Manejo del Guardado del Producto
+    const formProducto = document.getElementById('formProducto');
+    if (formProducto) {
+        formProducto.onsubmit = async (e) => {
+            e.preventDefault();
+            const id = document.getElementById('editId').value;
+            const nombre = document.getElementById('editNombre').value;
+
+            const datos = {
+                nombre: nombre,
+                precio: parseFloat(document.getElementById('editPrecio').value),
+                imagen_url: document.getElementById('editImg').value || null,
+                categoria: document.getElementById('editCategoria').value,
+                restaurante_id: restoIdActivo
+            };
+
+            try {
+                const { error } = id 
+                    ? await db.from('productos').update(datos).eq('id', id)
+                    : await db.from('productos').insert([datos]);
+
+                if (error) throw error;
+
+                // Crear suministro base si es producto nuevo
+                if (!id) {
+                    await db.from('suministros').insert([{
+                        nombre: nombre,
+                        cantidad: 0,
+                        unidad: 'unidades',
+                        restaurante_id: restoIdActivo
+                    }]);
+                }
+                
+                document.getElementById('modalEditarMenu').close();
+                cargarDatosMenu(); 
+            } catch (err) {
+                alert("Error al guardar: " + err.message);
+            }
+        };
+    }
 
     inicializar();
 });
