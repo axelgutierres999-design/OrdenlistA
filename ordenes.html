@@ -3,110 +3,139 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>OrdenLista | Cocina y Seguimiento</title>
+  <title>OrdenLista | Monitor de Órdenes</title>
   
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@picocss/pico@1/css/pico.min.css" />
   <link rel="stylesheet" href="css/app.css" />
   
   <style>
-    /* Estilos específicos para la tabla de órdenes */
-    .tabla-ordenes { margin-top: 1rem; font-size: 0.9rem; }
-    .tabla-ordenes td { vertical-align: middle; }
+    /* Estilos de la tabla */
+    .tabla-ordenes { margin-top: 1rem; font-size: 0.95rem; background: white; border-radius: 8px; overflow: hidden; }
+    .tabla-ordenes th { background: #f8f9fa; color: #333; }
+    .tabla-ordenes td { vertical-align: middle; padding: 12px; }
     
-    /* Etiquetas de Estado */
-    .estado-pendiente { background-color: #c0392b; color: white; padding: 4px 8px; border-radius: 4px; font-weight: bold; font-size: 0.75rem; }
-    .estado-proceso { background-color: #2980b9; color: white; padding: 4px 8px; border-radius: 4px; font-weight: bold; font-size: 0.75rem; }
-    .estado-terminado { background-color: #27ae60; color: white; padding: 4px 8px; border-radius: 4px; font-weight: bold; font-size: 0.75rem; }
+    /* Estados actualizados según lógica JS */
+    .badge-estado { padding: 4px 10px; border-radius: 20px; font-weight: bold; font-size: 0.7rem; text-transform: uppercase; display: inline-block; }
+    .state-pendiente { background-color: #e53935; color: white; }
+    .state-preparando, .state-proceso { background-color: #ffb300; color: white; }
+    .state-terminado { background-color: #10ad93; color: white; }
+    .state-pagado { background-color: #2ecc71; color: white; border: 2px solid #27ae60; }
+    .state-por_confirmar { background-color: #f39c12; color: white; animation: blink 1s infinite; }
+
+    @keyframes blink { 0% { opacity: 1; } 50% { opacity: 0.6; } 100% { opacity: 1; } }
+
+    /* Filas con colores suaves según urgencia */
+    .fila-urgente { background-color: #fff5f5 !important; }
+    .fila-proceso { background-color: #fffdf0 !important; }
+    .fila-terminado { background-color: #f0fff4 !important; }
+
+    /* Reloj de tiempo */
+    .tiempo-transcurrido { font-family: monospace; font-weight: bold; font-size: 1.1rem; }
+
+    /* Modal Ticket Estilo Térmico */
+    #modalTicket article { max-width: 380px; font-family: 'Courier New', Courier, monospace; color: #000; }
     
-    /* Alerta de tiempo */
-    .tiempo-alerta-rojo { color: #d63031; font-weight: 800; animation: parpadeo 1.5s infinite; }
-    @keyframes parpadeo { 0% { opacity: 1; } 50% { opacity: 0.4; } 100% { opacity: 1; } }
-
-    /* Modal Ticket */
-    #modalTicket { backdrop-filter: blur(5px); }
-
     @media print {
       body * { visibility: hidden; }
       #modalTicket, #modalTicket * { visibility: visible; }
-      #modalTicket { position: absolute; left: 0; top: 0; width: 100%; height: auto; background: white; display: block !important; }
+      #modalTicket { position: fixed; left: 0; top: 0; width: 100%; margin: 0; padding: 0; box-shadow: none; }
       .no-print { display: none !important; }
     }
   </style>
 </head>
-<body>
+<body style="background-color: #f4f7f6;">
+
   <audio id="audioNotificacion" src="https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3" preload="auto"></audio>
 
-  <nav class="container-fluid nav-inicio">
-    <ul><li><strong>☕ OrdenLista - Cocina</strong></li></ul>
+  <nav class="container-fluid nav-inicio" style="background: white; box-shadow: 0 2px 5px rgba(0,0,0,0.05);">
+    <ul>
+      <li><strong style="font-size: 1.3rem; color: #10ad93;">☕ OrdenLista</strong></li>
+      <li style="margin-left: 10px; color: #888;">| Monitor de Despacho</li>
+    </ul>
     <ul id="menuNavegacion" class="nav-botones"></ul>
   </nav>
 
   <main class="container-fluid" style="padding: 20px;">
-    <div class="grid">
-      <div>
-        <hgroup>
-            <h1>Monitor de Cocina</h1>
-            <h2>Gestiona las órdenes entrantes</h2>
-        </hgroup>
-      </div>
-      
-      <div style="display:flex; gap:10px; align-items:center; justify-content:flex-end;">
-        <select id="filtroEstado" style="max-width:200px;">
-            <option value="todos">👁️ Ver Todo</option>
-            <option value="por_confirmar">🔔 QR Solicitudes</option>
-            <option value="pendiente" selected>🔥 Pendientes</option>
-            <option value="proceso">👨‍🍳 En Proceso</option>
-            <option value="terminado">✅ Listos</option>
-        </select>
-        <input type="search" id="inputBusqueda" placeholder="Buscar mesa o ID..." style="max-width:250px;" />
-      </div>
-    </div>
+    
+    <header style="margin-bottom: 2rem;">
+        <div class="grid">
+            <div>
+                <h1 style="margin-bottom: 0;">Panel de Control</h1>
+                <p style="color: #666;">Seguimiento en tiempo real de la operación</p>
+            </div>
+            
+            <div style="display:flex; gap:10px; align-items:flex-end; justify-content:flex-end;">
+                <div>
+                    <small>Filtrar Estado:</small>
+                    <select id="filtroEstado" style="margin-bottom: 0;">
+                        <option value="todos">👁️ Todas las órdenes</option>
+                        <option value="por_confirmar">🔔 Por Confirmar</option>
+                        <option value="pendiente" selected>🔥 Pendientes</option>
+                        <option value="preparando">👨‍🍳 En Cocina</option>
+                        <option value="terminado">🛎️ Listas para Entrega</option>
+                    </select>
+                </div>
+                <div>
+                    <small>Buscar:</small>
+                    <input type="search" id="inputBusqueda" placeholder="Mesa..." style="margin-bottom: 0;" />
+                </div>
+            </div>
+        </div>
+    </header>
 
-    <figure>
-      <table role="grid" class="tabla-ordenes">
-        <thead>
-          <tr>
-            <th>ID</th>
-            <th>Mesa</th>
-            <th>Detalle del Pedido</th>
-            <th>Total</th>
-            <th>Estado</th>
-            <th>Tiempo</th>
-            <th>Acciones</th>
-          </tr>
-        </thead>
-        <tbody id="tablaBodyOrdenes">
-           <tr><td colspan="7" class="text-center">Cargando órdenes...</td></tr>
-        </tbody>
-      </table>
-    </figure>
+    <div class="card" style="padding: 0; border: none; box-shadow: 0 4px 15px rgba(0,0,0,0.05);">
+      <figure style="margin: 0;">
+        <table role="grid" class="tabla-ordenes" style="margin: 0;">
+          <thead>
+            <tr>
+              <th style="width: 80px;">ID</th>
+              <th>Mesa / Cliente</th>
+              <th>Productos</th>
+              <th>Total</th>
+              <th>Estado</th>
+              <th>Tiempo</th>
+              <th class="text-center">Acción</th>
+            </tr>
+          </thead>
+          <tbody id="tablaBodyOrdenes">
+             <tr><td colspan="7" style="text-align:center; padding: 4rem;">Cargando sistema de órdenes...</td></tr>
+          </tbody>
+        </table>
+      </figure>
+    </div>
   </main>
 
-  <div id="modalTicket" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.6); z-index:9999; justify-content:center; align-items:center;">
-    <div style="background:white; padding:20px; width:100%; max-width:350px; border-radius:8px; box-shadow:0 10px 25px rgba(0,0,0,0.5);">
+  <dialog id="modalTicket">
+    <article style="background: white; border-radius: 0;">
+      <header style="text-align: center; border-bottom: 1px dashed #000; padding: 0 0 10px 0;">
+        <h3 style="margin: 0;">COMANDA</h3>
+        <p style="margin: 0;">#<span id="t-folio"></span></p>
+        <p style="margin: 0; font-weight: bold; font-size: 1.2rem;" id="t-mesa"></p>
+        <small id="t-fecha"></small>
+      </header>
       
-      <div style="text-align:center; border-bottom:2px dashed #333; padding-bottom:10px; margin-bottom:10px;">
-        <h3>COMANDA</h3>
-        <p style="margin:0; font-size:0.9rem;">Folio: #<span id="t-folio"></span></p>
-        <p style="margin:0; font-size:0.9rem;">Mesa: <span id="t-mesa" style="font-weight:bold;"></span></p>
-        <small id="t-fecha" style="color:#666;"></small>
-      </div>
-
-      <table style="width:100%; border-collapse:collapse; font-size:0.9rem;">
-        <tbody id="t-items"></tbody>
+      <table style="width: 100%; border-collapse: collapse; margin-top: 10px;">
+        <tbody id="t-items">
+          </tbody>
       </table>
 
-      <div style="margin-top:15px; border-top:2px dashed #333; padding-top:10px; text-align:right;">
-        <strong style="font-size:1.2rem;">Total: $<span id="t-total"></span></strong>
-      </div>
-
-      <div class="grid no-print" style="margin-top:20px; gap:10px;">
-        <button onclick="window.print()" class="primary">🖨️ Imprimir</button>
-        <button onclick="document.getElementById('modalTicket').style.display='none'" class="secondary outline">Cerrar</button>
-      </div>
-    </div>
-  </div>
+      <footer style="margin-top: 15px; border-top: 1px dashed #000; padding-top: 10px;">
+        <div style="display: flex; justify-content: space-between; font-weight: bold; font-size: 1.1rem;">
+            <span>TOTAL:</span>
+            <span>$<span id="t-total"></span></span>
+        </div>
+        
+        <div class="grid no-print" style="margin-top: 20px; gap: 10px;">
+          <button onclick="window.print()" class="primary">🖨️ Imprimir</button>
+          <button onclick="document.getElementById('modalTicket').close()" class="secondary outline">Cerrar</button>
+        </div>
+      </footer>
+    </article>
+  </dialog>
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <script src="js/supabase-client.js"></script> <script src="js/app.js"></script>             <script src="js/ordenes.js"></script>         </body>
+  <script src="js/supabase-client.js"></script> 
+  <script src="js/app.js"></script> 
+  <script src="js/ordenes.js"></script>
+</body>
 </html>
