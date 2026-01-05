@@ -1,75 +1,65 @@
-// js/estadisticas.js - REPORTES Y KPIs DE VENTAS (V6.0 - FINAL)
-
+// js/estadisticas.js - REPORTES Y KPIs DE VENTAS (V6.2 - ESTABLE)
 document.addEventListener('DOMContentLoaded', async () => {
-    // 1. Verificación de Sesión (Regla de Oro)
+    // 1. Verificación de sesión y conexión
     const sesion = JSON.parse(localStorage.getItem('sesion_activa'));
     if (!sesion || typeof db === 'undefined') {
         console.warn("Sesión no válida o base de datos no conectada.");
         return;
     }
 
-    // Elementos de la UI
+    // Elementos UI
     const spanTotalDia = document.getElementById('totalDia');
     const spanEfectivo = document.getElementById('totalEfectivo');
     const spanTarjeta = document.getElementById('totalTarjeta');
     const spanNumVentas = document.getElementById('numVentasDia');
     const spanTicketPromedio = document.getElementById('ticketPromedio');
     const listaVentas = document.getElementById('listaUltimasVentas');
-    
+
     let chartInstancia = null;
     let ventasHoy = [];
 
     // --- 2. CARGA DE DATOS ---
     async function cargarEstadisticas() {
-        // Definir el inicio del día actual (00:00:00)
         const hoy = new Date();
         hoy.setHours(0, 0, 0, 0);
-        
+
         try {
             const { data, error } = await db
                 .from('ventas')
                 .select('*')
                 .eq('restaurante_id', sesion.restaurante_id)
-                .gte('created_at', hoy.toISOString()) // Ventas desde el inicio de hoy
+                // FIX: Ajuste de zona horaria (UTC -6 MX)
+                .gte('created_at', new Date(hoy.getTime() - 6 * 60 * 60 * 1000).toISOString())
                 .order('created_at', { ascending: false });
 
             if (error) throw error;
 
             ventasHoy = data || [];
-            
-            // Actualizar todos los componentes de la vista
+
             actualizarKPIs();
             renderizarTabla();
             dibujarGrafico();
-            
+
         } catch (err) {
             console.error("Error cargando estadísticas:", err.message);
         }
     }
 
-    // --- 3. CÁLCULO DE INDICADORES (KPIs) ---
+    // --- 3. KPI PRINCIPALES ---
     function actualizarKPIs() {
-        let totalGeneral = 0;
-        let totalEfec = 0;
-        let totalTarj = 0;
+        let totalGeneral = 0, totalEfec = 0, totalTarj = 0;
 
         ventasHoy.forEach(v => {
             const monto = parseFloat(v.total) || 0;
             totalGeneral += monto;
-            
-            // Lógica robusta para método de pago
+
             const metodo = (v.metodo_pago || 'efectivo').toLowerCase();
-            if (metodo === 'tarjeta') {
-                totalTarj += monto;
-            } else {
-                totalEfec += monto;
-            }
+            if (metodo.includes('tarjeta')) totalTarj += monto;
+            else totalEfec += monto;
         });
 
         const cantidad = ventasHoy.length;
         const promedio = cantidad > 0 ? totalGeneral / cantidad : 0;
-
-        // Formateador de moneda para consistencia
         const f = new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN' });
 
         if (spanTotalDia) spanTotalDia.innerText = f.format(totalGeneral);
@@ -79,10 +69,10 @@ document.addEventListener('DOMContentLoaded', async () => {
         if (spanTicketPromedio) spanTicketPromedio.innerText = f.format(promedio);
     }
 
-    // --- 4. LISTADO DE TRANSACCIONES ---
+    // --- 4. TABLA DE VENTAS ---
     function renderizarTabla() {
         if (!listaVentas) return;
-        
+
         if (ventasHoy.length === 0) {
             listaVentas.innerHTML = `
                 <tr>
@@ -94,69 +84,62 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
 
         listaVentas.innerHTML = ventasHoy.map(v => {
-            const esTarjeta = (v.metodo_pago || '').toLowerCase() === 'tarjeta';
+            const esTarjeta = (v.metodo_pago || '').toLowerCase().includes('tarjeta');
+            const color = esTarjeta ? '#3498db' : '#10ad93';
+            const metodo = (v.metodo_pago || 'EFECTIVO').toUpperCase();
+
             return `
                 <tr>
                     <td><small style="font-family: monospace;">#${v.id.toString().slice(-5).toUpperCase()}</small></td>
-                    <td><mark>${v.mesa}</mark></td>
+                    <td><mark>${v.mesa || 'LLEVAR'}</mark></td>
                     <td><strong>$${parseFloat(v.total).toFixed(2)}</strong></td>
-                    <td>
-                        <span class="badge" style="background:${esTarjeta ? '#3498db' : '#10ad93'};">
-                            ${(v.metodo_pago || 'EFECTIVO').toUpperCase()}
-                        </span>
-                    </td>
+                    <td><span class="badge" style="background:${color};">${metodo}</span></td>
                     <td>${new Date(v.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</td>
-                </tr>
-            `;
+                </tr>`;
         }).join('');
     }
 
-    // --- 5. GRÁFICO DE PRODUCTOS MÁS VENDIDOS ---
+    // --- 5. GRÁFICO TOP PRODUCTOS ---
     function dibujarGrafico() {
         const canvas = document.getElementById('graficoCategorias');
         if (!canvas || typeof Chart === 'undefined') return;
 
-        // Si no hay ventas, mostramos un mensaje o limpiamos
         if (ventasHoy.length === 0) {
-            if (chartInstancia) chartInstancia.destroy();
+            if (chartInstancia && chartInstancia.destroy) chartInstancia.destroy();
             return;
         }
 
         const resumen = {};
         ventasHoy.forEach(v => {
             if (!v.productos) return;
-            // Separar productos (asumiendo formato "1x Pizza, 2x Coca")
             v.productos.split(',').forEach(p => {
-                // Extraer cantidad y nombre usando Regex
                 const match = p.trim().match(/^(\d+)x\s+(.+)$/);
                 if (match) {
                     const cant = parseInt(match[1]);
                     const nombre = match[2];
                     resumen[nombre] = (resumen[nombre] || 0) + cant;
                 } else {
-                    // Fallback por si no viene con el formato "Nx "
                     const nombre = p.trim();
                     resumen[nombre] = (resumen[nombre] || 0) + 1;
                 }
             });
         });
 
-        // Ordenar por más vendidos y tomar el Top 5
-        const labels = Object.keys(resumen).sort((a,b) => resumen[b] - resumen[a]).slice(0, 5);
+        const labels = Object.keys(resumen).sort((a, b) => resumen[b] - resumen[a]).slice(0, 5);
         const values = labels.map(l => resumen[l]);
 
-        if (chartInstancia) chartInstancia.destroy();
+        if (chartInstancia && chartInstancia.destroy) chartInstancia.destroy();
 
         chartInstancia = new Chart(canvas, {
             type: 'doughnut',
             data: {
-                labels: labels,
+                labels,
                 datasets: [{
                     data: values,
                     backgroundColor: ['#10ad93', '#3498db', '#9b59b6', '#f1c40f', '#e67e22'],
                     hoverOffset: 10,
                     borderWidth: 2,
-                    borderColor: '#ffffff'
+                    borderColor: '#fff'
                 }]
             },
             options: {
@@ -171,7 +154,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         });
     }
 
-    // --- 6. IMPRESIÓN DE TICKET DE CORTE ---
+    // --- 6. CORTE DE CAJA / IMPRESIÓN ---
     window.imprimirCorteCaja = () => {
         if (ventasHoy.length === 0) return alert("No hay ventas para imprimir el corte.");
 
@@ -182,7 +165,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         ventana.document.write(`
             <html>
             <head>
-                <title>Corte de Caja - ${sesion.nombre_restaurante}</title>
+                <title>Corte de Caja - ${sesion?.nombre_restaurante || "Restaurante"}</title>
                 <style>
                     body { font-family: 'Courier New', Courier, monospace; padding: 25px; color: #000; line-height: 1.4; }
                     .center { text-align: center; }
@@ -195,7 +178,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             <body>
                 <div class="center">
                     <h2 style="margin:0;">CORTE DE CAJA</h2>
-                    <p class="bold">${sesion.nombre_restaurante.toUpperCase()}</p>
+                    <p class="bold">${(sesion?.nombre_restaurante || "Restaurante").toUpperCase()}</p>
                     <p>Fecha: ${fecha}<br>Hora: ${hora}</p>
                 </div>
                 <div class="line"></div>
@@ -207,7 +190,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                 <div class="flex"><span>Tickets Emitidos:</span><span>${spanNumVentas.innerText}</span></div>
                 <div class="flex"><span>Ticket Promedio:</span><span>${spanTicketPromedio.innerText}</span></div>
                 <div class="line"></div>
-                <p class="center" style="font-size: 0.8rem;">Responsable: ${sesion.nombre}</p>
+                <p class="center" style="font-size: 0.8rem;">Responsable: ${sesion?.nombre || "Usuario"}</p>
                 <p class="center" style="margin-top: 30px;">*** FIN DE REPORTE ***</p>
                 <script>
                     window.onload = () => {
@@ -221,6 +204,15 @@ document.addEventListener('DOMContentLoaded', async () => {
         ventana.document.close();
     };
 
-    // Inicializar carga
+    // --- 7. ACTUALIZACIÓN AUTOMÁTICA (REALTIME) ---
+    if (db.channel) {
+        const canal = db.channel('ventas-realtime')
+            .on('postgres_changes', { event: '*', schema: 'public', table: 'ventas' }, () => {
+                cargarEstadisticas();
+            })
+            .subscribe();
+    }
+
+    // Inicializar
     cargarEstadisticas();
 });
