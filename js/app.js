@@ -1,7 +1,8 @@
-// js/app.js - NÚCLEO CENTRALIZADO (V6.9 - FINAL FIX)
+// js/app.js - NÚCLEO CENTRALIZADO (V7.0 - ACTUALIZADO)
 const App = (function() {
     let ordenes = [];
     let suministros = [];
+    let config = { num_mesas: 10 }; // Cache local de configuración
     
     const getRestoId = () => {
         const sesion = JSON.parse(localStorage.getItem('sesion_activa'));
@@ -17,9 +18,15 @@ const App = (function() {
         if (!restoId) return;
 
         try {
+            // NUEVO: Cargar configuración del restaurante (num_mesas)
+            const { data: dataConfig } = await db.from('restaurantes')
+                .select('num_mesas')
+                .eq('id', restoId)
+                .single();
+            if (dataConfig) config.num_mesas = dataConfig.num_mesas;
+
             // CORRECCIÓN CRÍTICA:
             // Ahora traemos órdenes 'pagado' también, para que Cocina las vea si son Para Llevar.
-            // Solo excluimos lo que ya se entregó al cliente ('entregado') o se canceló.
             const { data: dataOrdenes, error: errO } = await db.from('ordenes')
                 .select('*')
                 .eq('restaurante_id', restoId)
@@ -50,6 +57,10 @@ const App = (function() {
               () => { cargarDatosIniciales(); })
           .on('postgres_changes', 
               { event: '*', schema: 'public', table: 'suministros', filter: `restaurante_id=eq.${restoId}` }, 
+              () => { cargarDatosIniciales(); })
+          // Suscribir también a cambios en la tabla restaurantes para actualizar num_mesas en vivo
+          .on('postgres_changes',
+              { event: 'UPDATE', schema: 'public', table: 'restaurantes', filter: `id=eq.${restoId}` },
               () => { cargarDatosIniciales(); })
           .subscribe();
     };
@@ -163,8 +174,11 @@ const App = (function() {
             await cargarDatosIniciales(); 
             activarSuscripcionRealtime();
         },
+        getRestoId: getRestoId,
         getOrdenes: () => ordenes,
         getSuministros: () => suministros,
+        // NUEVO: Retorna la configuración cargada
+        getConfig: () => config,
 
         updateEstado: async (id, nuevoEstado) => {
             const { error } = await db.from('ordenes').update({ estado: nuevoEstado }).eq('id', id);
@@ -173,11 +187,9 @@ const App = (function() {
 
         eliminarOrden: async (id) => {
             if (!confirm("¿Cancelar esta orden permanentemente?")) return;
-            // Marcamos como cancelado en lugar de delete físico, para historial
             const { error } = await db.from('ordenes').update({estado: 'cancelado'}).eq('id', id);
-            // Si prefieres borrar: await db.from('ordenes').delete().eq('id', id);
             if (error) console.error("Error al eliminar:", error);
-            else cargarDatosIniciales(); // Forzar recarga visual
+            else cargarDatosIniciales(); 
         },
 
         liberarMesaManual: (id) => {
@@ -196,8 +208,6 @@ const App = (function() {
                     const { error: errorVenta } = await db.from('ventas').insert([venta]);
                     if (errorVenta) throw errorVenta;
                     
-                    // Si es Mesa física -> 'pagado' (se libera la mesa)
-                    // Si es Para Llevar -> 'pagado' (pero Cocina aún debe verla si no se entregó)
                     await db.from('ordenes').update({ estado: 'pagado' }).eq('id', id);
                     
                     alert("✅ Pago procesado exitosamente.");
@@ -219,6 +229,22 @@ const App = (function() {
                 
                 mostrarModalTicket(orden, data);
             } catch (e) { alert("No se pudo cargar el detalle."); }
+        },
+
+        // NUEVO: Guardar configuración de número de mesas
+        guardarConfiguracionMesas: async (nuevoNumero) => {
+            const restoId = getRestoId();
+            if (!restoId) return;
+            try {
+                const { error } = await db.from('restaurantes')
+                    .update({ num_mesas: nuevoNumero })
+                    .eq('id', restoId);
+                if (error) throw error;
+                alert("✅ Configuración guardada.");
+                cargarDatosIniciales(); // Recargar localmente
+            } catch (e) {
+                alert("❌ Error al guardar.");
+            }
         },
 
         registerRender: (name, cb) => { renderCallbacks[name] = cb; cb(); },
@@ -255,8 +281,8 @@ function renderizarMenuSeguro() {
         <li>
             <a href="${item.h}" class="${rutaActual === item.h ? 'activo' : ''}" 
                style="display: flex; align-items: center; gap: 8px; padding: 8px 12px; border-radius: 8px; text-decoration: none; ${rutaActual === item.h ? 'background:#10ad93;color:white;' : 'color:#555;'}">
-               <span>${item.i}</span>
-               <span class="nav-text" style="font-weight:600;">${item.t}</span>
+                <span>${item.i}</span>
+                <span class="nav-text" style="font-weight:600;">${item.t}</span>
             </a>
         </li>
     `).join('') + `
