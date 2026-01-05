@@ -1,4 +1,4 @@
-// js/menu.js - GESTIÓN INTEGRAL Y COBRO PROFESIONAL (V7.0)
+// js/menu.js - GESTIÓN INTEGRAL, STOCK Y COBRO (V8.0 - REVISADO)
 document.addEventListener('DOMContentLoaded', async () => {
     const params = new URLSearchParams(window.location.search);
     const mesaURL = params.get('mesa'); 
@@ -17,28 +17,31 @@ document.addEventListener('DOMContentLoaded', async () => {
     let ordenActual = [];
     let productosMenu = [];
 
-    // --- 1. CARGA INICIAL ---
+    // --- 1. INICIALIZACIÓN ---
     async function inicializar() {
         if (!restoIdActivo) return;
 
-        // Cargar Mesas en el Select
         if (selectMesa) {
             selectMesa.innerHTML = '<option value="" disabled selected>Selecciona mesa...</option>';
             selectMesa.innerHTML += `<option value="Para Llevar">🥡 Para Llevar</option>`;
             try {
-                // Usamos App.supabase para consistencia con el cliente global
                 const { data: resto } = await db.from('restaurantes').select('num_mesas').eq('id', restoIdActivo).single();
                 if (resto) {
                     for (let i = 1; i <= resto.num_mesas; i++) {
                         const mStr = `Mesa ${i}`;
-                        const isSelected = (mesaURL == i) ? 'selected' : '';
+                        // Verificamos si la mesa de la URL coincide
+                        const isSelected = (mesaURL === mStr) ? 'selected' : '';
                         selectMesa.innerHTML += `<option value="${mStr}" ${isSelected}>Mesa ${i}</option>`;
                     }
                 }
             } catch (e) { console.error("Error cargando mesas", e); }
-            if (mesaURL) selectMesa.disabled = true;
+            
+            // Si viene de mesas.js, bloqueamos el select en esa mesa
+            if (mesaURL) {
+                selectMesa.value = mesaURL;
+                selectMesa.disabled = true;
+            }
         }
-
         await cargarDatosMenu();
     }
 
@@ -60,7 +63,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         } catch (err) { console.error("Error al cargar datos:", err); }
     }
 
-    // --- 2. RENDERIZADO DEL MENÚ ---
+    // --- 2. RENDERIZADO ---
     function dibujarMenu() {
         if (!contenedorProductos) return;
         contenedorProductos.innerHTML = '';
@@ -68,8 +71,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         if (sesion.rol === 'dueño') {
             const btnNuevo = document.createElement('article');
             btnNuevo.className = "tarjeta-producto nuevo-producto-btn";
-            btnNuevo.style = "border: 2px dashed #10ad93; display: flex; flex-direction: column; align-items: center; justify-content: center; cursor: pointer; min-height: 200px;";
-            btnNuevo.innerHTML = `<div style="font-size:3rem; color:#10ad93;">+</div><p style="font-weight:bold; color:#10ad93;">Nuevo Platillo</p>`;
+            btnNuevo.innerHTML = `<div style="font-size:3rem; color:#10ad93;">+</div><p>Nuevo Platillo</p>`;
             btnNuevo.onclick = () => abrirEditor();
             contenedorProductos.appendChild(btnNuevo);
         }
@@ -93,33 +95,29 @@ document.addEventListener('DOMContentLoaded', async () => {
         });
     }
 
-    // --- 3. GESTIÓN DEL CARRITO ---
     function agregarItem(producto) {
         if (producto.stock !== '∞' && producto.stock <= 0) return alert("Producto sin existencias");
         const existe = ordenActual.find(i => i.id === producto.id);
-        if (existe) {
-            existe.cantidad++;
-        } else {
-            ordenActual.push({ ...producto, cantidad: 1 });
-        }
+        if (existe) existe.cantidad++;
+        else ordenActual.push({ ...producto, cantidad: 1 });
         renderizarCarrito();
     }
 
     function renderizarCarrito() {
         if(!listaItemsOrden) return;
         if(ordenActual.length === 0) {
-            listaItemsOrden.innerHTML = '<small>No hay productos seleccionados.</small>';
+            listaItemsOrden.innerHTML = '<small>No hay productos.</small>';
             ordenTotalSpan.textContent = '$0.00';
             btnProcesar.disabled = true;
             return;
         }
 
         listaItemsOrden.innerHTML = ordenActual.map(item => `
-            <div class="item-carrito" style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px; border-bottom:1px solid #eee; padding-bottom:5px;">
+            <div class="item-carrito">
                 <div><strong>${item.cantidad}x</strong> ${item.nombre}</div>
                 <div>
                     <span>$${(item.precio * item.cantidad).toFixed(2)}</span>
-                    <button onclick="quitarUno('${item.id}')" style="background:none; border:none; color:#e53935; margin-left:10px; cursor:pointer; font-weight:bold;">✕</button>
+                    <button onclick="quitarUno('${item.id}')">✕</button>
                 </div>
             </div>
         `).join('');
@@ -136,28 +134,23 @@ document.addEventListener('DOMContentLoaded', async () => {
         renderizarCarrito();
     };
 
-    // --- 4. PROCESAR ORDEN & COBRO PROFESIONAL ---
+    // --- 3. PROCESAR ORDEN & COBRO ---
     btnProcesar.onclick = async () => {
         const mesaLabel = selectMesa.value;
-        if (!mesaLabel) return alert("Por favor, selecciona mesa o destino");
+        if (!mesaLabel) return alert("Selecciona mesa");
 
-        // SI ES PARA LLEVAR, ABRIR MODAL PROFESIONAL DE COBRO
         if (mesaLabel === "Para Llevar") {
             const modalCobro = document.getElementById('modalCobro');
             const total = ordenActual.reduce((acc, i) => acc + (i.precio * i.cantidad), 0);
-            
-            document.getElementById('cobroMesaTitulo').textContent = "📦 Pedido para Llevar";
+            document.getElementById('cobroMesaTitulo').textContent = "📦 Para Llevar";
             document.getElementById('cobroTotal').textContent = total.toFixed(2);
             
-            // Re-definir la función de pago para este contexto
             window.procesarPago = async (metodo) => {
                 await ejecutarEnvioPedido(mesaLabel, metodo);
                 modalCobro.close();
             };
-            
             modalCobro.showModal();
         } else {
-            // SI ES MESA, ENVÍO DIRECTO (Paga después)
             await ejecutarEnvioPedido(mesaLabel, null);
         }
     };
@@ -170,28 +163,19 @@ document.addEventListener('DOMContentLoaded', async () => {
         const productosTexto = ordenActual.map(i => `${i.cantidad}x ${i.nombre}`).join(', ');
 
         try {
-            // A. Insertar Orden
+            // A. Insertar Orden (Siempre 'pendiente' para que Cocina lo vea)
             const { data: nuevaOrden, error: errO } = await db.from('ordenes').insert([{
                 restaurante_id: restoIdActivo,
                 mesa: mesaLabel,
                 productos: productosTexto,
                 total: totalFinal,
                 comentarios: comentarioInput.value || '',
-                estado: (metodoPago) ? 'terminado' : 'pendiente' // Si ya pagó, puede ir a 'terminado' o seguir en 'pendiente' para cocina
+                estado: 'pendiente' 
             }]).select().single();
 
             if (errO) throw errO;
 
-            // B. Insertar Detalles Atómicos (Para inventario)
-            const detalles = ordenActual.map(item => ({
-                orden_id: nuevaOrden.id,
-                producto_id: item.id,
-                cantidad: item.cantidad,
-                precio_unitario: item.precio
-            }));
-            await db.from('detalles_orden').insert(detalles);
-
-            // C. Si hubo pago (Para Llevar), registrar en VENTAS para el CORTE DE CAJA
+            // B. Registrar Venta si es pago inmediato (Para Llevar)
             if (metodoPago) {
                 await db.from('ventas').insert([{
                     restaurante_id: restoIdActivo,
@@ -200,12 +184,9 @@ document.addEventListener('DOMContentLoaded', async () => {
                     productos: productosTexto,
                     mesa: "LLEVAR"
                 }]);
-                
-                // Actualizar orden a pagada para que no aparezca como deuda en mesas
-                await db.from('ordenes').update({ estado: 'pagado' }).eq('id', nuevaOrden.id);
             }
 
-            alert("✅ ¡Pedido enviado con éxito!");
+            alert("✅ ¡Pedido enviado a cocina!");
             window.location.href = (sesion.rol === 'invitado') ? `menu.html?rid=${restoIdActivo}` : "mesas.html";
             
         } catch (err) {
@@ -215,12 +196,10 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
     }
 
-    // --- 5. EDITOR DE PRODUCTOS ---
+    // --- 4. EDITOR Y VÍNCULO CON INVENTARIO ---
     window.abrirEditor = (id = null) => {
         const modal = document.getElementById('modalEditarMenu');
         const form = document.getElementById('formProducto');
-        if(!modal || !form) return;
-        
         form.reset();
         document.getElementById('editId').value = id || "";
         
@@ -239,28 +218,47 @@ document.addEventListener('DOMContentLoaded', async () => {
         formProducto.onsubmit = async (e) => {
             e.preventDefault();
             const id = document.getElementById('editId').value;
-            const nombre = document.getElementById('editNombre').value;
+            const nombre = document.getElementById('editNombre').value.trim();
+            const precio = parseFloat(document.getElementById('editPrecio').value);
 
             const datos = {
-                nombre: nombre,
-                precio: parseFloat(document.getElementById('editPrecio').value),
+                nombre,
+                precio,
                 imagen_url: document.getElementById('editImg').value || null,
                 categoria: document.getElementById('editCategoria').value,
                 restaurante_id: restoIdActivo
             };
 
             try {
+                // 1. Guardar en tabla Productos
                 const { error } = id 
                     ? await db.from('productos').update(datos).eq('id', id)
                     : await db.from('productos').insert([datos]);
 
                 if (error) throw error;
-                
+
+                // 2. SOLUCIÓN PUNTO 2: Vincular con Suministros automáticamente
+                // Verificamos si ya existe un suministro con ese nombre
+                const { data: existeSuministro } = await db.from('suministros')
+                    .select('id')
+                    .eq('restaurante_id', restoIdActivo)
+                    .ilike('nombre', nombre)
+                    .maybeSingle();
+
+                if (!existeSuministro) {
+                    // Si no existe, lo creamos para poder manejar su stock en la sección Inventario
+                    await db.from('suministros').insert([{
+                        nombre: nombre,
+                        cantidad: 0,
+                        unidad: 'unidades',
+                        restaurante_id: restoIdActivo,
+                        categoria: 'Platillos'
+                    }]);
+                }
+
                 document.getElementById('modalEditarMenu').close();
                 cargarDatosMenu(); 
-            } catch (err) {
-                alert("Error: " + err.message);
-            }
+            } catch (err) { alert("Error: " + err.message); }
         };
     }
 
