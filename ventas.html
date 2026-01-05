@@ -49,6 +49,7 @@
             <p>Resumen financiero y métricas del día actual.</p>
         </header>
 
+        <!-- Tarjetas de totales -->
         <section class="grid">
             <div class="card-stat">
                 <small style="color: #888;">Total General (Hoy)</small>
@@ -64,6 +65,7 @@
             </div>
         </section>
 
+        <!-- Métricas adicionales -->
         <section class="grid" style="margin-top: 1rem;">
             <div class="card-stat" style="border-bottom-color: #9b59b6;">
                 <small style="color: #888;">Nº de Ventas</small>
@@ -75,6 +77,7 @@
             </div>
         </section>
 
+        <!-- Gráfica y registro -->
         <div class="grid">
             <div class="panel-blanco">
                 <h3 style="text-align:center; margin-bottom: 0;">📈 Top 5 Productos</h3>
@@ -108,14 +111,18 @@
             </div>
         </div>
 
+        <!-- Botones de acción -->
         <div style="display: flex; gap: 1rem; justify-content: flex-end; margin-top: 2rem; margin-bottom: 3rem;">
             <button class="outline secondary" onclick="location.reload()">🔄 Actualizar Datos</button>
-            <button class="contrast" onclick="imprimirCorteCaja()" style="background-color: #10ad93; border: none;">
-                🖨️ Imprimir Corte de Caja
+            
+            <!-- Nuevo botón de corte real -->
+            <button class="contrast" onclick="realizarCorteCaja()" style="background-color: #10ad93; border: none;">
+                💰 Realizar Corte de Caja
             </button>
         </div>
     </main>
 
+    <!-- Librerías -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="js/supabase-client.js"></script>
     <script src="js/app.js"></script>
