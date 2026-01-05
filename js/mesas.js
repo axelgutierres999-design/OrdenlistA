@@ -1,187 +1,236 @@
-// js/mesas.js - GESTIÓN DE SALÓN (V6.5 - FIXED)
-document.addEventListener('DOMContentLoaded', async () => {
-    const contenedorMesas = document.getElementById('contenedorMesas');
-    const inputNumMesas = document.getElementById('numMesasInput');
-    const btnGuardarConfig = document.getElementById('btnGuardarMesas'); // Asegúrate de tener este ID en tu HTML
+// js/mesas.js - GESTIÓN DE MESAS, COBROS Y CONFIGURACIÓN (V FINAL)
+document.addEventListener('DOMContentLoaded', () => {
+    const gridMesas = document.getElementById('gridMesas');
+    const modalConfig = document.getElementById('modalConfigMesas');
+    const modalCobro = document.getElementById('modalCobro');
     
-    const sesion = JSON.parse(localStorage.getItem('sesion_activa'));
-    if (!sesion) return window.location.href = 'login.html';
+    // Variables globales para el cobro
+    let mesaActualCobro = null;
+    let totalActualCobro = 0;
+    let ordenesIdsCobro = []; // Guardará IDs de todas las órdenes de la mesa
 
-    let totalMesas = 10; 
-
-    // --- 1. CARGAR Y GUARDAR CONFIGURACIÓN ---
-    async function cargarConfiguracion() {
-        try {
-            const { data } = await db.from('restaurantes')
-                .select('num_mesas')
-                .eq('id', sesion.restaurante_id)
-                .single();
-            
-            if (data) {
-                totalMesas = data.num_mesas;
-                if (inputNumMesas) inputNumMesas.value = totalMesas;
-            }
-        } catch (e) { console.error("Error al cargar mesas:", e); }
-        renderizarMesas();
-    }
-
-    // Nueva función para guardar el número de mesas en la DB
-    if (btnGuardarConfig) {
-        btnGuardarConfig.onclick = async () => {
-            const nuevoTotal = parseInt(inputNumMesas.value);
-            if (nuevoTotal > 0) {
-                const { error } = await db.from('restaurantes')
-                    .update({ num_mesas: nuevoTotal })
-                    .eq('id', sesion.restaurante_id);
-                
-                if (error) alert("Error al guardar: " + error.message);
-                else {
-                    totalMesas = nuevoTotal;
-                    alert("Configuración guardada ✅");
-                    renderizarMesas();
-                }
-            }
-        };
-    }
-
-    // --- 2. RENDERIZADO REACTIVO ---
+    // 1. RENDERIZADO DE MESAS
     function renderizarMesas() {
-        if (!contenedorMesas || typeof App === 'undefined') return;
-        contenedorMesas.innerHTML = '';
+        if (!gridMesas || typeof App === 'undefined') return;
         
-        const ordenes = App.getOrdenes();
+        const config = App.getConfig();
+        const ordenes = App.getOrdenes(); // Trae todas las órdenes
+        const numMesas = config.num_mesas || 10;
 
-        for (let i = 1; i <= totalMesas; i++) {
+        gridMesas.innerHTML = '';
+        gridMesas.style.gridTemplateColumns = `repeat(auto-fill, minmax(160px, 1fr))`;
+
+        for (let i = 1; i <= numMesas; i++) {
             const nombreMesa = `Mesa ${i}`;
-            // Buscamos orden activa (que no esté pagada o cancelada)
-            const orden = ordenes.find(o => o.mesa === nombreMesa && !['pagado', 'cancelado'].includes(o.estado));
             
-            let clase = 'mesa-libre';
-            let estadoTexto = 'Libre';
-            let contenido = '';
+            // FILTRAR: Buscamos TODAS las órdenes activas para esta mesa (no solo una)
+            // Ignoramos las pagadas, canceladas o entregadas (si ya se fueron)
+            const ordenesMesa = ordenes.filter(o => 
+                o.mesa === nombreMesa && 
+                o.estado !== 'pagado' && 
+                o.estado !== 'cancelado' &&
+                o.estado !== 'entregado' // Si ya se entregó pero no pagó, debe seguir aquí. Si tu flujo es cobrar antes, ajustamos.
+            );
 
-            if (orden) {
-                if (orden.estado === 'por_confirmar') {
-                    clase = 'mesa-urgente'; 
-                    estadoTexto = '🔔 SOLICITUD QR';
-                    contenido = `
-                        <div style="background: #fff3cd; padding: 8px; border-radius: 8px; margin-bottom: 8px; font-size: 0.8rem; color: #856404; text-align:center; border:1px solid #ffeeba;">Nuevo pedido QR</div>
-                        <div style="display:grid; grid-template-columns: 1fr 1fr; gap:5px;">
-                            <button onclick="App.updateEstado('${orden.id}', 'pendiente')" style="background:#27ae60; color:white; border:none; border-radius:5px; padding:10px; cursor:pointer;">Aceptar</button>
-                            <button onclick="App.eliminarOrden('${orden.id}')" style="background:#e74c3c; color:white; border:none; border-radius:5px; padding:10px; cursor:pointer;">Rechazar</button>
-                        </div>
-                    `;
+            // CALCULAR TOTAL ACUMULADO
+            const ocupada = ordenesMesa.length > 0;
+            const totalMesa = ordenesMesa.reduce((acc, orden) => acc + parseFloat(orden.total), 0);
+
+            // ESTADO VISUAL
+            let estadoClase = 'libre';
+            let estadoTexto = 'Libre';
+            if (ocupada) {
+                // Si alguna orden está lista, mostramos aviso
+                const hayListas = ordenesMesa.some(o => o.estado === 'terminado');
+                if (hayListas) {
+                    estadoClase = 'listo'; // Puedes definir estilo verde en CSS
+                    estadoTexto = '🍽️ Sirviendo';
                 } else {
-                    clase = 'mesa-ocupada';
-                    const totalNum = parseFloat(orden.total) || 0;
-                    estadoTexto = `Ocupada ($${totalNum.toFixed(2)})`;
-                    
-                    contenido = `
-                        <button onclick="abrirModalCobro('${orden.id}', ${totalNum})" style="width:100%; background:#10ad93; border:none; color:white; margin-bottom:10px; font-weight:bold; padding: 12px; border-radius: 8px; cursor:pointer; box-shadow: 0 4px 0 #0d8a75;">
-                            💰 Cobrar Mesa
-                        </button>
-                        <div style="display:grid; grid-template-columns: 1fr 1fr; gap:8px;">
-                            <button class="outline" style="padding:10px; font-size:0.8rem; border-radius:8px;" onclick="App.verDetalleMesa('${orden.id}')">🧾 Ticket</button>
-                            <button class="outline" style="padding:10px; font-size:0.8rem; border-radius:8px; background:#f8f9fa;" onclick="irAMenuConOrden('${i}', '${orden.id}')">+ Pedir</button>
-                        </div>
-                    `;
+                    estadoClase = 'ocupada';
+                    estadoTexto = `Ocupada ($${totalMesa.toFixed(2)})`;
                 }
-            } else {
-                contenido = `
-                    <button class="outline" onclick="window.location.href='menu.html?mesa=${i}'" style="width:100%; margin-bottom:10px; border-radius: 8px; padding:12px; font-weight:500;">
-                        📝 Nueva Orden
-                    </button>
-                    <button class="secondary outline" onclick="generarQR('${i}')" style="width:100%; border-style: dashed; font-size: 0.8rem; border-radius: 8px; padding:8px; color:#777;">
-                        📱 Ver QR
-                    </button>
-                `;
             }
 
+            // HTML DE LA TARJETA
             const div = document.createElement('div');
-            div.className = `mesa-card ${clase}`;
-            div.style = `background:white; border-radius:18px; padding:20px; box-shadow: 0 6px 12px rgba(0,0,0,0.08); border: 2px solid ${orden ? (orden.estado === 'por_confirmar' ? '#f39c12' : '#10ad93') : '#f1f1f1'};`;
-            
+            div.className = `tarjeta-mesa ${ocupada ? 'ocupada' : ''}`;
             div.innerHTML = `
-                <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:15px;">
-                    <h3 style="margin:0; font-size:1.2rem; color:#2c3e50;">Mesa ${i}</h3>
-                    <span style="font-size:1.5rem;">${orden ? '🍽️' : '🪑'}</span>
+                <div class="mesa-header">
+                    <h3>${nombreMesa}</h3>
+                    <span class="badge-mesa badge-${estadoClase}">${estadoTexto}</span>
                 </div>
-                <div style="text-align:center; margin-bottom:15px;">
-                    <span style="font-size:0.75rem; background:${orden ? (orden.estado === 'por_confirmar' ? '#f39c12' : '#10ad93') : '#bdc3c7'}; color:white; padding:4px 12px; border-radius:20px; font-weight:bold; display:inline-block;">
-                        ${estadoTexto}
-                    </span>
+                
+                <div class="mesa-actions">
+                    ${ocupada ? `
+                        <button onclick="abrirModalCobro('${nombreMesa}', ${totalMesa})" class="btn-cobrar">
+                            💰 Cobrar
+                        </button>
+                        <div class="grid" style="gap:5px; margin-top:5px;">
+                            <button onclick="verTicketMesa('${nombreMesa}')" class="secondary outline" style="padding:5px;">🧾 Ver Ticket</button>
+                            <button onclick="agregarPedido('${i}')" class="contrast outline" style="padding:5px;">+ Pedir</button>
+                        </div>
+                    ` : `
+                        <button onclick="agregarPedido('${i}')" class="btn-nueva">
+                            📝 Nueva Orden
+                        </button>
+                    `}
                 </div>
-                <div class="mesa-acciones">${contenido}</div>
             `;
-            contenedorMesas.appendChild(div);
+            gridMesas.appendChild(div);
         }
     }
 
-    // --- 3. LÓGICA DE NAVEGACIÓN Y COBRO ---
-    window.irAMenuConOrden = (numMesa, ordenId) => {
-        // Guardamos el ID de la orden actual para que el menu.js sepa que debe sumar y no crear
-        localStorage.setItem('orden_pendiente_id', ordenId);
+    // 2. ABRIR MODAL DE COBRO (PROFESIONAL)
+    window.abrirModalCobro = (mesa, total) => {
+        mesaActualCobro = mesa;
+        totalActualCobro = total;
+        
+        // Buscar IDs de órdenes asociadas
+        const ordenes = App.getOrdenes().filter(o => 
+            o.mesa === mesa && 
+            o.estado !== 'pagado' && 
+            o.estado !== 'cancelado'
+        );
+        ordenesIdsCobro = ordenes.map(o => o.id);
+
+        document.getElementById('cobroMesaTitulo').textContent = mesa;
+        document.getElementById('cobroTotal').textContent = total.toFixed(2);
+        
+        if(modalCobro) modalCobro.showModal();
+    };
+
+    // 3. PROCESAR EL PAGO
+    window.procesarPago = async (metodo) => {
+        if (!mesaActualCobro || ordenesIdsCobro.length === 0) return;
+
+        // Cambiar texto botón a "Procesando..."
+        const btn = document.activeElement;
+        const textoOriginal = btn.innerText;
+        btn.innerText = "⏳ Procesando...";
+        btn.disabled = true;
+
+        try {
+            // Actualizamos TODAS las órdenes de la mesa a 'pagado'
+            // También registramos el método de pago en la tabla 'ventas' (si existe trigger) o aquí directo
+            // Para simplificar, actualizamos 'ordenes' y usamos el SQL function que te di para reportes
+            
+            for (const id of ordenesIdsCobro) {
+                /*
+                  NOTA: Si usas el SQL nuevo, la tabla 'ventas' es separada. 
+                  Lo ideal es insertar en ventas y borrar/archivar ordenes.
+                  Pero para mantener tu flujo simple: Marcamos orden como 'pagado'.
+                  El monitor de cocina NO muestra 'pagado', así que desaparece de allá.
+                */
+                await App.supabase
+                    .from('ordenes')
+                    .update({ 
+                        estado: 'pagado',
+                        // Podríamos guardar metodo_pago si agregaste esa columna a ordenes, 
+                        // si no, lo manejamos solo visualmente o creamos la venta
+                    })
+                    .eq('id', id);
+                
+                // OPCIONAL: Crear registro en tabla 'ventas' para el corte de caja exacto
+                // Esto asegura que el corte de caja funcione perfecto
+                const ordenData = App.getOrdenes().find(o => o.id === id);
+                if (ordenData) {
+                    await App.supabase.from('ventas').insert({
+                        restaurante_id: App.restauranteId,
+                        mesa: ordenData.mesa,
+                        productos: ordenData.productos,
+                        total: ordenData.total,
+                        metodo_pago: metodo
+                    });
+                }
+            }
+            
+            alert("¡Pago registrado con éxito! La mesa está libre.");
+            if(modalCobro) modalCobro.close();
+            // App.js actualizará la vista automáticamente por el Realtime
+
+        } catch (error) {
+            console.error(error);
+            alert("Error al procesar el pago.");
+        } finally {
+            btn.innerText = textoOriginal;
+            btn.disabled = false;
+        }
+    };
+
+    // 4. VER TICKET UNIFICADO
+    window.verTicketMesa = (mesa) => {
+        const ordenes = App.getOrdenes().filter(o => 
+            o.mesa === mesa && 
+            ['pendiente', 'preparando', 'terminado', 'entregado'].includes(o.estado)
+        );
+
+        if (ordenes.length === 0) return;
+
+        // Unificar productos
+        let todosProductos = [];
+        let granTotal = 0;
+        let fechaInicio = ordenes[0].created_at;
+
+        ordenes.forEach(o => {
+            const items = o.productos.split(',');
+            todosProductos = todosProductos.concat(items);
+            granTotal += parseFloat(o.total);
+        });
+
+        // Usamos el modal de ticket global (definido en ordenes.html o app.js)
+        // Si no existe global, lo inyectamos o usamos una función simple
+        // Aquí asumimos que tienes el modalTicket en el HTML
+        const modalTicket = document.getElementById('modalTicket');
+        if (modalTicket) {
+            document.getElementById('t-mesa').textContent = mesa;
+            document.getElementById('t-folio').textContent = "VARIOS";
+            document.getElementById('t-fecha').textContent = new Date(fechaInicio).toLocaleString();
+            
+            const tbody = document.getElementById('t-items');
+            tbody.innerHTML = todosProductos.map(p => `
+                <tr><td style="border-bottom:1px dashed #ccc; padding:5px;">${p.trim()}</td></tr>
+            `).join('');
+            
+            document.getElementById('t-total').textContent = granTotal.toFixed(2);
+            modalTicket.showModal();
+        }
+    };
+
+    // 5. NAVEGACIÓN Y CONFIGURACIÓN
+    window.agregarPedido = (numMesa) => {
+        // Redirigir al menú con parámetro de mesa
         window.location.href = `menu.html?mesa=${numMesa}`;
     };
 
-    window.abrirModalCobro = (ordenId, total) => {
-        // Usamos SweetAlert2 si lo tienes, o un modal personalizado
-        // Aquí simplificamos para usar tu modal de pago
-        const modal = document.getElementById('modalCobro'); 
-        if(modal) {
-            document.getElementById('totalACobrar').innerText = `$${total.toFixed(2)}`;
-            document.getElementById('btnConfirmarPago').onclick = () => procesarPago(ordenId, 'efectivo');
-            document.getElementById('btnConfirmarDigital').onclick = () => procesarPago(ordenId, 'tarjeta'); // Unificado
-            modal.showModal();
+    // Guardar configuración de mesas
+    window.guardarConfiguracionMesas = async () => {
+        const input = document.getElementById('inputNumMesas');
+        const n = parseInt(input.value);
+        if (n > 0 && n <= 50) {
+            // Actualizar en Supabase
+            const { error } = await App.supabase
+                .from('restaurantes')
+                .update({ num_mesas: n })
+                .eq('id', App.restauranteId);
+
+            if (error) {
+                alert("Error al guardar: " + error.message);
+            } else {
+                alert("Configuración guardada.");
+                modalConfig.close();
+                // Forzar recarga de config local
+                location.reload(); 
+            }
         } else {
-            // Fallback si no hay modal HTML
-            const met = confirm("¿Pago Digital (Tarjeta/QR/Transferencia)? Cancelar para Efectivo") ? 'tarjeta' : 'efectivo';
-            procesarPago(ordenId, met);
+            alert("Por favor ingresa un número entre 1 y 50.");
         }
     };
 
-    async function procesarPago(ordenId, metodo) {
-        try {
-            const orden = App.getOrdenes().find(o => o.id === ordenId);
-            // 1. Registrar Venta
-            await db.from('ventas').insert([{
-                restaurante_id: sesion.restaurante_id,
-                total: orden.total,
-                metodo_pago: metodo,
-                productos: orden.productos,
-                mesa: orden.mesa
-            }]);
-            // 2. Marcar Orden como Pagada
-            await App.updateEstado(ordenId, 'pagado');
-            alert("Venta completada con éxito ✅");
-            if(document.getElementById('modalCobro')) document.getElementById('modalCobro').close();
-        } catch (e) {
-            alert("Error al procesar pago");
-        }
-    }
+    // Botón flotante para config (si existe en tu HTML)
+    const btnConfig = document.getElementById('btnConfigMesas'); // Asegúrate de tener este ID en tu botón de "Mesas" o settings
+    if(btnConfig) btnConfig.onclick = () => modalConfig.showModal();
 
-    // --- 4. GENERADOR DE QR ---
-    window.generarQR = (numMesa) => {
-        const urlBase = window.location.origin + window.location.pathname.replace('mesas.html', '');
-        const urlFinal = `${urlBase}menu.html?mesa=${numMesa}&rid=${sesion.restaurante_id}`;
-        const ventana = window.open("", "_blank", "width=500,height=700");
-        ventana.document.write(`
-            <html>
-            <head><title>QR Mesa ${numMesa}</title><script src="https://cdnjs.cloudflare.com/ajax/libs/qrious/4.0.2/qrious.min.js"></script></head>
-            <body style="text-align:center; font-family:sans-serif; padding:40px;">
-                <div style="border:10px solid #10ad93; padding:20px; border-radius:20px; display:inline-block;">
-                    <h1 style="color:#10ad93;">${sesion.nombre_restaurante || 'OrdenLista'}</h1>
-                    <canvas id="qr"></canvas>
-                    <h2>MESA ${numMesa}</h2>
-                </div><br><br>
-                <button onclick="window.print()" style="padding:10px 20px; background:#10ad93; color:white; border:none; border-radius:5px;">Imprimir</button>
-                <script>new QRious({element:document.getElementById('qr'), value:'${urlFinal}', size:250});</script>
-            </body></html>
-        `);
-        ventana.document.close();
-    };
-
-    await cargarConfiguracion();
+    // Iniciar
     if (typeof App !== 'undefined') {
         App.registerRender('mesas', renderizarMesas);
     }

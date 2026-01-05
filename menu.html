@@ -81,19 +81,13 @@
             background: #ffebe9;
         }
 
-        /* Botón Nuevo Platillo */
-        .nuevo-producto-btn {
-            border: 2px dashed #10ad93;
-            color: #10ad93;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            min-height: 200px;
+        /* Estilo para Ticket Profesional */
+        #ticketPrint {
+            font-family: 'Courier New', Courier, monospace;
+            color: #000;
+            padding: 10px;
         }
-        .plus-icon {
-            font-size: 3rem;
-            margin-bottom: 0.5rem;
-        }
+        .ticket-divider { border-top: 1px dashed #000; margin: 10px 0; }
     </style>
 </head>
 <body>
@@ -146,46 +140,56 @@
         </div>
     </main>
 
+    <dialog id="modalCobro">
+        <article style="max-width: 400px;">
+            <header>
+                <button aria-label="Close" rel="prev" onclick="document.getElementById('modalCobro').close()"></button>
+                <h3>💰 Finalizar Pago</h3>
+            </header>
+            <div style="text-align: center; margin-bottom: 20px;">
+                <p id="cobroMesaTitulo" style="font-weight: bold; margin-bottom: 5px;">Para Llevar</p>
+                <h2 style="color: #10ad93; font-size: 2.5rem;">$<span id="cobroTotal">0.00</span></h2>
+                <p><small>¿Cómo desea pagar el cliente?</small></p>
+            </div>
+            <div class="grid">
+                <button onclick="procesarPago('efectivo')" style="background: #27ae60; border: none;">💵 Efectivo</button>
+                <button onclick="procesarPago('tarjeta')" style="background: #2980b9; border: none;">💳 Tarjeta</button>
+            </div>
+        </article>
+    </dialog>
+
     <dialog id="modalEditarMenu">
         <article style="max-width: 500px; border-radius: 15px;">
             <header>
                 <button aria-label="Close" rel="prev" onclick="document.getElementById('modalEditarMenu').close()"></button>
                 <h3>Configuración de Producto</h3>
             </header>
-            
             <form id="formProducto">
                 <input type="hidden" id="editId">
-                
                 <div style="text-align: center; margin-bottom: 1.5rem;">
                     <img id="imgPreview" src="https://via.placeholder.com/150" style="width: 140px; height: 140px; object-fit: cover; border-radius: 12px; border: 3px solid #f0f0f0;">
-                    <p style="font-size: 0.8rem; color: #888; margin-top: 5px;">Vista previa de imagen</p>
                 </div>
-
-                <label>Nombre del Platillo / Bebida
-                    <input type="text" id="editNombre" placeholder="Ej: Enchiladas Verdes" required>
+                <label>Nombre del Platillo
+                    <input type="text" id="editNombre" required>
                 </label>
-
-                <label>Enlace de Imagen (URL)
-                    <input type="url" id="editImg" placeholder="https://link-de-la-foto.jpg" oninput="document.getElementById('imgPreview').src = this.value">
+                <label>URL de Imagen
+                    <input type="url" id="editImg" oninput="document.getElementById('imgPreview').src = this.value">
                 </label>
-
                 <div class="grid">
-                    <label>Precio Unitario ($)
+                    <label>Precio ($)
                         <input type="number" id="editPrecio" step="0.01" required>
                     </label>
                     <label>Categoría
                         <select id="editCategoria">
-                            <option value="Platillo">🍱 Platillo (Resta Stock)</option>
-                            <option value="Bebidas">🥤 Bebidas</option>
-                            <option value="Postres">🍰 Postres</option>
-                            <option value="Otros">✨ Otros</option>
+                            <option value="Platillo">🍱 Platillo</option>
+                            <option value="Bebidas">🥤 Bebida</option>
+                            <option value="Postres">🍰 Postre</option>
                         </select>
                     </label>
                 </div>
-
-                <footer style="margin-top: 1rem; display: flex; gap: 15px;">
-                    <button type="button" class="secondary outline" onclick="document.getElementById('modalEditarMenu').close()" style="flex: 1;">Cancelar</button>
-                    <button type="submit" style="flex: 2; background-color: #10ad93; border: none;">Guardar Cambios</button>
+                <footer style="display: flex; gap: 10px;">
+                    <button type="button" class="secondary outline" onclick="document.getElementById('modalEditarMenu').close()">Cancelar</button>
+                    <button type="submit" style="background-color: #10ad93; border: none;">Guardar</button>
                 </footer>
             </form>
         </article>
@@ -193,6 +197,7 @@
 
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="js/supabase-client.js"></script>
-    <script src="js/app.js"></script> <script src="js/menu.js"></script>
+    <script src="js/app.js"></script>
+    <script src="js/menu.js"></script>
 </body>
 </html>
