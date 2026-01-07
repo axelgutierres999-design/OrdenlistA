@@ -69,15 +69,40 @@
     }
 
     #listaItemsCarrito {
-      max-height: 200px;
+      max-height: 230px;
       overflow-y: auto;
       margin-bottom: 0.5rem;
     }
     .item-carrito {
+      background: #f9f9f9;
+      border-radius: 8px;
+      padding: 6px 8px;
+      margin-bottom: 6px;
+      display: flex;
+      flex-direction: column;
+      gap: 3px;
+    }
+    .item-top {
       display: flex;
       justify-content: space-between;
-      margin-bottom: 4px;
-      font-size: 0.9rem;
+      align-items: center;
+    }
+    .item-top small { color: #555; font-size: 0.85rem; }
+    .btnQuitar {
+      background: none;
+      border: none;
+      color: #e74c3c;
+      font-weight: bold;
+      font-size: 1.1rem;
+      cursor: pointer;
+    }
+    .item-comentario {
+      font-size: 0.8rem;
+      border: 1px solid #ddd;
+      border-radius: 6px;
+      padding: 4px;
+      width: 100%;
+      resize: none;
     }
 
     /* Modal */
@@ -114,7 +139,7 @@
     <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:0.5rem;">
       <strong>Total:</strong> <span id="totalCliente">$0.00</span>
     </div>
-    <textarea id="comentarioCliente" rows="2" placeholder="Comentario al restaurante..." style="width:100%; margin-bottom:0.5rem;"></textarea>
+    <textarea id="comentarioCliente" rows="2" placeholder="Comentario general al restaurante..." style="width:100%; margin-bottom:0.5rem;"></textarea>
     <button id="btnEnviarPedido">🚀 Enviar Pedido</button>
   </section>
 
@@ -170,8 +195,18 @@
     function agregarAlCarrito(prod) {
       const existe = carrito.find(i => i.id === prod.id);
       if (existe) existe.cantidad++;
-      else carrito.push({ ...prod, cantidad: 1 });
+      else carrito.push({ ...prod, cantidad: 1, comentario: "" });
       renderizarCarrito();
+    }
+
+    function quitarDelCarrito(id) {
+      carrito = carrito.filter(i => i.id !== id);
+      renderizarCarrito();
+    }
+
+    function actualizarComentario(id, texto) {
+      const item = carrito.find(i => i.id === id);
+      if (item) item.comentario = texto;
     }
 
     function renderizarCarrito() {
@@ -187,9 +222,17 @@
       carritoSec.hidden = false;
       cont.innerHTML = carrito.map(i => `
         <div class="item-carrito">
-          <span>${i.cantidad}x ${i.nombre}</span>
-          <span>$${(i.cantidad * i.precio).toFixed(2)}</span>
+          <div class="item-top">
+            <small>${i.cantidad}x ${i.nombre}</small>
+            <div>
+              <small>$${(i.cantidad * i.precio).toFixed(2)}</small>
+              <button class="btnQuitar" onclick="quitarDelCarrito(${i.id})">✖</button>
+            </div>
+          </div>
+          <textarea class="item-comentario" placeholder="Comentario para este platillo..." 
+            oninput="actualizarComentario(${i.id}, this.value)">${i.comentario || ""}</textarea>
         </div>`).join("");
+
       const total = carrito.reduce((acc, i) => acc + i.precio * i.cantidad, 0);
       totalSpan.textContent = `$${total.toFixed(2)}`;
     }
@@ -197,7 +240,10 @@
     document.getElementById("btnEnviarPedido").onclick = async () => {
       if (carrito.length === 0) return alert("Agrega productos primero.");
 
-      const productosTexto = carrito.map(i => `${i.cantidad}x ${i.nombre}`).join(", ");
+      const productosTexto = carrito.map(i => 
+        `${i.cantidad}x ${i.nombre}${i.comentario ? " (" + i.comentario + ")" : ""}`
+      ).join(", ");
+
       const total = carrito.reduce((a, b) => a + b.precio * b.cantidad, 0);
       const comentario = document.getElementById("comentarioCliente").value.trim();
 
@@ -208,7 +254,7 @@
           productos: productosTexto,
           total,
           comentarios: comentario,
-          estado: "pendiente_aprobacion" // 👈 Se espera aprobación antes de cocina
+          estado: "pendiente_aprobacion"
         }]);
         if (error) throw error;
         carrito = [];
