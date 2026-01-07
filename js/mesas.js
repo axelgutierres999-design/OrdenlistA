@@ -1,14 +1,15 @@
-    // js/mesas.js - GESTIÓN DE MESAS, COBROS Y CONFIGURACIÓN (V7.3 - ESTABLE + FIX GUARDAR)
+// js/mesas.js - GESTIÓN DE MESAS, COBROS, QR, CONFIGURACIÓN Y PEDIDO QR CLIENTE (V9.0)
 document.addEventListener('DOMContentLoaded', () => {
     const gridMesas = document.getElementById('gridMesas');
     const modalCobro = document.getElementById('modalCobro');
 
-    // Variables globales para el cobro
     let mesaActualCobro = null;
     let totalActualCobro = 0;
     let ordenesIdsCobro = [];
 
-    // 🕒 Esperar a que App esté disponible
+    // =======================
+    // ESPERA LA APP PRINCIPAL
+    // =======================
     function esperarAppYRenderizar() {
         if (typeof App !== 'undefined' && App.getOrdenes && App.getConfig) {
             App.registerRender('mesas', renderizarMesas);
@@ -36,10 +37,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
         for (let i = 1; i <= numMesas; i++) {
             const nombreMesa = `Mesa ${i}`;
-
             const ordenesMesa = ordenes.filter(o =>
-                o.mesa === nombreMesa &&
-                !['pagado', 'cancelado', 'entregado'].includes(o.estado)
+                o.mesa === nombreMesa && !['pagado', 'cancelado', 'entregado'].includes(o.estado)
             );
 
             const ocupada = ordenesMesa.length > 0;
@@ -59,8 +58,8 @@ document.addEventListener('DOMContentLoaded', () => {
             }
 
             const div = document.createElement('div');
-            div.className = `tarjeta-mesa ${ocupada ? 'ocupada' : ''}`;
-            div.style = `border: 2px solid ${ocupada ? '#10ad93' : '#ddd'}; 
+            div.className = `tarjeta-mesa ${estadoClase}`;
+            div.style = `border: 2px solid ${ocupada ? '#10ad93' : '#ccc'}; 
                          padding: 15px; border-radius: 12px; 
                          background: ${ocupada ? '#f0fff4' : 'white'}; 
                          text-align: center; transition: all 0.2s ease;`;
@@ -68,12 +67,10 @@ document.addEventListener('DOMContentLoaded', () => {
             div.innerHTML = `
                 <div class="mesa-header" style="margin-bottom: 10px;">
                     <h3 style="margin:0;">${nombreMesa}</h3>
-                    <span class="badge-mesa badge-${estadoClase}" 
-                          style="font-weight:bold; color:${ocupada ? '#10ad93' : '#888'};">
-                          ${estadoTexto}
+                    <span class="badge-mesa badge-${estadoClase}">
+                        ${estadoTexto}
                     </span>
                 </div>
-                
                 <div class="mesa-actions" style="display: flex; flex-direction: column; gap: 5px;">
                     ${ocupada ? `
                         <button onclick="abrirModalCobro('${nombreMesa}', ${totalMesa})" 
@@ -94,6 +91,9 @@ document.addEventListener('DOMContentLoaded', () => {
                             📝 Nueva Orden
                         </button>
                     `}
+                    <button onclick="generarQR('${nombreMesa}')" 
+                            class="outline secondary" 
+                            style="margin-top:5px; font-size:0.8rem;">📱 QR de esta Mesa</button>
                 </div>
             `;
             gridMesas.appendChild(div);
@@ -108,22 +108,33 @@ document.addEventListener('DOMContentLoaded', () => {
         totalActualCobro = total;
 
         const ordenes = App.getOrdenes().filter(o =>
-            o.mesa === mesa &&
-            !['pagado', 'cancelado'].includes(o.estado)
+            o.mesa === mesa && !['pagado', 'cancelado'].includes(o.estado)
         );
         ordenesIdsCobro = ordenes.map(o => o.id);
 
-        const titulo = document.getElementById('cobroMesaTitulo');
-        const monto = document.getElementById('cobroTotal');
-        if (titulo) titulo.textContent = mesa;
-        if (monto) monto.textContent = total.toFixed(2);
-        if (modalCobro) modalCobro.showModal();
+        document.getElementById('cobroMesaTitulo').textContent = mesa;
+        document.getElementById('cobroTotal').textContent = total.toFixed(2);
+        modalCobro.showModal();
     };
+
+    async function calcularCambio(total) {
+        const entregado = parseFloat(prompt(`💵 Total: $${total.toFixed(2)}\nIngrese monto entregado:`));
+        if (isNaN(entregado)) return alert("⚠️ Monto no válido.");
+        if (entregado < total) return alert("❌ El monto entregado es menor al total.");
+        const cambio = entregado - total;
+        alert(`✅ Cambio: $${cambio.toFixed(2)}`);
+        return true;
+    }
 
     window.procesarPago = async (metodo) => {
         if (!mesaActualCobro || ordenesIdsCobro.length === 0) return;
         const restoId = App.getRestoId ? App.getRestoId() : null;
         if (!restoId) return alert("Error: restaurante no identificado.");
+
+        if (metodo === 'efectivo') {
+            const continuar = await calcularCambio(totalActualCobro);
+            if (!continuar) return;
+        }
 
         try {
             for (const id of ordenesIdsCobro) {
@@ -141,8 +152,8 @@ document.addEventListener('DOMContentLoaded', () => {
             }
 
             alert("✅ Pago registrado correctamente.");
-            if (modalCobro) modalCobro.close();
-            renderizarMesas(); // refresco inmediato
+            modalCobro.close();
+            renderizarMesas();
 
         } catch (error) {
             console.error(error);
@@ -151,66 +162,82 @@ document.addEventListener('DOMContentLoaded', () => {
     };
 
     // =====================================================
-    // 3️⃣ TICKET DE MESA
+    // 3️⃣ TICKET
     // =====================================================
     window.verTicketMesa = (mesa) => {
         const ordenes = App.getOrdenes().filter(o =>
-            o.mesa === mesa &&
-            ['pendiente', 'preparando', 'terminado', 'entregado'].includes(o.estado)
+            o.mesa === mesa && ['pendiente', 'preparando', 'terminado', 'entregado'].includes(o.estado)
         );
-
         if (ordenes.length === 0) return;
 
         let todosProductos = [];
         let granTotal = 0;
         let fechaInicio = ordenes[0].created_at;
-
         ordenes.forEach(o => {
             const items = typeof o.productos === 'string' ? o.productos.split(',') : o.productos;
             todosProductos = todosProductos.concat(items);
             granTotal += parseFloat(o.total);
         });
 
-        const modalTicket = document.getElementById('modalTicket');
-        if (modalTicket) {
-            document.getElementById('t-mesa').textContent = mesa;
-            document.getElementById('t-fecha').textContent = new Date(fechaInicio).toLocaleString();
-            const tbody = document.getElementById('t-items');
-            tbody.innerHTML = todosProductos.map(p => `
-                <tr><td style="border-bottom:1px dashed #ccc; padding:5px;">${p}</td></tr>
-            `).join('');
-            document.getElementById('t-total').textContent = granTotal.toFixed(2);
-            modalTicket.showModal();
-        } else if (App.verDetalleMesa) {
-            App.verDetalleMesa(ordenes[0].id);
-        }
+        document.getElementById('t-mesa').textContent = mesa;
+        document.getElementById('t-fecha').textContent = new Date(fechaInicio).toLocaleString();
+        const tbody = document.getElementById('t-items');
+        tbody.innerHTML = todosProductos.map(p => `<tr><td>${p}</td></tr>`).join('');
+        document.getElementById('t-total').textContent = granTotal.toFixed(2);
+        document.getElementById('modalTicket').showModal();
     };
 
     // =====================================================
     // 4️⃣ CONFIGURACIÓN DE MESAS
     // =====================================================
     window.guardarConfiguracionMesas = async () => {
-        const input = document.getElementById('inputNumMesas');
-        if (!input) return;
-        const n = parseInt(input.value);
-        if (isNaN(n) || n <= 0 || n > 100) {
-            return alert("Ingresa un número entre 1 y 100.");
-        }
-
+        const n = parseInt(document.getElementById('inputNumMesas').value);
+        if (isNaN(n) || n <= 0 || n > 100) return alert("Ingresa un número entre 1 y 100.");
         try {
             await App.guardarConfiguracionMesas(n);
-            alert("✅ Número de mesas actualizado correctamente.");
+            alert("✅ Número de mesas actualizado.");
             renderizarMesas();
         } catch (err) {
             console.error(err);
-            alert("❌ No se pudo guardar la configuración.");
+            alert("❌ Error al guardar configuración.");
         }
     };
 
     // =====================================================
-    // 5️⃣ REDIRECCIÓN A MENU
+    // 5️⃣ AGREGAR PEDIDO (MODO MESERO)
     // =====================================================
     window.agregarPedido = (numMesa) => {
         window.location.href = `menu.html?mesa=Mesa ${numMesa}`;
+    };
+
+    // =====================================================
+    // 6️⃣ GENERAR CÓDIGO QR POR MESA (CLIENTE MÓVIL)
+    // =====================================================
+    window.generarQR = (mesaLabel) => {
+        const sesion = JSON.parse(localStorage.getItem('sesion_activa'));
+        if (!sesion?.restaurante_id) return alert("Error: restaurante no identificado.");
+
+        const urlMesa = `${window.location.origin}/pedido.html?rid=${sesion.restaurante_id}&mesa=${encodeURIComponent(mesaLabel)}`;
+
+        const modal = document.createElement('dialog');
+        modal.innerHTML = `
+            <article style="text-align:center;">
+                <h3>📱 QR - ${mesaLabel}</h3>
+                <div id="qrCanvas" style="margin:1rem auto;"></div>
+                <p style="font-size:0.8rem; color:#555;">${urlMesa}</p>
+                <footer><button onclick="this.closest('dialog').close()">Cerrar</button></footer>
+            </article>
+        `;
+        document.body.appendChild(modal);
+        modal.showModal();
+
+        if (typeof QRCode === "undefined") {
+            const script = document.createElement("script");
+            script.src = "https://cdn.jsdelivr.net/npm/qrcodejs/qrcode.min.js";
+            script.onload = () => new QRCode(document.getElementById("qrCanvas"), { text: urlMesa, width: 200, height: 200 });
+            document.head.appendChild(script);
+        } else {
+            new QRCode(document.getElementById("qrCanvas"), { text: urlMesa, width: 200, height: 200 });
+        }
     };
 });
