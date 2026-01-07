@@ -1,304 +1,272 @@
-// js/app.js - NÚCLEO CENTRALIZADO (V7.0 - ACTUALIZADO)
-const App = (function() {
-    let ordenes = [];
-    let suministros = [];
-    let config = { num_mesas: 10 }; // Cache local de configuración
-    
-    const getRestoId = () => {
-        const sesion = JSON.parse(localStorage.getItem('sesion_activa'));
-        return sesion ? sesion.restaurante_id : null;
-    };
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Pedido | OrdenLista</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@picocss/pico@1/css/pico.min.css">
+  <style>
+    body {
+      background: #f6f8f9;
+      font-family: "Inter", system-ui, sans-serif;
+    }
+    header {
+      text-align: center;
+      margin-bottom: 1rem;
+    }
+    header h1 {
+      margin: 0.5rem 0;
+      font-size: 1.6rem;
+      color: #10ad93;
+    }
+    .productos-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+      gap: 1rem;
+    }
+    .producto-card {
+      background: white;
+      border-radius: 12px;
+      overflow: hidden;
+      box-shadow: 0 2px 6px rgba(0, 0, 0, 0.08);
+      cursor: pointer;
+      transition: transform 0.2s;
+    }
+    .producto-card:hover { transform: scale(1.03); }
+    .producto-card img {
+      width: 100%;
+      height: 100px;
+      object-fit: cover;
+    }
+    .producto-info {
+      padding: 0.5rem 0.7rem;
+      text-align: center;
+    }
+    .producto-info h4 { margin: 0.3rem 0; font-size: 1rem; }
+    .producto-info p { margin: 0; color: #10ad93; font-weight: bold; }
 
-    const renderCallbacks = {};
-
-    // --- 1. CARGA DE DATOS Y REALTIME ---
-    const cargarDatosIniciales = async () => {
-        if (typeof db === 'undefined') return;
-        const restoId = getRestoId();
-        if (!restoId) return;
-
-        try {
-            // NUEVO: Cargar configuración del restaurante (num_mesas)
-            const { data: dataConfig } = await db.from('restaurantes')
-                .select('num_mesas')
-                .eq('id', restoId)
-                .single();
-            if (dataConfig) config.num_mesas = dataConfig.num_mesas;
-
-            // CORRECCIÓN CRÍTICA:
-            // Ahora traemos órdenes 'pagado' también, para que Cocina las vea si son Para Llevar.
-            const { data: dataOrdenes, error: errO } = await db.from('ordenes')
-                .select('*')
-                .eq('restaurante_id', restoId)
-                .not('estado', 'in', '("entregado","cancelado")')
-                .order('created_at', { ascending: true }); 
-            
-            if (dataOrdenes) ordenes = dataOrdenes;
-
-            const { data: dataSuministros } = await db.from('suministros')
-                .select('*')
-                .eq('restaurante_id', restoId);
-            
-            if (dataSuministros) suministros = dataSuministros;
-
-            App.notifyUpdate();
-        } catch (err) {
-            console.error("Error global de carga:", err);
-        }
-    };
-
-    const activarSuscripcionRealtime = () => {
-        const restoId = getRestoId();
-        if (!restoId || typeof db === 'undefined') return;
-
-        db.channel('cambios-globales')
-          .on('postgres_changes', 
-              { event: '*', schema: 'public', table: 'ordenes', filter: `restaurante_id=eq.${restoId}` }, 
-              () => { cargarDatosIniciales(); })
-          .on('postgres_changes', 
-              { event: '*', schema: 'public', table: 'suministros', filter: `restaurante_id=eq.${restoId}` }, 
-              () => { cargarDatosIniciales(); })
-          // Suscribir también a cambios en la tabla restaurantes para actualizar num_mesas en vivo
-          .on('postgres_changes',
-              { event: 'UPDATE', schema: 'public', table: 'restaurantes', filter: `id=eq.${restoId}` },
-              () => { cargarDatosIniciales(); })
-          .subscribe();
-    };
-
-    // --- 2. INTERFAZ DE PAGO (MODAL) ---
-    const mostrarModalPago = (orden, callbackPago) => {
-        const total = parseFloat(orden.total);
-        const modal = document.createElement('div');
-        modal.id = "modalGlobalPago";
-        modal.style = "position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.85);display:flex;justify-content:center;align-items:center;z-index:10000;padding:15px;backdrop-filter:blur(5px);";
-        
-        modal.innerHTML = `
-          <article style="background:white;padding:1.5rem;border-radius:15px;width:100%;max-width:400px;box-shadow:0 20px 40px rgba(0,0,0,0.4); color:#333;">
-            <header style="text-align:center; border-bottom:1px solid #eee; margin-bottom:1rem; padding-bottom:0.5rem;">
-                <h3 style="margin:0; color:#333;">Cobrar ${orden.mesa}</h3>
-            </header>
-            <div style="text-align:center; margin-bottom:1.5rem;">
-                <small style="color:#888;">TOTAL A PAGAR</small>
-                <div style="font-size:3rem;font-weight:800;color:#10ad93;">$${total.toFixed(2)}</div>
-            </div>
-            <div id="seccionMetodos">
-                <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px;">
-                  <button id="btnEfectivoUI" style="background:#2ecc71;color:white;border:none;padding:15px;border-radius:10px;cursor:pointer;font-weight:bold;font-size:1.1rem;">💵 Efectivo</button>
-                  <button id="btnTarjetaUI" style="background:#3498db;color:white;border:none;padding:15px;border-radius:10px;cursor:pointer;font-weight:bold;font-size:1.1rem;">💳 Tarjeta</button>
-                </div>
-                <button id="btnQRUI" style="width:100%;background:#f39c12;color:white;border:none;padding:12px;border-radius:10px;cursor:pointer;font-weight:bold;margin-bottom:15px;">📱 QR / Transferencia</button>
-            </div>
-            <div id="panelEfectivo" style="display:none; background:#f9f9f9; padding:15px; border-radius:10px; margin-bottom:15px;">
-                <label style="font-weight:bold;">Monto Recibido:</label>
-                <input type="number" id="inputRecibido" placeholder="0.00" step="0.01" style="font-size:1.5rem; text-align:center; width:100%; margin:10px 0; border:2px solid #ddd; border-radius:8px; padding:5px;">
-                <div id="txtCambio" style="text-align:center; font-weight:bold; margin-top:10px; color:#e74c3c; font-size:1.2rem;">Cambio: $0.00</div>
-                <button id="btnConfirmarEfectivo" disabled style="width:100%; margin-top:15px; background:#27ae60; color:white; border:none; padding:12px; border-radius:8px; font-weight:bold;">CONFIRMAR PAGO</button>
-            </div>
-            <footer style="text-align:center;">
-                <button id="btnCancelar" style="background:none; border:none; color:#888; cursor:pointer; font-size:0.9rem; text-decoration:underline;">Cancelar Operación</button>
-            </footer>
-          </article>`;
-        
-        document.body.appendChild(modal);
-
-        // Lógica de Efectivo
-        document.getElementById('btnEfectivoUI').onclick = () => { 
-            document.getElementById('seccionMetodos').style.display='none'; 
-            document.getElementById('panelEfectivo').style.display='block'; 
-            document.getElementById('inputRecibido').focus();
-        };
-        
-        const input = document.getElementById('inputRecibido');
-        input.addEventListener('input', () => {
-            const recibido = parseFloat(input.value) || 0;
-            const cambio = recibido - total;
-            const txtCambio = document.getElementById('txtCambio');
-            const btnConf = document.getElementById('btnConfirmarEfectivo');
-            
-            if (recibido >= total) {
-                btnConf.disabled = false;
-                txtCambio.textContent = `Cambio: $${cambio.toFixed(2)}`;
-                txtCambio.style.color = "#27ae60";
-            } else {
-                btnConf.disabled = true;
-                txtCambio.textContent = "Monto insuficiente";
-                txtCambio.style.color = "#c0392b";
-            }
-        });
-
-        // Callbacks
-        document.getElementById('btnConfirmarEfectivo').onclick = () => { callbackPago('efectivo'); modal.remove(); };
-        document.getElementById('btnTarjetaUI').onclick = () => { if(confirm("¿Terminal aprobada?")) { callbackPago('tarjeta'); modal.remove(); } };
-        document.getElementById('btnQRUI').onclick = () => { if(confirm("¿Transferencia recibida?")) { callbackPago('qr'); modal.remove(); } };
-        document.getElementById('btnCancelar').onclick = () => modal.remove();
-    };
-
-    // --- 3. VISTA DE TICKET (MODAL) ---
-    const mostrarModalTicket = (orden, detalles) => {
-        const modal = document.createElement('div');
-        modal.style = "position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.6);display:flex;justify-content:center;align-items:center;z-index:10000;backdrop-filter:blur(3px);";
-        
-        const fecha = new Date(orden.created_at).toLocaleString();
-        const itemsHtml = detalles.map(d => `
-            <div style="display:flex; justify-content:space-between; margin-bottom:5px; font-size:0.9rem;">
-                <span>${d.cantidad} x ${d.productos?.nombre || 'Item'}</span>
-                <span>$${(d.cantidad * d.precio_unitario).toFixed(2)}</span>
-            </div>
-        `).join('');
-
-        modal.innerHTML = `
-            <div style="background:white; width:300px; padding:20px; box-shadow:0 10px 30px rgba(0,0,0,0.3); font-family:'Courier New', monospace; color:black; border-top: 5px solid #333;">
-                <div style="text-align:center; margin-bottom:15px; border-bottom:1px dashed #000; padding-bottom:10px;">
-                    <h2 style="margin:0; font-size:1.5rem;">TICKET</h2>
-                    <p style="margin:5px 0; font-size:0.8rem;">${fecha}</p>
-                    <h3 style="margin:5px 0;">${orden.mesa}</h3>
-                </div>
-                <div style="margin-bottom:15px; border-bottom:1px dashed #000; padding-bottom:10px;">
-                    ${itemsHtml}
-                </div>
-                <div style="display:flex; justify-content:space-between; font-weight:bold; font-size:1.2rem; margin-bottom:20px;">
-                    <span>TOTAL:</span>
-                    <span>$${parseFloat(orden.total).toFixed(2)}</span>
-                </div>
-                <button id="btnCerrarTicket" style="width:100%; padding:10px; background:#333; color:white; border:none; cursor:pointer;">CERRAR</button>
-                <button onclick="window.print()" style="width:100%; padding:10px; margin-top:5px; background:white; color:#333; border:1px solid #333; cursor:pointer;">🖨️ IMPRIMIR</button>
-            </div>
-        `;
-        document.body.appendChild(modal);
-        document.getElementById('btnCerrarTicket').onclick = () => modal.remove();
-    };
-
-    // --- 4. FUNCIONES PÚBLICAS ---
-    return {
-        init: async () => { 
-            await cargarDatosIniciales(); 
-            activarSuscripcionRealtime();
-        },
-        getRestoId: getRestoId,
-        getOrdenes: () => ordenes,
-        getSuministros: () => suministros,
-        // NUEVO: Retorna la configuración cargada
-        getConfig: () => config,
-
-        updateEstado: async (id, nuevoEstado) => {
-            const { error } = await db.from('ordenes').update({ estado: nuevoEstado }).eq('id', id);
-            if (error) console.error("Error al actualizar estado:", error);
-        },
-
-        eliminarOrden: async (id) => {
-            if (!confirm("¿Cancelar esta orden permanentemente?")) return;
-            const { error } = await db.from('ordenes').update({estado: 'cancelado'}).eq('id', id);
-            if (error) console.error("Error al eliminar:", error);
-            else cargarDatosIniciales(); 
-        },
-
-        liberarMesaManual: (id) => {
-            const orden = ordenes.find(o => o.id === id);
-            if (!orden) return;
-            
-            mostrarModalPago(orden, async (metodo) => {
-                try {
-                    const venta = { 
-                        restaurante_id: getRestoId(), 
-                        mesa: orden.mesa, 
-                        productos: orden.productos, 
-                        total: orden.total, 
-                        metodo_pago: metodo 
-                    };
-                    const { error: errorVenta } = await db.from('ventas').insert([venta]);
-                    if (errorVenta) throw errorVenta;
-                    
-                    await db.from('ordenes').update({ estado: 'pagado' }).eq('id', id);
-                    
-                    alert("✅ Pago procesado exitosamente.");
-                } catch (err) { 
-                    console.error(err);
-                    alert("❌ Error al procesar el cobro."); 
-                }
-            });
-        },
-
-        verDetalleMesa: async (ordenId) => {
-            const orden = ordenes.find(o => o.id === ordenId);
-            if(!orden) return;
-            try {
-                const { data, error } = await db.from('detalles_orden')
-                    .select('*, productos(nombre)')
-                    .eq('orden_id', ordenId);
-                if (error) throw error;
-                
-                mostrarModalTicket(orden, data);
-            } catch (e) { alert("No se pudo cargar el detalle."); }
-        },
-
-        // NUEVO: Guardar configuración de número de mesas
-        guardarConfiguracionMesas: async (nuevoNumero) => {
-            const restoId = getRestoId();
-            if (!restoId) return;
-            try {
-                const { error } = await db.from('restaurantes')
-                    .update({ num_mesas: nuevoNumero })
-                    .eq('id', restoId);
-                if (error) throw error;
-                alert("✅ Configuración guardada.");
-                cargarDatosIniciales(); // Recargar localmente
-            } catch (e) {
-                alert("❌ Error al guardar.");
-            }
-        },
-
-        registerRender: (name, cb) => { renderCallbacks[name] = cb; cb(); },
-        notifyUpdate: () => { 
-            Object.values(renderCallbacks).forEach(cb => { 
-                if(typeof cb === 'function') cb(); 
-            }); 
-        }
-    };
-})();
-
-// --- MENÚ DE NAVEGACIÓN ---
-function renderizarMenuSeguro() {
-    const sesion = JSON.parse(localStorage.getItem('sesion_activa'));
-    if (!sesion) return;
-    const navContenedor = document.getElementById('menuNavegacion');
-    if (!navContenedor) return;
-    const rutaActual = window.location.pathname.split("/").pop() || "index.html";
-    
-    const menuItems = [
-        { h: "mesas.html", i: "🪑", t: "Mesas" },
-        { h: "menu.html", i: "📜", t: "Carta" },
-        { h: "ordenes.html", i: "📋", t: "Órdenes" },
-        { h: "cocina.html", i: "👨‍🍳", t: "Cocina" },
-        { h: "stock.html", i: "📦", t: "Stock" }
-    ];
-
-    if (sesion.rol === 'dueño' || sesion.rol === 'administrador') {
-        menuItems.push({ h: "ventas.html", i: "📊", t: "Ventas" });
-        menuItems.push({ h: "empleados.html", i: "👥", t: "Personal" });
+    /* Carrito fijo */
+    #carritoCliente {
+      position: fixed;
+      bottom: 0;
+      left: 0;
+      width: 100%;
+      background: white;
+      box-shadow: 0 -2px 10px rgba(0,0,0,0.1);
+      padding: 0.7rem 1rem;
+      border-top: 2px solid #10ad93;
+      z-index: 50;
+    }
+    #carritoCliente button {
+      width: 100%;
+      background: #10ad93;
+      border: none;
+      color: white;
+      font-size: 1.1rem;
+      padding: 0.7rem;
+      border-radius: 8px;
+      font-weight: 600;
     }
 
-    navContenedor.innerHTML = menuItems.map(item => `
-        <li>
-            <a href="${item.h}" class="${rutaActual === item.h ? 'activo' : ''}" 
-               style="display: flex; align-items: center; gap: 8px; padding: 8px 12px; border-radius: 8px; text-decoration: none; ${rutaActual === item.h ? 'background:#10ad93;color:white;' : 'color:#555;'}">
-                <span>${item.i}</span>
-                <span class="nav-text" style="font-weight:600;">${item.t}</span>
-            </a>
-        </li>
-    `).join('') + `
-        <li>
-            <button onclick="cerrarSesionApp()" class="outline contrast" style="padding: 5px 15px; border-radius: 8px; width:100%;">Salir</button>
-        </li>`;
-}
-
-async function cerrarSesionApp() {
-    if (confirm("¿Cerrar sesión?")) {
-        localStorage.removeItem('sesion_activa');
-        window.location.href = 'login.html';
+    #listaItemsCarrito {
+      max-height: 230px;
+      overflow-y: auto;
+      margin-bottom: 0.5rem;
     }
-}
+    .item-carrito {
+      background: #f9f9f9;
+      border-radius: 8px;
+      padding: 6px 8px;
+      margin-bottom: 6px;
+      display: flex;
+      flex-direction: column;
+      gap: 3px;
+    }
+    .item-top {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .item-top small { color: #555; font-size: 0.85rem; }
+    .btnQuitar {
+      background: none;
+      border: none;
+      color: #e74c3c;
+      font-weight: bold;
+      font-size: 1.1rem;
+      cursor: pointer;
+    }
+    .item-comentario {
+      font-size: 0.8rem;
+      border: 1px solid #ddd;
+      border-radius: 6px;
+      padding: 4px;
+      width: 100%;
+      resize: none;
+    }
 
-document.addEventListener('DOMContentLoaded', () => {
-    renderizarMenuSeguro();
-    App.init(); 
-});
+    /* Modal */
+    dialog {
+      border: none;
+      border-radius: 12px;
+      max-width: 400px;
+      width: 90%;
+    }
+
+    @media (max-width: 600px) {
+      header h1 { font-size: 1.4rem; }
+      .producto-info h4 { font-size: 0.95rem; }
+    }
+  </style>
+</head>
+<body>
+
+  <header>
+    <p id="nombreMesa" style="margin:0; color:#888;">Mesa</p>
+    <h1>☕ OrdenLista</h1>
+    <p style="margin:0;">Elige tus platillos favoritos</p>
+  </header>
+
+  <main class="container">
+    <div id="productosCliente" class="productos-grid">
+      <article aria-busy="true" style="text-align:center;">Cargando menú...</article>
+    </div>
+  </main>
+
+  <!-- Carrito -->
+  <section id="carritoCliente" hidden>
+    <div id="listaItemsCarrito"></div>
+    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:0.5rem;">
+      <strong>Total:</strong> <span id="totalCliente">$0.00</span>
+    </div>
+    <textarea id="comentarioCliente" rows="2" placeholder="Comentario general al restaurante..." style="width:100%; margin-bottom:0.5rem;"></textarea>
+    <button id="btnEnviarPedido">🚀 Enviar Pedido</button>
+  </section>
+
+  <!-- Modal Confirmación -->
+  <dialog id="modalConfirm">
+    <article style="text-align:center;">
+      <h3>✅ Pedido enviado para aprobación</h3>
+      <p>Tu orden ha sido enviada al encargado para aprobación.<br>Te avisaremos cuando sea aceptada.</p>
+      <footer><button onclick="document.getElementById('modalConfirm').close()">Cerrar</button></footer>
+    </article>
+  </dialog>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="js/supabase-client.js"></script>
+  <script>
+    const params = new URLSearchParams(window.location.search);
+    const mesaParam = params.get("mesa") || "Mesa";
+    const ridParam = params.get("rid");
+
+    document.getElementById("nombreMesa").textContent = mesaParam;
+
+    let carrito = [];
+    let productos = [];
+
+    async function cargarProductos() {
+      if (!ridParam) {
+        alert("Error: restaurante no encontrado");
+        return;
+      }
+      const { data, error } = await db.from("productos").select("*").eq("restaurante_id", ridParam);
+      if (error) { console.error(error); return; }
+      productos = data || [];
+      renderizarProductos();
+    }
+
+    function renderizarProductos() {
+      const cont = document.getElementById("productosCliente");
+      cont.innerHTML = "";
+      productos.forEach(p => {
+        const card = document.createElement("article");
+        card.className = "producto-card";
+        card.innerHTML = `
+          <img src="${p.imagen_url || "https://via.placeholder.com/150"}" alt="${p.nombre}">
+          <div class="producto-info">
+            <h4>${p.nombre}</h4>
+            <p>$${parseFloat(p.precio).toFixed(2)}</p>
+          </div>`;
+        card.onclick = () => agregarAlCarrito(p);
+        cont.appendChild(card);
+      });
+    }
+
+    function agregarAlCarrito(prod) {
+      const existe = carrito.find(i => i.id === prod.id);
+      if (existe) existe.cantidad++;
+      else carrito.push({ ...prod, cantidad: 1, comentario: "" });
+      renderizarCarrito();
+    }
+
+    function quitarDelCarrito(id) {
+      carrito = carrito.filter(i => i.id !== id);
+      renderizarCarrito();
+    }
+
+    function actualizarComentario(id, texto) {
+      const item = carrito.find(i => i.id === id);
+      if (item) item.comentario = texto;
+    }
+
+    function renderizarCarrito() {
+      const cont = document.getElementById("listaItemsCarrito");
+      const totalSpan = document.getElementById("totalCliente");
+      const carritoSec = document.getElementById("carritoCliente");
+
+      if (carrito.length === 0) {
+        carritoSec.hidden = true;
+        return;
+      }
+
+      carritoSec.hidden = false;
+      cont.innerHTML = carrito.map(i => `
+        <div class="item-carrito">
+          <div class="item-top">
+            <small>${i.cantidad}x ${i.nombre}</small>
+            <div>
+              <small>$${(i.cantidad * i.precio).toFixed(2)}</small>
+              <button class="btnQuitar" onclick="quitarDelCarrito(${i.id})">✖</button>
+            </div>
+          </div>
+          <textarea class="item-comentario" placeholder="Comentario para este platillo..." 
+            oninput="actualizarComentario(${i.id}, this.value)">${i.comentario || ""}</textarea>
+        </div>`).join("");
+
+      const total = carrito.reduce((acc, i) => acc + i.precio * i.cantidad, 0);
+      totalSpan.textContent = `$${total.toFixed(2)}`;
+    }
+
+    document.getElementById("btnEnviarPedido").onclick = async () => {
+      if (carrito.length === 0) return alert("Agrega productos primero.");
+
+      const productosTexto = carrito.map(i => 
+        `${i.cantidad}x ${i.nombre}${i.comentario ? " (" + i.comentario + ")" : ""}`
+      ).join(", ");
+
+      const total = carrito.reduce((a, b) => a + b.precio * b.cantidad, 0);
+      const comentario = document.getElementById("comentarioCliente").value.trim();
+
+      try {
+        const { error } = await db.from("ordenes").insert([{
+          restaurante_id: ridParam,
+          mesa: mesaParam,
+          productos: productosTexto,
+          total,
+          comentarios: comentario,
+          estado: "pendiente_aprobacion"
+        }]);
+        if (error) throw error;
+        carrito = [];
+        renderizarCarrito();
+        document.getElementById("comentarioCliente").value = "";
+        document.getElementById("modalConfirm").showModal();
+      } catch (err) {
+        alert("Error al enviar pedido: " + err.message);
+      }
+    };
+
+    cargarProductos();
+  </script>
+</body>
+</html>
