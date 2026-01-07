@@ -55,6 +55,7 @@
       box-shadow: 0 -2px 10px rgba(0,0,0,0.1);
       padding: 0.7rem 1rem;
       border-top: 2px solid #10ad93;
+      z-index: 50;
     }
     #carritoCliente button {
       width: 100%;
@@ -86,6 +87,11 @@
       max-width: 400px;
       width: 90%;
     }
+
+    @media (max-width: 600px) {
+      header h1 { font-size: 1.4rem; }
+      .producto-info h4 { font-size: 0.95rem; }
+    }
   </style>
 </head>
 <body>
@@ -115,8 +121,8 @@
   <!-- Modal Confirmación -->
   <dialog id="modalConfirm">
     <article style="text-align:center;">
-      <h3>✅ Pedido enviado</h3>
-      <p>Tu orden ha sido enviada a cocina. ¡Gracias por tu preferencia!</p>
+      <h3>✅ Pedido enviado para aprobación</h3>
+      <p>Tu orden ha sido enviada al encargado para aprobación.<br>Te avisaremos cuando sea aceptada.</p>
       <footer><button onclick="document.getElementById('modalConfirm').close()">Cerrar</button></footer>
     </article>
   </dialog>
@@ -202,7 +208,7 @@
           productos: productosTexto,
           total,
           comentarios: comentario,
-          estado: "pendiente"
+          estado: "pendiente_aprobacion" // 👈 Se espera aprobación antes de cocina
         }]);
         if (error) throw error;
         carrito = [];
