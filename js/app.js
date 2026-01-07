@@ -1,9 +1,9 @@
-// js/app.js - NÚCLEO CENTRALIZADO (V7.8 - Notificación visual + sonido para encargado)
+// js/app.js - NÚCLEO CENTRALIZADO (V7.8 COMPLETO - Notificación visual + sonido + menú restaurado)
 const App = (function() {
     let ordenes = [];
     let suministros = [];
-    let config = { num_mesas: 10 }; // Cache local de configuración
-    
+    let config = { num_mesas: 10 };
+
     const getRestoId = () => {
         const sesion = JSON.parse(localStorage.getItem('sesion_activa'));
         return sesion ? sesion.restaurante_id : null;
@@ -15,8 +15,6 @@ const App = (function() {
     };
 
     const renderCallbacks = {};
-
-    // --- 🔔 SONIDO DE NOTIFICACIÓN ---
     const sonidoNotificacion = new Audio("https://cdn.pixabay.com/download/audio/2022/03/15/audio_8b3c3b9ad9.mp3?filename=notification-106557.mp3");
 
     // --- 1. CARGA DE DATOS Y REALTIME ---
@@ -26,7 +24,6 @@ const App = (function() {
         if (!restoId) return;
 
         try {
-            // Cargar configuración del restaurante
             const { data: dataConfig } = await db.from('restaurantes')
                 .select('num_mesas')
                 .eq('id', restoId)
@@ -37,14 +34,12 @@ const App = (function() {
                 .select('*')
                 .eq('restaurante_id', restoId)
                 .not('estado', 'in', '("entregado","cancelado")')
-                .order('created_at', { ascending: true }); 
-            
+                .order('created_at', { ascending: true });
             if (dataOrdenes) ordenes = dataOrdenes;
 
             const { data: dataSuministros } = await db.from('suministros')
                 .select('*')
                 .eq('restaurante_id', restoId);
-            
             if (dataSuministros) suministros = dataSuministros;
 
             App.notifyUpdate();
@@ -53,14 +48,11 @@ const App = (function() {
         }
     };
 
-    // --- 🔔 FUNCIÓN DE NOTIFICACIÓN VISUAL ---
+    // --- 2. NOTIFICACIÓN VISUAL Y SONIDO ---
     const mostrarNotificacionNuevaOrden = (orden) => {
-        if (getRol() !== 'encargado') return; // Solo encargado ve esto
-
-        // Sonido
+        if (getRol() !== 'encargado') return;
         try { sonidoNotificacion.play(); } catch(e){ console.warn("No se pudo reproducir sonido"); }
 
-        // Contenedor global de notificaciones
         if (!document.getElementById('notifContenedor')) {
             const cont = document.createElement('div');
             cont.id = 'notifContenedor';
@@ -76,7 +68,6 @@ const App = (function() {
             document.body.appendChild(cont);
         }
 
-        // Tarjeta visual
         const div = document.createElement('div');
         div.style = `
             background: #fff;
@@ -113,7 +104,6 @@ const App = (function() {
         setTimeout(() => div.remove(), 15000);
     };
 
-    // CSS Animación
     const style = document.createElement('style');
     style.textContent = `
         @keyframes aparecerNoti {
@@ -123,19 +113,19 @@ const App = (function() {
     `;
     document.head.appendChild(style);
 
-    // --- 2. SUSCRIPCIÓN REALTIME ---
+    // --- 3. SUSCRIPCIÓN REALTIME ---
     const activarSuscripcionRealtime = () => {
         const restoId = getRestoId();
         if (!restoId || typeof db === 'undefined') return;
 
         db.channel('cambios-globales')
-          .on('postgres_changes', 
+          .on('postgres_changes',
               { event: '*', schema: 'public', table: 'ordenes', filter: `restaurante_id=eq.${restoId}` },
               payload => {
                   if (payload.eventType === 'INSERT') mostrarNotificacionNuevaOrden(payload.new);
                   cargarDatosIniciales();
               })
-          .on('postgres_changes', 
+          .on('postgres_changes',
               { event: '*', schema: 'public', table: 'suministros', filter: `restaurante_id=eq.${restoId}` },
               () => { cargarDatosIniciales(); })
           .on('postgres_changes',
@@ -144,7 +134,7 @@ const App = (function() {
           .subscribe();
     };
 
-    // --- 3. INTERFAZ DE PAGO (MODAL) ---
+    // --- 4. INTERFAZ DE PAGO ---
     const mostrarModalPago = (orden, callbackPago) => {
         const total = parseFloat(orden.total);
         const modal = document.createElement('div');
@@ -179,21 +169,17 @@ const App = (function() {
           </article>`;
         
         document.body.appendChild(modal);
-
-        // Lógica de Efectivo
         document.getElementById('btnEfectivoUI').onclick = () => { 
             document.getElementById('seccionMetodos').style.display='none'; 
             document.getElementById('panelEfectivo').style.display='block'; 
             document.getElementById('inputRecibido').focus();
         };
-        
         const input = document.getElementById('inputRecibido');
         input.addEventListener('input', () => {
             const recibido = parseFloat(input.value) || 0;
             const cambio = recibido - total;
             const txtCambio = document.getElementById('txtCambio');
             const btnConf = document.getElementById('btnConfirmarEfectivo');
-            
             if (recibido >= total) {
                 btnConf.disabled = false;
                 txtCambio.textContent = `Cambio: $${cambio.toFixed(2)}`;
@@ -204,26 +190,30 @@ const App = (function() {
                 txtCambio.style.color = "#c0392b";
             }
         });
-
         document.getElementById('btnConfirmarEfectivo').onclick = () => { callbackPago('efectivo'); modal.remove(); };
         document.getElementById('btnTarjetaUI').onclick = () => { if(confirm("¿Terminal aprobada?")) { callbackPago('tarjeta'); modal.remove(); } };
         document.getElementById('btnQRUI').onclick = () => { if(confirm("¿Transferencia recibida?")) { callbackPago('qr'); modal.remove(); } };
         document.getElementById('btnCancelar').onclick = () => modal.remove();
     };
 
-    // --- resto de funciones (igual que tenías) ---
-
-    const mostrarModalTicket = (orden, detalles) => { /* ... */ };
-
     return {
         init: async () => { await cargarDatosIniciales(); activarSuscripcionRealtime(); },
         getRestoId: getRestoId,
+        getRol: getRol,
         getOrdenes: () => ordenes,
         getSuministros: () => suministros,
         getConfig: () => config,
-        updateEstado: async (id, nuevoEstado) => { const { error } = await db.from('ordenes').update({ estado: nuevoEstado }).eq('id', id); if (error) console.error("Error al actualizar estado:", error); },
-        eliminarOrden: async (id) => { if (!confirm("¿Cancelar esta orden permanentemente?")) return; const { error } = await db.from('ordenes').update({estado: 'cancelado'}).eq('id', id); if (error) console.error("Error al eliminar:", error); else cargarDatosIniciales(); },
-        liberarMesaManual: (id) => { /* igual */ },
+        updateEstado: async (id, nuevoEstado) => {
+            const { error } = await db.from('ordenes').update({ estado: nuevoEstado }).eq('id', id);
+            if (error) console.error("Error al actualizar estado:", error);
+        },
+        eliminarOrden: async (id) => {
+            if (!confirm("¿Cancelar esta orden permanentemente?")) return;
+            const { error } = await db.from('ordenes').update({estado: 'cancelado'}).eq('id', id);
+            if (error) console.error("Error al eliminar:", error);
+            else cargarDatosIniciales();
+        },
+        liberarMesaManual: (id) => { /* igual que antes */ },
         verDetalleMesa: async (ordenId) => { /* igual */ },
         guardarConfiguracionMesas: async (nuevoNumero) => { /* igual */ },
         registerRender: (name, cb) => { renderCallbacks[name] = cb; cb(); },
@@ -231,7 +221,49 @@ const App = (function() {
     };
 })();
 
-// --- MENÚ DE NAVEGACIÓN ---
-function renderizarMenuSeguro() { /* igual que tu versión */ }
-async function cerrarSesionApp() { /* igual */ }
-document.addEventListener('DOMContentLoaded', () => { renderizarMenuSeguro(); App.init(); });
+// --- 🔹 MENÚ DE NAVEGACIÓN (RESTABLECIDO COMPLETO) ---
+function renderizarMenuSeguro() {
+    const sesion = JSON.parse(localStorage.getItem('sesion_activa'));
+    if (!sesion) return;
+    const navContenedor = document.getElementById('menuNavegacion');
+    if (!navContenedor) return;
+    const rutaActual = window.location.pathname.split("/").pop() || "index.html";
+    
+    const menuItems = [
+        { h: "mesas.html", i: "🪑", t: "Mesas" },
+        { h: "menu.html", i: "📜", t: "Carta" },
+        { h: "ordenes.html", i: "📋", t: "Órdenes" },
+        { h: "cocina.html", i: "👨‍🍳", t: "Cocina" },
+        { h: "stock.html", i: "📦", t: "Stock" }
+    ];
+
+    if (sesion.rol === 'dueño' || sesion.rol === 'administrador') {
+        menuItems.push({ h: "ventas.html", i: "📊", t: "Ventas" });
+        menuItems.push({ h: "empleados.html", i: "👥", t: "Personal" });
+    }
+
+    navContenedor.innerHTML = menuItems.map(item => `
+        <li>
+            <a href="${item.h}" class="${rutaActual === item.h ? 'activo' : ''}"
+               style="display: flex; align-items: center; gap: 8px; padding: 8px 12px; border-radius: 8px; text-decoration: none; ${rutaActual === item.h ? 'background:#10ad93;color:white;' : 'color:#555;'}">
+                <span>${item.i}</span>
+                <span class="nav-text" style="font-weight:600;">${item.t}</span>
+            </a>
+        </li>
+    `).join('') + `
+        <li>
+            <button onclick="cerrarSesionApp()" class="outline contrast" style="padding: 5px 15px; border-radius: 8px; width:100%;">Salir</button>
+        </li>`;
+}
+
+async function cerrarSesionApp() {
+    if (confirm("¿Cerrar sesión?")) {
+        localStorage.removeItem('sesion_activa');
+        window.location.href = 'login.html';
+    }
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+    renderizarMenuSeguro();
+    App.init();
+});
