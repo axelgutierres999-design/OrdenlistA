@@ -1,9 +1,10 @@
-// js/app.js - NÚCLEO CENTRALIZADO (V7.8 COMPLETO - Notificación visual + sonido + menú restaurado)
+// js/app.js - NÚCLEO CENTRALIZADO (V8.1 - Notificación universal + ticket + realtime optimizado + persistencia)
 const App = (function() {
     let ordenes = [];
     let suministros = [];
     let config = { num_mesas: 10 };
 
+    // === SESIÓN ACTIVA ===
     const getRestoId = () => {
         const sesion = JSON.parse(localStorage.getItem('sesion_activa'));
         return sesion ? sesion.restaurante_id : null;
@@ -17,7 +18,7 @@ const App = (function() {
     const renderCallbacks = {};
     const sonidoNotificacion = new Audio("https://cdn.pixabay.com/download/audio/2022/03/15/audio_8b3c3b9ad9.mp3?filename=notification-106557.mp3");
 
-    // --- 1. CARGA DE DATOS Y REALTIME ---
+    // === CARGA INICIAL ===
     const cargarDatosIniciales = async () => {
         if (typeof db === 'undefined') return;
         const restoId = getRestoId();
@@ -25,10 +26,10 @@ const App = (function() {
 
         try {
             const { data: dataConfig } = await db.from('restaurantes')
-                .select('num_mesas')
+                .select('num_mesas, corte_actual')
                 .eq('id', restoId)
                 .single();
-            if (dataConfig) config.num_mesas = dataConfig.num_mesas;
+            if (dataConfig) config = { ...config, ...dataConfig };
 
             const { data: dataOrdenes } = await db.from('ordenes')
                 .select('*')
@@ -48,9 +49,11 @@ const App = (function() {
         }
     };
 
-    // --- 2. NOTIFICACIÓN VISUAL Y SONIDO ---
+    // === NOTIFICACIÓN VISUAL + SONIDO ===
     const mostrarNotificacionNuevaOrden = (orden) => {
-        if (getRol() !== 'encargado') return;
+        const rol = getRol();
+        if (!["encargado", "mesero", "dueño", "administrador"].includes(rol)) return;
+
         try { sonidoNotificacion.play(); } catch(e){ console.warn("No se pudo reproducir sonido"); }
 
         if (!document.getElementById('notifContenedor')) {
@@ -104,6 +107,7 @@ const App = (function() {
         setTimeout(() => div.remove(), 15000);
     };
 
+    // === ANIMACIÓN CSS ===
     const style = document.createElement('style');
     style.textContent = `
         @keyframes aparecerNoti {
@@ -113,28 +117,28 @@ const App = (function() {
     `;
     document.head.appendChild(style);
 
-    // --- 3. SUSCRIPCIÓN REALTIME ---
+    // === SUSCRIPCIÓN REALTIME ===
     const activarSuscripcionRealtime = () => {
         const restoId = getRestoId();
         if (!restoId || typeof db === 'undefined') return;
 
         db.channel('cambios-globales')
-          .on('postgres_changes',
-              { event: '*', schema: 'public', table: 'ordenes', filter: `restaurante_id=eq.${restoId}` },
-              payload => {
-                  if (payload.eventType === 'INSERT') mostrarNotificacionNuevaOrden(payload.new);
-                  cargarDatosIniciales();
-              })
-          .on('postgres_changes',
-              { event: '*', schema: 'public', table: 'suministros', filter: `restaurante_id=eq.${restoId}` },
-              () => { cargarDatosIniciales(); })
-          .on('postgres_changes',
-              { event: 'UPDATE', schema: 'public', table: 'restaurantes', filter: `id=eq.${restoId}` },
-              () => { cargarDatosIniciales(); })
-          .subscribe();
+            .on('postgres_changes',
+                { event: '*', schema: 'public', table: 'ordenes', filter: `restaurante_id=eq.${restoId}` },
+                payload => {
+                    if (payload.eventType === 'INSERT') mostrarNotificacionNuevaOrden(payload.new);
+                    cargarDatosIniciales();
+                })
+            .on('postgres_changes',
+                { event: '*', schema: 'public', table: 'suministros', filter: `restaurante_id=eq.${restoId}` },
+                () => cargarDatosIniciales())
+            .on('postgres_changes',
+                { event: '*', schema: 'public', table: 'restaurantes', filter: `id=eq.${restoId}` },
+                () => cargarDatosIniciales())
+            .subscribe();
     };
 
-    // --- 4. INTERFAZ DE PAGO ---
+    // === MODAL DE PAGO ===
     const mostrarModalPago = (orden, callbackPago) => {
         const total = parseFloat(orden.total);
         const modal = document.createElement('div');
@@ -169,11 +173,14 @@ const App = (function() {
           </article>`;
         
         document.body.appendChild(modal);
+
+        // Efectivo
         document.getElementById('btnEfectivoUI').onclick = () => { 
             document.getElementById('seccionMetodos').style.display='none'; 
             document.getElementById('panelEfectivo').style.display='block'; 
             document.getElementById('inputRecibido').focus();
         };
+
         const input = document.getElementById('inputRecibido');
         input.addEventListener('input', () => {
             const recibido = parseFloat(input.value) || 0;
@@ -190,16 +197,34 @@ const App = (function() {
                 txtCambio.style.color = "#c0392b";
             }
         });
-        document.getElementById('btnConfirmarEfectivo').onclick = () => { callbackPago('efectivo'); modal.remove(); };
-        document.getElementById('btnTarjetaUI').onclick = () => { if(confirm("¿Terminal aprobada?")) { callbackPago('tarjeta'); modal.remove(); } };
-        document.getElementById('btnQRUI').onclick = () => { if(confirm("¿Transferencia recibida?")) { callbackPago('qr'); modal.remove(); } };
+
+        // Confirmaciones
+        document.getElementById('btnConfirmarEfectivo').onclick = () => { generarTicket(orden, 'efectivo'); callbackPago('efectivo'); modal.remove(); };
+        document.getElementById('btnTarjetaUI').onclick = () => { if(confirm("¿Terminal aprobada?")) { generarTicket(orden, 'tarjeta'); callbackPago('tarjeta'); modal.remove(); } };
+        document.getElementById('btnQRUI').onclick = () => { if(confirm("¿Transferencia recibida?")) { generarTicket(orden, 'qr'); callbackPago('qr'); modal.remove(); } };
         document.getElementById('btnCancelar').onclick = () => modal.remove();
     };
 
+    // === TICKET ===
+    const generarTicket = (orden, metodo) => {
+        const ticket = window.open('', '_blank');
+        ticket.document.write(`
+            <h3>OrdenLista - Ticket</h3>
+            <p><strong>Mesa:</strong> ${orden.mesa || "Para llevar"}</p>
+            <p><strong>Total:</strong> $${orden.total}</p>
+            <p><strong>Método:</strong> ${metodo}</p>
+            <p><strong>Fecha:</strong> ${new Date().toLocaleString()}</p>
+            <hr>
+            <p>¡Gracias por tu compra!</p>
+        `);
+        ticket.document.close();
+        ticket.focus();
+    };
+
+    // === RETORNO DEL MÓDULO ===
     return {
         init: async () => { await cargarDatosIniciales(); activarSuscripcionRealtime(); },
-        getRestoId: getRestoId,
-        getRol: getRol,
+        getRestoId, getRol,
         getOrdenes: () => ordenes,
         getSuministros: () => suministros,
         getConfig: () => config,
@@ -213,31 +238,29 @@ const App = (function() {
             if (error) console.error("Error al eliminar:", error);
             else cargarDatosIniciales();
         },
-        liberarMesaManual: (id) => { /* igual que antes */ },
-        verDetalleMesa: async (ordenId) => { /* igual */ },
-        guardarConfiguracionMesas: async (nuevoNumero) => { /* igual */ },
+        guardarConfiguracionMesas: async (nuevoNumero) => { /* Igual */ },
         registerRender: (name, cb) => { renderCallbacks[name] = cb; cb(); },
         notifyUpdate: () => { Object.values(renderCallbacks).forEach(cb => { if(typeof cb === 'function') cb(); }); }
     };
 })();
 
-// --- 🔹 MENÚ DE NAVEGACIÓN (RESTABLECIDO COMPLETO) ---
+// === MENÚ DE NAVEGACIÓN (Con íconos y texto) ===
 function renderizarMenuSeguro() {
     const sesion = JSON.parse(localStorage.getItem('sesion_activa'));
     if (!sesion) return;
     const navContenedor = document.getElementById('menuNavegacion');
     if (!navContenedor) return;
     const rutaActual = window.location.pathname.split("/").pop() || "index.html";
-    
+
     const menuItems = [
         { h: "mesas.html", i: "🪑", t: "Mesas" },
-        { h: "menu.html", i: "📜", t: "Carta" },
+        { h: "menu.html", i: "📜", t: "Menú" },
         { h: "ordenes.html", i: "📋", t: "Órdenes" },
         { h: "cocina.html", i: "👨‍🍳", t: "Cocina" },
         { h: "stock.html", i: "📦", t: "Stock" }
     ];
 
-    if (sesion.rol === 'dueño' || sesion.rol === 'administrador') {
+    if (["dueño", "administrador"].includes(sesion.rol)) {
         menuItems.push({ h: "ventas.html", i: "📊", t: "Ventas" });
         menuItems.push({ h: "empleados.html", i: "👥", t: "Personal" });
     }

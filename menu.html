@@ -1,203 +1,212 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>OrdenLista | Menú y Pedidos</title>
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@picocss/pico@1/css/pico.min.css" />
-    <link rel="stylesheet" href="css/app.css" />
-    <style>
-        /* Estilos de las Tarjetas de Producto */
-        .tarjeta-producto {
-            padding: 1rem;
-            border: 1px solid #eee;
-            border-radius: 12px;
-            cursor: pointer;
-            transition: all 0.2s ease;
-            text-align: center;
-            position: relative;
-            background: white;
-            display: flex;
-            flex-direction: column;
-            justify-content: space-between;
-        }
-        .tarjeta-producto:hover {
-            box-shadow: 0 8px 16px rgba(0, 0, 0, 0.1);
-            transform: translateY(-4px);
-            border-color: #10ad93;
-        }
-        .tarjeta-producto img {
-            width: 100%;
-            height: 120px;
-            object-fit: cover;
-            border-radius: 8px;
-            margin-bottom: 0.5rem;
-        }
-
-        /* Botón Editar Flotante */
-        .edit-btn {
-            position: absolute;
-            top: 8px;
-            right: 8px;
-            font-size: 0.8rem;
-            padding: 4px 8px;
-            z-index: 10;
-            background: rgba(255,255,255,0.9);
-            border: 1px solid #ddd;
-            border-radius: 50%;
-            cursor: pointer;
-        }
-
-        /* Panel Lateral de Orden */
-        .panel-orden {
-            background-color: #ffffff;
-            padding: 1.5rem;
-            border-radius: 16px;
-            border: 1px solid #eef0f2;
-            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.05);
-            height: fit-content;
-            position: sticky;
-            top: 2rem;
-        }
-
-        /* Ítems del Carrito */
-        .item-carrito {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            padding: 0.6rem 0;
-            border-bottom: 1px dashed #eee;
-        }
-
-        .stock-tag {
-            font-size: 0.7rem;
-            color: #666;
-            background: #f0f0f0;
-            padding: 2px 6px;
-            border-radius: 4px;
-        }
-        .sin-stock {
-            color: #d93526;
-            background: #ffebe9;
-        }
-
-        /* Estilo para Ticket Profesional */
-        #ticketPrint {
-            font-family: 'Courier New', Courier, monospace;
-            color: #000;
-            padding: 10px;
-        }
-        .ticket-divider { border-top: 1px dashed #000; margin: 10px 0; }
-    </style>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>OrdenLista | Menú y Pedidos</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@picocss/pico@1/css/pico.min.css" />
+  <link rel="stylesheet" href="css/app.css" />
+  <style>
+    .tarjeta-producto {
+      padding: 1rem;
+      border: 1px solid #eee;
+      border-radius: 12px;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      text-align: center;
+      background: white;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      position: relative;
+    }
+    .tarjeta-producto:hover {
+      box-shadow: 0 8px 16px rgba(0,0,0,0.1);
+      transform: translateY(-4px);
+      border-color: #10ad93;
+    }
+    .tarjeta-producto img {
+      width: 100%;
+      height: 120px;
+      object-fit: cover;
+      border-radius: 8px;
+      margin-bottom: 0.5rem;
+    }
+    .edit-btn {
+      position: absolute;
+      top: 8px;
+      right: 8px;
+      font-size: 0.8rem;
+      padding: 4px 8px;
+      z-index: 10;
+      background: rgba(255,255,255,0.9);
+      border: 1px solid #ddd;
+      border-radius: 50%;
+      cursor: pointer;
+    }
+    .panel-orden {
+      background-color: #fff;
+      padding: 1.5rem;
+      border-radius: 16px;
+      border: 1px solid #eef0f2;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.05);
+      height: fit-content;
+      position: sticky;
+      top: 2rem;
+    }
+    .item-carrito {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 0.6rem 0;
+      border-bottom: 1px dashed #eee;
+    }
+    .stock-tag {
+      font-size: 0.7rem;
+      color: #666;
+      background: #f0f0f0;
+      padding: 2px 6px;
+      border-radius: 4px;
+    }
+    .sin-stock {
+      color: #d93526;
+      background: #ffebe9;
+    }
+    .buscador-container {
+      display: flex;
+      gap: 0.5rem;
+      margin-bottom: 1rem;
+      flex-wrap: wrap;
+      align-items: center;
+    }
+    #ticketPrint {
+      font-family: 'Courier New', monospace;
+      color: #000;
+      padding: 10px;
+    }
+    .ticket-divider { border-top: 1px dashed #000; margin: 10px 0; }
+    .fab-add {
+      position: fixed;
+      bottom: 20px;
+      right: 20px;
+      background: #10ad93;
+      color: white;
+      font-size: 1.8rem;
+      border: none;
+      border-radius: 50%;
+      width: 56px;
+      height: 56px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-shadow: 0 6px 12px rgba(0,0,0,0.2);
+      cursor: pointer;
+      z-index: 999;
+    }
+  </style>
 </head>
 <body>
-    <nav class="container-fluid nav-inicio">
-        <ul>
-            <li><strong>☕ OrdenLista</strong></li>
-        </ul>
-        <ul id="menuNavegacion" class="nav-botones">
-            </ul>
-    </nav>
+  <nav class="container-fluid nav-inicio">
+    <ul><li><strong>☕ OrdenLista</strong></li></ul>
+    <ul id="menuNavegacion" class="nav-botones"></ul>
+  </nav>
 
-    <main class="container">
-        <header>
-            <h1>📜 Menú y Pedidos</h1>
-            <p>Selecciona los productos para generar una nueva orden.</p>
-        </header>
-        
-        <div class="grid">
-            <section>
-                <h3>Productos Disponibles</h3>
-                <div id="contenedorProductos" class="grid" style="grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 1.5rem;">
-                    <article aria-busy="true">Cargando catálogo...</article>
-                </div>
-            </section>
+  <main class="container">
+    <header>
+      <h1>📜 Menú y Pedidos</h1>
+      <p>Selecciona los productos para generar una nueva orden.</p>
+    </header>
 
-            <section class="panel-orden">
-                <h3>🛒 Tu Orden</h3>
-                <div id="listaItemsOrden" style="min-height: 120px; margin-bottom: 1rem;">
-                    <small>No hay productos seleccionados.</small>
-                </div>
-                
-                <label for="comentarioPedido">📝 Notas Especiales:</label>
-                <textarea id="comentarioPedido" placeholder="Ej: Sin cebolla, extra picante..." rows="2"></textarea>
+    <div class="buscador-container">
+      <input type="search" id="buscarProducto" placeholder="🔍 Buscar platillo o bebida..." style="flex:1;">
+      <select id="filtroCategoria">
+        <option value="Todos">Todas las categorías</option>
+        <option value="Platillo">Platillos</option>
+        <option value="Bebidas">Bebidas</option>
+        <option value="Postres">Postres</option>
+      </select>
+    </div>
 
-                <hr>
-                <div style="display: flex; justify-content: space-between; font-weight: bold; font-size: 1.3rem; color: #10ad93; margin-bottom: 1rem;">
-                    <span>Total:</span>
-                    <span id="ordenTotal">$0.00</span>
-                </div>
-
-                <label for="selectMesa">🪑 Destino del Pedido:</label>
-                <select id="selectMesa" required>
-                    <option value="" disabled selected>Selecciona mesa o para llevar...</option>
-                </select>
-
-                <button id="btnProcesarOrden" style="width: 100%; background-color: #10ad93; border: none;" disabled>
-                    🚀 Procesar Pedido
-                </button>
-            </section>
+    <div class="grid">
+      <section>
+        <div id="contenedorProductos" class="grid" style="grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:1.5rem;">
+          <article aria-busy="true">Cargando catálogo...</article>
         </div>
-    </main>
+      </section>
 
-    <dialog id="modalCobro">
-        <article style="max-width: 400px;">
-            <header>
-                <button aria-label="Close" rel="prev" onclick="document.getElementById('modalCobro').close()"></button>
-                <h3>💰 Finalizar Pago</h3>
-            </header>
-            <div style="text-align: center; margin-bottom: 20px;">
-                <p id="cobroMesaTitulo" style="font-weight: bold; margin-bottom: 5px;">Para Llevar</p>
-                <h2 style="color: #10ad93; font-size: 2.5rem;">$<span id="cobroTotal">0.00</span></h2>
-                <p><small>¿Cómo desea pagar el cliente?</small></p>
-            </div>
-            <div class="grid">
-                <button onclick="procesarPago('efectivo')" style="background: #27ae60; border: none;">💵 Efectivo</button>
-                <button onclick="procesarPago('tarjeta')" style="background: #2980b9; border: none;">💳 Tarjeta</button>
-            </div>
-        </article>
-    </dialog>
+      <section class="panel-orden">
+        <h3>🛒 Tu Orden</h3>
+        <div id="listaItemsOrden" style="min-height:120px;margin-bottom:1rem;">
+          <small>No hay productos seleccionados.</small>
+        </div>
 
-    <dialog id="modalEditarMenu">
-        <article style="max-width: 500px; border-radius: 15px;">
-            <header>
-                <button aria-label="Close" rel="prev" onclick="document.getElementById('modalEditarMenu').close()"></button>
-                <h3>Configuración de Producto</h3>
-            </header>
-            <form id="formProducto">
-                <input type="hidden" id="editId">
-                <div style="text-align: center; margin-bottom: 1.5rem;">
-                    <img id="imgPreview" src="https://via.placeholder.com/150" style="width: 140px; height: 140px; object-fit: cover; border-radius: 12px; border: 3px solid #f0f0f0;">
-                </div>
-                <label>Nombre del Platillo
-                    <input type="text" id="editNombre" required>
-                </label>
-                <label>URL de Imagen
-                    <input type="url" id="editImg" oninput="document.getElementById('imgPreview').src = this.value">
-                </label>
-                <div class="grid">
-                    <label>Precio ($)
-                        <input type="number" id="editPrecio" step="0.01" required>
-                    </label>
-                    <label>Categoría
-                        <select id="editCategoria">
-                            <option value="Platillo">🍱 Platillo</option>
-                            <option value="Bebidas">🥤 Bebida</option>
-                            <option value="Postres">🍰 Postre</option>
-                        </select>
-                    </label>
-                </div>
-                <footer style="display: flex; gap: 10px;">
-                    <button type="button" class="secondary outline" onclick="document.getElementById('modalEditarMenu').close()">Cancelar</button>
-                    <button type="submit" style="background-color: #10ad93; border: none;">Guardar</button>
-                </footer>
-            </form>
-        </article>
-    </dialog>
+        <label for="comentarioPedido">📝 Notas Especiales:</label>
+        <textarea id="comentarioPedido" placeholder="Ej: Sin cebolla, extra picante..." rows="2"></textarea>
 
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <script src="js/supabase-client.js"></script>
-    <script src="js/app.js"></script>
-    <script src="js/menu.js"></script>
+        <hr>
+        <div style="display:flex;justify-content:space-between;font-weight:bold;font-size:1.3rem;color:#10ad93;margin-bottom:1rem;">
+          <span>Total:</span><span id="ordenTotal">$0.00</span>
+        </div>
+
+        <label for="selectMesa">🪑 Destino del Pedido:</label>
+        <select id="selectMesa" required>
+          <option value="" disabled selected>Selecciona mesa o para llevar...</option>
+          <option value="para_llevar">📦 Para Llevar</option>
+        </select>
+
+        <button id="btnProcesarOrden" style="width:100%;background:#10ad93;border:none;" disabled>
+          🚀 Procesar Pedido
+        </button>
+      </section>
+    </div>
+  </main>
+
+  <button id="btnAgregarProducto" class="fab-add" title="Agregar producto" style="display:none;">＋</button>
+
+  <!-- MODAL DE EDICIÓN DE PRODUCTO -->
+  <dialog id="modalEditarMenu">
+    <article style="max-width:500px;border-radius:15px;">
+      <header>
+        <button aria-label="Close" rel="prev" onclick="document.getElementById('modalEditarMenu').close()"></button>
+        <h3>Configuración de Producto</h3>
+      </header>
+      <form id="formProducto">
+        <input type="hidden" id="editId">
+        <div style="text-align:center;margin-bottom:1.5rem;">
+          <img id="imgPreview" src="https://via.placeholder.com/150" style="width:140px;height:140px;object-fit:cover;border-radius:12px;border:3px solid #f0f0f0;">
+        </div>
+        <label>Nombre del Platillo<input type="text" id="editNombre" required></label>
+        <label>URL de Imagen<input type="url" id="editImg" oninput="document.getElementById('imgPreview').src=this.value"></label>
+        <div class="grid">
+          <label>Precio ($)<input type="number" id="editPrecio" step="0.01" required></label>
+          <label>Categoría
+            <select id="editCategoria">
+              <option value="Platillo">🍱 Platillo</option>
+              <option value="Bebidas">🥤 Bebida</option>
+              <option value="Postres">🍰 Postre</option>
+            </select>
+          </label>
+        </div>
+        <footer style="display:flex;gap:10px;">
+          <button type="button" class="secondary outline" onclick="document.getElementById('modalEditarMenu').close()">Cancelar</button>
+          <button type="submit" style="background:#10ad93;border:none;">Guardar</button>
+        </footer>
+      </form>
+    </article>
+  </dialog>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="js/supabase-client.js"></script>
+  <script src="js/app.js"></script>
+  <script src="js/menu.js"></script>
+
+  <script>
+    document.addEventListener("DOMContentLoaded", ()=>{
+      const sesion = JSON.parse(localStorage.getItem('sesion_activa') || "{}");
+      if(["dueño","administrador"].includes(sesion.rol)){
+        document.getElementById("btnAgregarProducto").style.display="flex";
+      }
+    });
+  </script>
 </body>
 </html>

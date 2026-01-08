@@ -1,4 +1,4 @@
-// js/mesas.js - GESTIÓN DE MESAS, COBROS, QR, CONFIGURACIÓN Y PEDIDO QR CLIENTE (V9.0)
+// js/mesas.js - GESTIÓN DE MESAS, COBROS, QR, CONFIGURACIÓN Y PEDIDO QR CLIENTE (V9.1)
 document.addEventListener('DOMContentLoaded', () => {
     const gridMesas = document.getElementById('gridMesas');
     const modalCobro = document.getElementById('modalCobro');
@@ -101,7 +101,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // =====================================================
-    // 2️⃣ COBRO Y PAGO
+    // 2️⃣ COBRO Y PAGO + TICKET AUTOMÁTICO
     // =====================================================
     window.abrirModalCobro = (mesa, total) => {
         mesaActualCobro = mesa;
@@ -137,9 +137,17 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         try {
+            let todosProductos = [];
+            let folio = Date.now();
+
             for (const id of ordenesIdsCobro) {
                 const ordenData = App.getOrdenes().find(o => o.id === id);
                 if (ordenData) {
+                    todosProductos = todosProductos.concat(
+                        typeof ordenData.productos === 'string'
+                            ? ordenData.productos.split(',')
+                            : ordenData.productos
+                    );
                     await db.from('ventas').insert([{
                         restaurante_id: restoId,
                         mesa: ordenData.mesa,
@@ -155,6 +163,14 @@ document.addEventListener('DOMContentLoaded', () => {
             modalCobro.close();
             renderizarMesas();
 
+            // ✅ MOSTRAR TICKET AUTOMÁTICO
+            mostrarTicket({
+                id: folio,
+                mesa: mesaActualCobro,
+                total: totalActualCobro,
+                productos: todosProductos
+            });
+
         } catch (error) {
             console.error(error);
             alert("❌ Error al procesar el pago.");
@@ -162,30 +178,22 @@ document.addEventListener('DOMContentLoaded', () => {
     };
 
     // =====================================================
-    // 3️⃣ TICKET
+    // 3️⃣ FUNCIÓN UNIVERSAL PARA MOSTRAR TICKET
     // =====================================================
-    window.verTicketMesa = (mesa) => {
-        const ordenes = App.getOrdenes().filter(o =>
-            o.mesa === mesa && ['pendiente', 'preparando', 'terminado', 'entregado'].includes(o.estado)
-        );
-        if (ordenes.length === 0) return;
+    function mostrarTicket(orden) {
+        const modal = document.getElementById('modalTicket');
+        document.getElementById('t-mesa').textContent = orden.mesa;
+        document.getElementById('t-fecha').textContent = new Date().toLocaleString();
+        document.getElementById('t-folio').textContent = orden.id;
+        document.getElementById('t-total').textContent = parseFloat(orden.total).toFixed(2);
 
-        let todosProductos = [];
-        let granTotal = 0;
-        let fechaInicio = ordenes[0].created_at;
-        ordenes.forEach(o => {
-            const items = typeof o.productos === 'string' ? o.productos.split(',') : o.productos;
-            todosProductos = todosProductos.concat(items);
-            granTotal += parseFloat(o.total);
-        });
-
-        document.getElementById('t-mesa').textContent = mesa;
-        document.getElementById('t-fecha').textContent = new Date(fechaInicio).toLocaleString();
         const tbody = document.getElementById('t-items');
-        tbody.innerHTML = todosProductos.map(p => `<tr><td>${p}</td></tr>`).join('');
-        document.getElementById('t-total').textContent = granTotal.toFixed(2);
-        document.getElementById('modalTicket').showModal();
-    };
+        tbody.innerHTML = (orden.productos || [])
+            .map(p => `<tr><td>${p}</td><td style="text-align:right;">—</td></tr>`)
+            .join('');
+
+        modal.showModal();
+    }
 
     // =====================================================
     // 4️⃣ CONFIGURACIÓN DE MESAS

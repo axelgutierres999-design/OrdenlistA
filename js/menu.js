@@ -1,4 +1,4 @@
-// js/menu.js - GESTIÓN INTEGRAL, STOCK Y COBRO (V8.5 - CON CALCULADORA DE CAMBIO)
+// js/menu.js - GESTIÓN INTEGRAL, STOCK, COBRO Y FILTROS (V8.6)
 document.addEventListener('DOMContentLoaded', async () => {
     const params = new URLSearchParams(window.location.search);
     const mesaURL = params.get('mesa');
@@ -14,8 +14,12 @@ document.addEventListener('DOMContentLoaded', async () => {
     const selectMesa = document.getElementById('selectMesa');
     const comentarioInput = document.getElementById('comentarioPedido');
 
+    const inputBuscar = document.getElementById('buscarProducto');
+    const filtroCategoria = document.getElementById('filtroCategoria');
+
     let ordenActual = [];
     let productosMenu = [];
+    let productosFiltrados = [];
 
     // =====================================================
     // 1️⃣ INICIALIZACIÓN
@@ -49,7 +53,9 @@ document.addEventListener('DOMContentLoaded', async () => {
                 selectMesa.disabled = true;
             }
         }
+
         await cargarDatosMenu();
+        configurarFiltros();
     }
 
     // =====================================================
@@ -76,6 +82,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                         stock: insumo ? Math.floor(insumo.cantidad) : '∞',
                     };
                 });
+                productosFiltrados = [...productosMenu];
                 dibujarMenu();
             }
         } catch (err) {
@@ -84,13 +91,40 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
 
     // =====================================================
-    // 3️⃣ RENDERIZAR MENÚ
+    // 3️⃣ FILTROS Y BÚSQUEDA
+    // =====================================================
+    function configurarFiltros() {
+        if (inputBuscar) {
+            inputBuscar.addEventListener('input', () => {
+                aplicarFiltros();
+            });
+        }
+        if (filtroCategoria) {
+            filtroCategoria.addEventListener('change', () => {
+                aplicarFiltros();
+            });
+        }
+    }
+
+    function aplicarFiltros() {
+        const texto = (inputBuscar?.value || '').toLowerCase();
+        const categoria = filtroCategoria?.value || 'Todos';
+        productosFiltrados = productosMenu.filter((p) => {
+            const coincideTexto = p.nombre.toLowerCase().includes(texto);
+            const coincideCat = categoria === 'Todos' || p.categoria === categoria;
+            return coincideTexto && coincideCat;
+        });
+        dibujarMenu();
+    }
+
+    // =====================================================
+    // 4️⃣ RENDERIZAR MENÚ
     // =====================================================
     function dibujarMenu() {
         if (!contenedorProductos) return;
         contenedorProductos.innerHTML = '';
 
-        if (sesion.rol === 'dueño') {
+        if (["dueño", "administrador"].includes(sesion.rol)) {
             const btnNuevo = document.createElement('article');
             btnNuevo.className = 'tarjeta-producto nuevo-producto-btn';
             btnNuevo.innerHTML =
@@ -99,14 +133,19 @@ document.addEventListener('DOMContentLoaded', async () => {
             contenedorProductos.appendChild(btnNuevo);
         }
 
-        productosMenu.forEach((p) => {
+        if (productosFiltrados.length === 0) {
+            contenedorProductos.innerHTML += `<article><small>No hay productos para mostrar.</small></article>`;
+            return;
+        }
+
+        productosFiltrados.forEach((p) => {
             const art = document.createElement('article');
             art.className = 'tarjeta-producto';
             art.innerHTML = `
                 <div class="img-container">
                     <img src="${p.imagen_url || 'https://via.placeholder.com/150'}" alt="${p.nombre}">
                     ${
-                        sesion.rol === 'dueño'
+                        ["dueño","administrador"].includes(sesion.rol)
                             ? `<button class="edit-btn" onclick="event.stopPropagation(); abrirEditor('${p.id}')">✏️</button>`
                             : ''
                     }
@@ -114,9 +153,9 @@ document.addEventListener('DOMContentLoaded', async () => {
                 <div class="info">
                     <h4>${p.nombre}</h4>
                     <p class="precio">$${parseFloat(p.precio).toFixed(2)}</p>
-                    <small class="stock-tag ${
-                        p.stock <= 0 ? 'sin-stock' : ''
-                    }">${p.stock <= 0 ? 'Agotado' : 'Stock: ' + p.stock}</small>
+                    <small class="stock-tag ${p.stock <= 0 ? 'sin-stock' : ''}">
+                        ${p.stock <= 0 ? 'Agotado' : 'Stock: ' + p.stock}
+                    </small>
                 </div>
             `;
             art.onclick = () => agregarItem(p);
@@ -125,7 +164,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
 
     // =====================================================
-    // 4️⃣ CARRITO Y CÁLCULO
+    // 5️⃣ CARRITO Y CÁLCULO
     // =====================================================
     function agregarItem(producto) {
         if (producto.stock !== '∞' && producto.stock <= 0)
@@ -172,7 +211,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     };
 
     // =====================================================
-    // 5️⃣ COBRO Y CALCULADORA DE CAMBIO
+    // 6️⃣ COBRO Y CALCULADORA DE CAMBIO
     // =====================================================
     btnProcesar.onclick = async () => {
         const mesaLabel = selectMesa.value;
@@ -186,7 +225,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         if (titulo) titulo.textContent = mesaLabel === 'Para Llevar' ? '📦 Para Llevar' : mesaLabel;
         if (totalSpan) totalSpan.textContent = total.toFixed(2);
 
-        // --- NUEVA CALCULADORA DE CAMBIO ---
+        // --- CALCULADORA DE CAMBIO ---
         const cambioDiv = document.getElementById('calcCambio') || document.createElement('div');
         cambioDiv.id = 'calcCambio';
         cambioDiv.innerHTML = `
@@ -225,7 +264,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     };
 
     // =====================================================
-    // 6️⃣ ENVÍO DE PEDIDO
+    // 7️⃣ ENVÍO DE PEDIDO
     // =====================================================
     async function ejecutarEnvioPedido(mesaLabel, metodoPago = null) {
         btnProcesar.disabled = true;
@@ -245,7 +284,6 @@ document.addEventListener('DOMContentLoaded', async () => {
                     estado: 'pendiente',
                 },
             ]);
-
             if (errO) throw errO;
 
             if (metodoPago) {
@@ -255,12 +293,13 @@ document.addEventListener('DOMContentLoaded', async () => {
                         total: totalFinal,
                         metodo_pago: metodoPago,
                         productos: productosTexto,
-                        mesa: 'LLEVAR',
+                        mesa: mesaLabel === 'Para Llevar' ? 'LLEVAR' : mesaLabel,
                     },
                 ]);
             }
 
             alert('✅ ¡Pedido enviado a cocina!');
+            App?.notifyUpdate?.();
             window.location.href =
                 sesion.rol === 'invitado'
                     ? `menu.html?rid=${restoIdActivo}`
@@ -273,7 +312,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
 
     // =====================================================
-    // 7️⃣ EDITOR DE PRODUCTOS
+    // 8️⃣ EDITOR DE PRODUCTOS
     // =====================================================
     window.abrirEditor = (id = null) => {
         const modal = document.getElementById('modalEditarMenu');
@@ -283,10 +322,12 @@ document.addEventListener('DOMContentLoaded', async () => {
 
         if (id) {
             const p = productosMenu.find((x) => x.id === id);
-            document.getElementById('editNombre').value = p.nombre;
-            document.getElementById('editPrecio').value = p.precio;
-            document.getElementById('editImg').value = p.imagen_url || '';
-            document.getElementById('editCategoria').value = p.categoria || 'General';
+            if (p) {
+                document.getElementById('editNombre').value = p.nombre;
+                document.getElementById('editPrecio').value = p.precio;
+                document.getElementById('editImg').value = p.imagen_url || '';
+                document.getElementById('editCategoria').value = p.categoria || 'General';
+            }
         }
         modal.showModal();
     };
