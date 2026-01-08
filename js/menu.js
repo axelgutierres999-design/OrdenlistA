@@ -1,4 +1,4 @@
-// js/menu.js - GESTIÓN INTEGRAL DE MENÚ Y PEDIDOS (V9.5 - persistencia + cobro)
+// js/menu.js - GESTIÓN INTEGRAL DE MENÚ Y PEDIDOS (v10.2 - persistencia + ticket + ventas)
 document.addEventListener("DOMContentLoaded", async () => {
   const params = new URLSearchParams(window.location.search);
   const mesaURL = params.get("mesa");
@@ -16,8 +16,6 @@ document.addEventListener("DOMContentLoaded", async () => {
   const inputBuscar = document.getElementById("buscarProducto");
   const filtroCategoria = document.getElementById("filtroCategoria");
   const btnLlevar = document.getElementById("btnParaLlevar");
-  const inputNumMesas = document.getElementById("numMesas");
-  const btnGuardarMesas = document.getElementById("guardarMesas");
 
   let ordenActual = [];
   let productosMenu = [];
@@ -29,8 +27,6 @@ document.addEventListener("DOMContentLoaded", async () => {
   // =====================================================
   async function inicializar() {
     if (!restoIdActivo) return;
-
-    await cargarConfigMesas(); // cargar número real de mesas
     await cargarMesas();
     await cargarDatosMenu();
     configurarFiltros();
@@ -38,30 +34,8 @@ document.addEventListener("DOMContentLoaded", async () => {
   }
 
   // =====================================================
-  // 2️⃣ CONFIG MESAS (PERSISTENCIA)
+  // 2️⃣ CARGA DE MESAS (solo lectura)
   // =====================================================
-  async function cargarConfigMesas() {
-    if (!inputNumMesas || !btnGuardarMesas) return;
-    const { data, error } = await db
-      .from("restaurantes")
-      .select("num_mesas")
-      .eq("id", restoIdActivo)
-      .single();
-
-    if (data) inputNumMesas.value = data.num_mesas || 10;
-
-    btnGuardarMesas.onclick = async () => {
-      const nuevo = parseInt(inputNumMesas.value);
-      if (isNaN(nuevo) || nuevo < 1) return alert("Número inválido");
-      const { error } = await db
-        .from("restaurantes")
-        .update({ num_mesas: nuevo })
-        .eq("id", restoIdActivo);
-      if (error) alert("Error al guardar");
-      else alert("✅ Número de mesas actualizado correctamente");
-    };
-  }
-
   async function cargarMesas() {
     if (!selectMesa) return;
     selectMesa.innerHTML = '<option value="" disabled selected>Selecciona mesa...</option>';
@@ -72,12 +46,11 @@ document.addEventListener("DOMContentLoaded", async () => {
         .eq("id", restoIdActivo)
         .single();
 
-      if (resto) {
-        for (let i = 1; i <= resto.num_mesas; i++) {
-          const mStr = `Mesa ${i}`;
-          const isSelected = mesaURL === mStr ? "selected" : "";
-          selectMesa.innerHTML += `<option value="${mStr}" ${isSelected}>${mStr}</option>`;
-        }
+      const numMesas = resto?.num_mesas || 10;
+      for (let i = 1; i <= numMesas; i++) {
+        const mStr = `Mesa ${i}`;
+        const isSelected = mesaURL === mStr ? "selected" : "";
+        selectMesa.innerHTML += `<option value="${mStr}" ${isSelected}>${mStr}</option>`;
       }
     } catch (e) {
       console.error("Error cargando mesas", e);
@@ -246,23 +219,20 @@ document.addEventListener("DOMContentLoaded", async () => {
   }
 
   // =====================================================
-  // 7️⃣ COBRO Y TICKET PARA LLEVAR
+  // 7️⃣ COBRO Y TICKET (AHORA CON REGISTRO EN 'ventas')
   // =====================================================
   btnProcesar.onclick = async () => {
     const mesaLabel = modoLlevar ? "Para Llevar" : selectMesa.value;
     if (!mesaLabel) return alert("Selecciona mesa o activa Para Llevar");
     const total = ordenActual.reduce((acc, i) => acc + i.precio * i.cantidad, 0);
 
-    // Si es para llevar, abrimos modal de cobro
     if (modoLlevar) return mostrarModalPago(total);
-
-    // Normal
     await guardarOrden(mesaLabel, total);
   };
 
-  async function guardarOrden(mesaLabel, total) {
+  async function guardarOrden(mesaLabel, total, metodoPago = null) {
     try {
-      await db.from("ordenes").insert([
+      const { error } = await db.from("ordenes").insert([
         {
           restaurante_id: restoIdActivo,
           mesa: mesaLabel,
@@ -272,6 +242,22 @@ document.addEventListener("DOMContentLoaded", async () => {
           estado: "pendiente",
         },
       ]);
+      if (error) throw error;
+
+      if (metodoPago) {
+        await db.from("ventas").insert([
+          {
+            restaurante_id: restoIdActivo,
+            mesa: mesaLabel,
+            productos: ordenActual.map((i) => `${i.cantidad}x ${i.nombre}`).join(", "),
+            total,
+            metodo_pago: metodoPago,
+          },
+        ]);
+      }
+
+      generarTicket(total, metodoPago || "Pendiente", mesaLabel);
+
       alert("✅ Pedido enviado a cocina!");
       App?.notifyUpdate?.();
       window.location.href =
@@ -313,12 +299,9 @@ document.addEventListener("DOMContentLoaded", async () => {
     const txtCambio = modal.querySelector("#txtCambio");
     const btnConfirmar = modal.querySelector("#confirmarEfectivo");
 
-    modal.querySelector("#pagoEfectivo").onclick = () => {
-      panel.style.display = "block";
-    };
+    modal.querySelector("#pagoEfectivo").onclick = () => (panel.style.display = "block");
     modal.querySelector("#pagoTarjeta").onclick = async () => {
-      await guardarOrden("Para Llevar", total);
-      generarTicket(total, "Tarjeta");
+      await guardarOrden("Para Llevar", total, "Tarjeta");
       modal.remove();
     };
     modal.querySelector("#cerrarModal").onclick = () => modal.remove();
@@ -338,23 +321,25 @@ document.addEventListener("DOMContentLoaded", async () => {
     };
 
     btnConfirmar.onclick = async () => {
-      await guardarOrden("Para Llevar", total);
-      generarTicket(total, "Efectivo");
+      await guardarOrden("Para Llevar", total, "Efectivo");
       modal.remove();
     };
   }
 
-  function generarTicket(total, metodo) {
+  function generarTicket(total, metodo, mesa) {
     const ticket = window.open("", "_blank");
-    ticket.document.write(`
-      <h2>OrdenLista</h2>
-      <p><strong>Tipo:</strong> Para Llevar</p>
-      <p><strong>Total:</strong> $${total.toFixed(2)}</p>
-      <p><strong>Pago:</strong> ${metodo}</p>
-      <p>${new Date().toLocaleString()}</p>
-      <hr>
-      <p>¡Gracias por su compra!</p>
-    `);
+    const contenido = `
+      <html><head><title>Ticket ${mesa}</title></head>
+      <body style="font-family:monospace;">
+        <h2>OrdenLista</h2>
+        <p><strong>Mesa:</strong> ${mesa}</p>
+        <p><strong>Total:</strong> $${total.toFixed(2)}</p>
+        <p><strong>Pago:</strong> ${metodo}</p>
+        <p>${new Date().toLocaleString()}</p>
+        <hr><p>¡Gracias por su compra!</p>
+      </body></html>
+    `;
+    ticket.document.write(contenido);
     ticket.document.close();
   }
 
@@ -373,6 +358,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         document.getElementById("editNombre").value = p.nombre;
         document.getElementById("editPrecio").value = p.precio;
         document.getElementById("editImg").value = p.imagen_url || "";
+        document.getElementById("imgPreview").src = p.imagen_url || "https://via.placeholder.com/150";
         document.getElementById("editCategoria").value = p.categoria || "General";
       }
     }
