@@ -228,6 +228,26 @@ const App = (function() {
         getOrdenes: () => ordenes,
         getSuministros: () => suministros,
         getConfig: () => config,
+
+        // 🔧 FUNCIÓN COMPLETA PARA ACTUALIZAR NÚMERO DE MESAS
+        guardarConfiguracionMesas: async (nuevoNumero) => {
+            const restoId = getRestoId();
+            if (!restoId) return alert("Restaurante no identificado.");
+            if (isNaN(nuevoNumero) || nuevoNumero < 1 || nuevoNumero > 100) {
+                return alert("⚠️ Ingresa un número entre 1 y 100 mesas.");
+            }
+            try {
+                const { error } = await db.from('restaurantes').update({ num_mesas: nuevoNumero }).eq('id', restoId);
+                if (error) throw error;
+                config.num_mesas = nuevoNumero;
+                alert("✅ Número de mesas actualizado correctamente.");
+                App.notifyUpdate();
+            } catch (err) {
+                console.error(err);
+                alert("❌ Error al actualizar número de mesas.");
+            }
+        },
+
         updateEstado: async (id, nuevoEstado) => {
             const { error } = await db.from('ordenes').update({ estado: nuevoEstado }).eq('id', id);
             if (error) console.error("Error al actualizar estado:", error);
@@ -238,7 +258,6 @@ const App = (function() {
             if (error) console.error("Error al eliminar:", error);
             else cargarDatosIniciales();
         },
-        guardarConfiguracionMesas: async (nuevoNumero) => { /* Igual */ },
         registerRender: (name, cb) => { renderCallbacks[name] = cb; cb(); },
         notifyUpdate: () => { Object.values(renderCallbacks).forEach(cb => { if(typeof cb === 'function') cb(); }); }
     };

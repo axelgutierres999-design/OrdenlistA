@@ -41,11 +41,11 @@
 <body>
     <nav class="container-fluid nav-inicio nav-cuadros">
         <ul><li><strong>☕ OrdenLista RRHH</strong></li></ul>
-        <ul id="menuNavegacion" class="nav-botones">
-            </ul>
+        <ul id="menuNavegacion" class="nav-botones"></ul>
     </nav>
 
     <main class="container">
+        <!-- PERFIL EMPLEADO -->
         <article class="tarjeta-perfil">
             <img id="miAvatar" src="https://ui-avatars.com/api/?name=Usuario" alt="Avatar" class="avatar-grande">
             <h2 id="miNombre" style="margin-bottom: 5px;">Cargando...</h2>
@@ -62,6 +62,13 @@
             </div>
         </article>
 
+        <!-- BOTONES ASISTENCIA -->
+        <div style="display: flex; justify-content: center; gap: 1rem; margin-bottom: 2rem;">
+            <button onclick="registrarAsistencia('entrada')" class="contrast">🕒 Marcar Entrada</button>
+            <button onclick="registrarAsistencia('salida')" class="secondary">🚪 Marcar Salida</button>
+        </div>
+
+        <!-- PANEL DUEÑO -->
         <section id="panelDueño" class="hidden">
             <hr>
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
@@ -76,8 +83,8 @@
                     <thead>
                         <tr>
                             <th>Empleado</th>
-                            <th>Rol</th>
                             <th>Entrada</th>
+                            <th>Salida</th>
                             <th>Estado</th>
                         </tr>
                     </thead>
@@ -87,6 +94,7 @@
         </section>
     </main>
 
+    <!-- MODAL NUEVO EMPLEADO -->
     <dialog id="modalNuevoEmpleado">
         <article style="width: 400px;">
             <header>
@@ -115,6 +123,7 @@
         </article>
     </dialog>
 
+    <!-- LIBRERÍAS Y JS -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="js/supabase-client.js"></script>
     <script src="js/logout.js"></script>
