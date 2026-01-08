@@ -1,4 +1,4 @@
-// js/menu.js - GESTIÓN INTEGRAL DE MENÚ Y PEDIDOS (V9.0)
+// js/menu.js - GESTIÓN INTEGRAL DE MENÚ Y PEDIDOS (V9.5 - persistencia + cobro)
 document.addEventListener("DOMContentLoaded", async () => {
   const params = new URLSearchParams(window.location.search);
   const mesaURL = params.get("mesa");
@@ -16,6 +16,8 @@ document.addEventListener("DOMContentLoaded", async () => {
   const inputBuscar = document.getElementById("buscarProducto");
   const filtroCategoria = document.getElementById("filtroCategoria");
   const btnLlevar = document.getElementById("btnParaLlevar");
+  const inputNumMesas = document.getElementById("numMesas");
+  const btnGuardarMesas = document.getElementById("guardarMesas");
 
   let ordenActual = [];
   let productosMenu = [];
@@ -28,39 +30,67 @@ document.addEventListener("DOMContentLoaded", async () => {
   async function inicializar() {
     if (!restoIdActivo) return;
 
-    if (selectMesa) {
-      selectMesa.innerHTML = '<option value="" disabled selected>Selecciona mesa...</option>';
-      try {
-        const { data: resto } = await db
-          .from("restaurantes")
-          .select("num_mesas")
-          .eq("id", restoIdActivo)
-          .single();
-
-        if (resto) {
-          for (let i = 1; i <= resto.num_mesas; i++) {
-            const mStr = `Mesa ${i}`;
-            const isSelected = mesaURL === mStr ? "selected" : "";
-            selectMesa.innerHTML += `<option value="${mStr}" ${isSelected}>${mStr}</option>`;
-          }
-        }
-      } catch (e) {
-        console.error("Error cargando mesas", e);
-      }
-
-      if (mesaURL) {
-        selectMesa.value = mesaURL;
-        selectMesa.disabled = true;
-      }
-    }
-
+    await cargarConfigMesas(); // cargar número real de mesas
+    await cargarMesas();
     await cargarDatosMenu();
     configurarFiltros();
     configurarBotonLlevar();
   }
 
   // =====================================================
-  // 2️⃣ CARGA DE DATOS
+  // 2️⃣ CONFIG MESAS (PERSISTENCIA)
+  // =====================================================
+  async function cargarConfigMesas() {
+    if (!inputNumMesas || !btnGuardarMesas) return;
+    const { data, error } = await db
+      .from("restaurantes")
+      .select("num_mesas")
+      .eq("id", restoIdActivo)
+      .single();
+
+    if (data) inputNumMesas.value = data.num_mesas || 10;
+
+    btnGuardarMesas.onclick = async () => {
+      const nuevo = parseInt(inputNumMesas.value);
+      if (isNaN(nuevo) || nuevo < 1) return alert("Número inválido");
+      const { error } = await db
+        .from("restaurantes")
+        .update({ num_mesas: nuevo })
+        .eq("id", restoIdActivo);
+      if (error) alert("Error al guardar");
+      else alert("✅ Número de mesas actualizado correctamente");
+    };
+  }
+
+  async function cargarMesas() {
+    if (!selectMesa) return;
+    selectMesa.innerHTML = '<option value="" disabled selected>Selecciona mesa...</option>';
+    try {
+      const { data: resto } = await db
+        .from("restaurantes")
+        .select("num_mesas")
+        .eq("id", restoIdActivo)
+        .single();
+
+      if (resto) {
+        for (let i = 1; i <= resto.num_mesas; i++) {
+          const mStr = `Mesa ${i}`;
+          const isSelected = mesaURL === mStr ? "selected" : "";
+          selectMesa.innerHTML += `<option value="${mStr}" ${isSelected}>${mStr}</option>`;
+        }
+      }
+    } catch (e) {
+      console.error("Error cargando mesas", e);
+    }
+
+    if (mesaURL) {
+      selectMesa.value = mesaURL;
+      selectMesa.disabled = true;
+    }
+  }
+
+  // =====================================================
+  // 3️⃣ CARGA DE DATOS DE MENÚ
   // =====================================================
   async function cargarDatosMenu() {
     try {
@@ -92,7 +122,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   }
 
   // =====================================================
-  // 3️⃣ FILTROS Y BÚSQUEDA
+  // 4️⃣ FILTROS Y RENDERIZADO
   // =====================================================
   function configurarFiltros() {
     if (inputBuscar) inputBuscar.addEventListener("input", aplicarFiltros);
@@ -110,9 +140,6 @@ document.addEventListener("DOMContentLoaded", async () => {
     dibujarMenu();
   }
 
-  // =====================================================
-  // 4️⃣ RENDERIZAR MENÚ
-  // =====================================================
   function dibujarMenu() {
     if (!contenedorProductos) return;
     contenedorProductos.innerHTML = "";
@@ -157,7 +184,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   }
 
   // =====================================================
-  // 5️⃣ CARRITO Y CÁLCULO
+  // 5️⃣ CARRITO
   // =====================================================
   function agregarItem(producto) {
     if (producto.stock !== "∞" && producto.stock <= 0)
@@ -203,7 +230,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   };
 
   // =====================================================
-  // 6️⃣ BOTÓN PARA LLEVAR
+  // 6️⃣ PARA LLEVAR
   // =====================================================
   function configurarBotonLlevar() {
     if (!btnLlevar) return;
@@ -219,14 +246,21 @@ document.addEventListener("DOMContentLoaded", async () => {
   }
 
   // =====================================================
-  // 7️⃣ COBRO Y ENVÍO
+  // 7️⃣ COBRO Y TICKET PARA LLEVAR
   // =====================================================
   btnProcesar.onclick = async () => {
     const mesaLabel = modoLlevar ? "Para Llevar" : selectMesa.value;
     if (!mesaLabel) return alert("Selecciona mesa o activa Para Llevar");
-
     const total = ordenActual.reduce((acc, i) => acc + i.precio * i.cantidad, 0);
 
+    // Si es para llevar, abrimos modal de cobro
+    if (modoLlevar) return mostrarModalPago(total);
+
+    // Normal
+    await guardarOrden(mesaLabel, total);
+  };
+
+  async function guardarOrden(mesaLabel, total) {
     try {
       await db.from("ordenes").insert([
         {
@@ -238,7 +272,6 @@ document.addEventListener("DOMContentLoaded", async () => {
           estado: "pendiente",
         },
       ]);
-
       alert("✅ Pedido enviado a cocina!");
       App?.notifyUpdate?.();
       window.location.href =
@@ -248,7 +281,82 @@ document.addEventListener("DOMContentLoaded", async () => {
     } catch (err) {
       alert("Error: " + err.message);
     }
-  };
+  }
+
+  function mostrarModalPago(total) {
+    const modal = document.createElement("div");
+    modal.id = "modalPago";
+    modal.style = `
+      position:fixed;top:0;left:0;width:100%;height:100%;
+      background:rgba(0,0,0,0.8);display:flex;align-items:center;
+      justify-content:center;z-index:10000;
+    `;
+    modal.innerHTML = `
+      <div style="background:white;padding:20px;border-radius:10px;max-width:400px;width:90%;">
+        <h3>💰 Cobrar Pedido Para Llevar</h3>
+        <p><strong>Total:</strong> $${total.toFixed(2)}</p>
+        <button id="pagoEfectivo">💵 Efectivo</button>
+        <button id="pagoTarjeta">💳 Tarjeta</button>
+        <div id="panelEfectivo" style="display:none;margin-top:15px;">
+          <label>Monto recibido:</label>
+          <input id="montoRecibido" type="number" min="0" step="0.01" style="width:100%;">
+          <p id="txtCambio"></p>
+          <button id="confirmarEfectivo" disabled>Confirmar Cobro</button>
+        </div>
+        <button id="cerrarModal" style="margin-top:10px;">Cancelar</button>
+      </div>
+    `;
+    document.body.appendChild(modal);
+
+    const panel = modal.querySelector("#panelEfectivo");
+    const inputMonto = modal.querySelector("#montoRecibido");
+    const txtCambio = modal.querySelector("#txtCambio");
+    const btnConfirmar = modal.querySelector("#confirmarEfectivo");
+
+    modal.querySelector("#pagoEfectivo").onclick = () => {
+      panel.style.display = "block";
+    };
+    modal.querySelector("#pagoTarjeta").onclick = async () => {
+      await guardarOrden("Para Llevar", total);
+      generarTicket(total, "Tarjeta");
+      modal.remove();
+    };
+    modal.querySelector("#cerrarModal").onclick = () => modal.remove();
+
+    inputMonto.oninput = () => {
+      const recibido = parseFloat(inputMonto.value) || 0;
+      const cambio = recibido - total;
+      if (recibido >= total) {
+        txtCambio.textContent = `Cambio: $${cambio.toFixed(2)}`;
+        txtCambio.style.color = "green";
+        btnConfirmar.disabled = false;
+      } else {
+        txtCambio.textContent = "Monto insuficiente";
+        txtCambio.style.color = "red";
+        btnConfirmar.disabled = true;
+      }
+    };
+
+    btnConfirmar.onclick = async () => {
+      await guardarOrden("Para Llevar", total);
+      generarTicket(total, "Efectivo");
+      modal.remove();
+    };
+  }
+
+  function generarTicket(total, metodo) {
+    const ticket = window.open("", "_blank");
+    ticket.document.write(`
+      <h2>OrdenLista</h2>
+      <p><strong>Tipo:</strong> Para Llevar</p>
+      <p><strong>Total:</strong> $${total.toFixed(2)}</p>
+      <p><strong>Pago:</strong> ${metodo}</p>
+      <p>${new Date().toLocaleString()}</p>
+      <hr>
+      <p>¡Gracias por su compra!</p>
+    `);
+    ticket.document.close();
+  }
 
   // =====================================================
   // 8️⃣ EDITOR DE PRODUCTOS

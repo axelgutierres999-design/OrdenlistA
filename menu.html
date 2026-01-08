@@ -92,7 +92,6 @@
       cursor: pointer;
       z-index: 999;
     }
-    /* Botón PARA LLEVAR */
     .btn-llevar {
       background: #f4f4f4;
       border: 1px solid #ccc;
@@ -232,6 +231,30 @@
     </article>
   </dialog>
 
+  <!-- MODAL DE COBRO -->
+  <dialog id="modalCobro">
+    <article style="max-width:420px;border-radius:15px;">
+      <header>
+        <h3>💰 Cobro de Pedido Para Llevar</h3>
+      </header>
+      <section>
+        <p>Total a pagar: <strong id="montoTotalModal">$0.00</strong></p>
+        <fieldset>
+          <label><input type="radio" name="metodoPago" value="efectivo" checked> 💵 Efectivo</label>
+          <label><input type="radio" name="metodoPago" value="tarjeta"> 💳 Tarjeta</label>
+        </fieldset>
+        <div id="panelEfectivo" style="margin-top:1rem;">
+          <label>Monto recibido:<input type="number" id="montoRecibido" min="0" step="0.01" placeholder="Ej: 200.00"></label>
+          <p id="txtCambio"></p>
+        </div>
+      </section>
+      <footer style="display:flex;gap:10px;">
+        <button id="cancelarCobro" class="secondary outline">Cancelar</button>
+        <button id="confirmarCobro" style="background:#10ad93;border:none;">Confirmar</button>
+      </footer>
+    </article>
+  </dialog>
+
   <!-- Scripts -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="js/supabase-client.js"></script>
@@ -249,6 +272,7 @@
       const btn = document.getElementById("btnParaLlevar");
       const panel = document.getElementById("panelOrden");
       const alerta = document.getElementById("alertaLlevar");
+      const selectMesa = document.getElementById("selectMesa");
 
       btn.addEventListener("click", ()=>{
         btn.classList.toggle("activo");
@@ -257,10 +281,12 @@
         if (activo) {
           alerta.classList.add("mostrar");
           panel.classList.add("llevar-activo");
+          selectMesa.disabled = true;
           alerta.textContent = "📦 Modo 'Para Llevar' activado";
         } else {
           alerta.classList.remove("mostrar");
           panel.classList.remove("llevar-activo");
+          selectMesa.disabled = false;
         }
       });
     });
