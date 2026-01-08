@@ -53,6 +53,12 @@
       height: fit-content;
       position: sticky;
       top: 2rem;
+      transition: all 0.3s ease;
+    }
+    .panel-orden.llevar-activo {
+      background: #f4fffc;
+      border-color: #10ad93;
+      box-shadow: 0 0 15px rgba(16,173,147,0.3);
     }
     .item-carrito {
       display: flex;
@@ -61,17 +67,6 @@
       padding: 0.6rem 0;
       border-bottom: 1px dashed #eee;
     }
-    .stock-tag {
-      font-size: 0.7rem;
-      color: #666;
-      background: #f0f0f0;
-      padding: 2px 6px;
-      border-radius: 4px;
-    }
-    .sin-stock {
-      color: #d93526;
-      background: #ffebe9;
-    }
     .buscador-container {
       display: flex;
       gap: 0.5rem;
@@ -79,12 +74,6 @@
       flex-wrap: wrap;
       align-items: center;
     }
-    #ticketPrint {
-      font-family: 'Courier New', monospace;
-      color: #000;
-      padding: 10px;
-    }
-    .ticket-divider { border-top: 1px dashed #000; margin: 10px 0; }
     .fab-add {
       position: fixed;
       bottom: 20px;
@@ -103,6 +92,45 @@
       cursor: pointer;
       z-index: 999;
     }
+    /* Botón PARA LLEVAR */
+    .btn-llevar {
+      background: #f4f4f4;
+      border: 1px solid #ccc;
+      padding: 6px 10px;
+      border-radius: 6px;
+      cursor: pointer;
+      transition: all 0.2s;
+      font-weight: 500;
+    }
+    .btn-llevar:hover {
+      background: #e9e9e9;
+    }
+    .btn-llevar.activo {
+      background: #10ad93;
+      color: white;
+      font-weight: bold;
+      box-shadow: 0 0 5px rgba(16,173,147,0.5);
+    }
+    .alerta-llevar {
+      background: #e0fdf5;
+      border: 1px solid #10ad93;
+      color: #0a6b5f;
+      padding: 8px;
+      text-align: center;
+      border-radius: 8px;
+      font-size: 0.9rem;
+      font-weight: 500;
+      margin-bottom: 10px;
+      display: none;
+    }
+    .alerta-llevar.mostrar {
+      display: block;
+      animation: fadeIn 0.3s ease-in-out;
+    }
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(-5px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
   </style>
 </head>
 <body>
@@ -117,6 +145,7 @@
       <p>Selecciona los productos para generar una nueva orden.</p>
     </header>
 
+    <!-- 🔍 Búsqueda y filtro -->
     <div class="buscador-container">
       <input type="search" id="buscarProducto" placeholder="🔍 Buscar platillo o bebida..." style="flex:1;">
       <select id="filtroCategoria">
@@ -128,14 +157,22 @@
     </div>
 
     <div class="grid">
+      <!-- 📋 MENÚ DE PRODUCTOS -->
       <section>
         <div id="contenedorProductos" class="grid" style="grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:1.5rem;">
           <article aria-busy="true">Cargando catálogo...</article>
         </div>
       </section>
 
-      <section class="panel-orden">
-        <h3>🛒 Tu Orden</h3>
+      <!-- 🛒 PANEL DE ORDEN -->
+      <section class="panel-orden" id="panelOrden">
+        <div class="orden-header" style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.5rem;">
+          <h3>🛒 Tu Orden</h3>
+          <button id="btnParaLlevar" class="btn-llevar">🥡 Para Llevar</button>
+        </div>
+
+        <div id="alertaLlevar" class="alerta-llevar">📦 Modo "Para Llevar" activado</div>
+
         <div id="listaItemsOrden" style="min-height:120px;margin-bottom:1rem;">
           <small>No hay productos seleccionados.</small>
         </div>
@@ -150,8 +187,7 @@
 
         <label for="selectMesa">🪑 Destino del Pedido:</label>
         <select id="selectMesa" required>
-          <option value="" disabled selected>Selecciona mesa o para llevar...</option>
-          <option value="para_llevar">📦 Para Llevar</option>
+          <option value="" disabled selected>Selecciona mesa...</option>
         </select>
 
         <button id="btnProcesarOrden" style="width:100%;background:#10ad93;border:none;" disabled>
@@ -161,6 +197,7 @@
     </div>
   </main>
 
+  <!-- Botón flotante para agregar productos -->
   <button id="btnAgregarProducto" class="fab-add" title="Agregar producto" style="display:none;">＋</button>
 
   <!-- MODAL DE EDICIÓN DE PRODUCTO -->
@@ -195,6 +232,7 @@
     </article>
   </dialog>
 
+  <!-- Scripts -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="js/supabase-client.js"></script>
   <script src="js/app.js"></script>
@@ -206,6 +244,25 @@
       if(["dueño","administrador"].includes(sesion.rol)){
         document.getElementById("btnAgregarProducto").style.display="flex";
       }
+
+      // 🟢 Lógica visual del botón "Para Llevar"
+      const btn = document.getElementById("btnParaLlevar");
+      const panel = document.getElementById("panelOrden");
+      const alerta = document.getElementById("alertaLlevar");
+
+      btn.addEventListener("click", ()=>{
+        btn.classList.toggle("activo");
+        const activo = btn.classList.contains("activo");
+
+        if (activo) {
+          alerta.classList.add("mostrar");
+          panel.classList.add("llevar-activo");
+          alerta.textContent = "📦 Modo 'Para Llevar' activado";
+        } else {
+          alerta.classList.remove("mostrar");
+          panel.classList.remove("llevar-activo");
+        }
+      });
     });
   </script>
 </body>
