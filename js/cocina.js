@@ -1,4 +1,4 @@
-// js/cocina.js - MONITOR DE COCINA PROFESIONAL (V6.8 - FIXED)
+// js/cocina.js - MONITOR DE COCINA PROFESIONAL (V7.0 - REALTIME FIX + SYNC OPTIMIZADO)
 document.addEventListener('DOMContentLoaded', () => {
     const pendientes = document.getElementById('tareasPendientes');
     const enProceso = document.getElementById('tareasEnProceso');
@@ -13,7 +13,7 @@ document.addEventListener('DOMContentLoaded', () => {
     function crearTarjetaOrden(orden) {
         let botonHTML = '';
         let colorBorde = '#10ad93'; 
-        let esParaLlevar = orden.mesa.toUpperCase().includes('LLEVAR') || orden.mesa.toUpperCase().includes('LLEV');
+        let esParaLlevar = orden.mesa?.toUpperCase().includes('LLEVAR') || orden.mesa?.toUpperCase().includes('LLEV');
 
         // Definición de botones según el estado
         if (orden.estado === 'pendiente') {
@@ -27,7 +27,7 @@ document.addEventListener('DOMContentLoaded', () => {
             botonHTML = `<button data-id="${orden.id}" data-action="quitar" style="width:100%; background: #455a64; border:none; color:white;">🥡 Entregar / Archivar</button>`;
         }
 
-        const itemsList = orden.productos.split(',').filter(p => p.trim() !== "");
+        const itemsList = (orden.productos || '').split(',').filter(p => p.trim() !== "");
         const productosHTML = itemsList.map(item => `
             <li style="padding: 8px 0; border-bottom: 1px solid #f0f0f0; display:flex; justify-content:space-between;">
                 <span>${item.trim()}</span>
@@ -64,27 +64,24 @@ document.addEventListener('DOMContentLoaded', () => {
     function renderizarCocina() {
         if (typeof App === 'undefined') return;
         
-        // Obtenemos todas las órdenes del App (que ya deben venir filtradas por restaurante)
         const ordenes = App.getOrdenes(); 
         
         // Limpiar contenedores
-        Object.values(estadosContainer).forEach(c => { if(c) c.innerHTML = ''; });
+        Object.values(estadosContainer).forEach(c => { if (c) c.innerHTML = ''; });
         
-        // Filtrar y renderizar solo las que pertenecen a cocina (no pagadas todavía o en preparación)
-        // EXCEPCIÓN: Mostramos 'terminado' para que el cocinero vea qué falta entregar
+        // Filtrar órdenes relevantes
         const ordenesCocina = ordenes.filter(o => ['pendiente', 'preparando', 'proceso', 'terminado'].includes(o.estado));
 
         ordenesCocina.forEach(orden => {
             let estadoKey = orden.estado;
             if (estadoKey === 'proceso') estadoKey = 'preparando';
-
             if (estadosContainer[estadoKey]) {
                 const html = crearTarjetaOrden(orden);
                 estadosContainer[estadoKey].insertAdjacentHTML('beforeend', html);
             }
         });
 
-        // Mensaje si no hay órdenes
+        // Mostrar mensaje si no hay pedidos
         Object.keys(estadosContainer).forEach(key => {
             if (estadosContainer[key].innerHTML === '') {
                 estadosContainer[key].innerHTML = `<p style="text-align:center; color:#ccc; margin-top:20px; font-style:italic;">Sin pedidos en esta sección</p>`;
@@ -108,12 +105,9 @@ document.addEventListener('DOMContentLoaded', () => {
                 await App.updateEstado(ordenId, 'preparando');
             } 
             else if (action === 'finalizar') {
-                // Al cambiar a 'terminado', el TRIGGER de SQL descuenta el stock
                 await App.updateEstado(ordenId, 'terminado');
             }
             else if (action === 'quitar') {
-                // Si es una mesa física, el estado 'terminado' se queda hasta que se pague en Mesas.js
-                // Si ya estaba pagada (como en Para Llevar), la archivamos como 'entregado'
                 await App.updateEstado(ordenId, 'entregado'); 
             }
         } catch (err) {
@@ -125,11 +119,20 @@ document.addEventListener('DOMContentLoaded', () => {
     // Delegación de eventos
     const mainCocina = document.querySelector('main') || document.body;
     mainCocina.addEventListener('click', manejarClickPanel);
-    
-    // Registro para Realtime
-    if (typeof App !== 'undefined') {
+
+    // --- MONTAJE FINAL Y SINCRONIZACIÓN ---
+    const iniciarModuloCocina = () => {
+        if (typeof App === 'undefined' || !App.getOrdenes) {
+            console.warn("⏳ App aún no está listo, reintentando...");
+            setTimeout(iniciarModuloCocina, 800);
+            return;
+        }
+
         App.registerRender('cocina', renderizarCocina);
-        // Forzamos un render inicial por si las órdenes ya están cargadas
-        renderizarCocina();
-    }
+        renderizarCocina(); // Render inicial
+
+        console.log("👨‍🍳 Cocina conectada al sistema en tiempo real ✅");
+    };
+
+    iniciarModuloCocina();
 });

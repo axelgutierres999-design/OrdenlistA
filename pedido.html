@@ -19,6 +19,22 @@
       font-size: 1.6rem;
       color: #10ad93;
     }
+
+    /* 🔍 Buscador */
+    .buscador-container {
+      display: flex;
+      gap: 0.5rem;
+      margin: 0 auto 1.5rem auto;
+      flex-wrap: wrap;
+      justify-content: center;
+      max-width: 600px;
+    }
+    .buscador-container input, .buscador-container select {
+      flex: 1;
+      min-width: 120px;
+    }
+
+    /* 🧾 Productos */
     .productos-grid {
       display: grid;
       grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
@@ -45,7 +61,7 @@
     .producto-info h4 { margin: 0.3rem 0; font-size: 1rem; }
     .producto-info p { margin: 0; color: #10ad93; font-weight: bold; }
 
-    /* Carrito fijo */
+    /* 🛒 Carrito fijo */
     #carritoCliente {
       position: fixed;
       bottom: 0;
@@ -67,7 +83,6 @@
       border-radius: 8px;
       font-weight: 600;
     }
-
     #listaItemsCarrito {
       max-height: 230px;
       overflow-y: auto;
@@ -127,13 +142,24 @@
     <p style="margin:0;">Elige tus platillos favoritos</p>
   </header>
 
+  <!-- 🔍 Buscador y categorías -->
+  <section class="buscador-container">
+    <input type="search" id="buscarProducto" placeholder="Buscar platillo o bebida...">
+    <select id="filtroCategoria">
+      <option value="Todos">Todas las categorías</option>
+      <option value="Platillo">Platillos</option>
+      <option value="Bebidas">Bebidas</option>
+      <option value="Postres">Postres</option>
+    </select>
+  </section>
+
   <main class="container">
     <div id="productosCliente" class="productos-grid">
       <article aria-busy="true" style="text-align:center;">Cargando menú...</article>
     </div>
   </main>
 
-  <!-- Carrito -->
+  <!-- 🛒 Carrito -->
   <section id="carritoCliente" hidden>
     <div id="listaItemsCarrito"></div>
     <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:0.5rem;">
@@ -143,7 +169,7 @@
     <button id="btnEnviarPedido">🚀 Enviar Pedido</button>
   </section>
 
-  <!-- Modal Confirmación -->
+  <!-- ✅ Modal Confirmación -->
   <dialog id="modalConfirm">
     <article style="text-align:center;">
       <h3>✅ Pedido enviado para aprobación</h3>
@@ -177,8 +203,22 @@
 
     function renderizarProductos() {
       const cont = document.getElementById("productosCliente");
+      const texto = document.getElementById("buscarProducto").value.toLowerCase();
+      const categoria = document.getElementById("filtroCategoria").value;
+
+      const filtrados = productos.filter(p => {
+        const coincideNombre = p.nombre.toLowerCase().includes(texto);
+        const coincideCat = categoria === "Todos" || p.categoria === categoria;
+        return coincideNombre && coincideCat;
+      });
+
       cont.innerHTML = "";
-      productos.forEach(p => {
+      if (filtrados.length === 0) {
+        cont.innerHTML = `<p style="grid-column:1/-1; text-align:center; color:#999;">No hay productos encontrados</p>`;
+        return;
+      }
+
+      filtrados.forEach(p => {
         const card = document.createElement("article");
         card.className = "producto-card";
         card.innerHTML = `
@@ -265,6 +305,10 @@
         alert("Error al enviar pedido: " + err.message);
       }
     };
+
+    // Eventos del buscador y filtro
+    document.getElementById("buscarProducto").addEventListener("input", renderizarProductos);
+    document.getElementById("filtroCategoria").addEventListener("change", renderizarProductos);
 
     cargarProductos();
   </script>
