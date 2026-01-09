@@ -1,4 +1,4 @@
-// js/estadisticas.js - REPORTES Y KPIs DE VENTAS (V7.0 - Corte Persistente)
+// js/estadisticas.js - REPORTES Y KPIs DE VENTAS (V7.5 - Corte Persistente + LocalStorage)
 document.addEventListener('DOMContentLoaded', async () => {
     const sesion = JSON.parse(localStorage.getItem('sesion_activa'));
     if (!sesion || typeof db === 'undefined') {
@@ -17,17 +17,28 @@ document.addEventListener('DOMContentLoaded', async () => {
     let ventasHoy = [];
     let ultimaHoraCorte = null;
 
-    // 🔹 1. Obtener la hora del último corte registrado
+    // 🔹 1. Obtener la hora del último corte registrado (persistente)
     async function obtenerUltimoCorte() {
-        const { data, error } = await db
-            .from('cortes_caja')
-            .select('fecha_corte')
-            .eq('restaurante_id', sesion.restaurante_id)
-            .order('fecha_corte', { ascending: false })
-            .limit(1)
-            .single();
-        if (!error && data) {
-            ultimaHoraCorte = new Date(data.fecha_corte);
+        const claveLocal = `ultimo_corte_${sesion.restaurante_id}`;
+        const local = localStorage.getItem(claveLocal);
+
+        if (local) {
+            ultimaHoraCorte = new Date(local);
+        } else {
+            const { data, error } = await db
+                .from('restaurantes')
+                .select('corte_actual')
+                .eq('id', sesion.restaurante_id)
+                .single();
+
+            if (!error && data?.corte_actual) {
+                ultimaHoraCorte = new Date(data.corte_actual);
+                localStorage.setItem(claveLocal, data.corte_actual);
+            } else {
+                // Si no hay registro, usar inicio del día
+                ultimaHoraCorte = new Date();
+                ultimaHoraCorte.setHours(0, 0, 0, 0);
+            }
         }
     }
 
@@ -143,7 +154,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         `);
     };
 
-    // 🔹 7. Realizar corte real y registrar hora
+    // 🔹 7. Realizar corte real y registrar hora (persistente)
     window.realizarCorteCaja = async () => {
         if (ventasHoy.length === 0) return alert("No hay ventas desde el último corte.");
         if (!confirm("¿Confirmar corte de caja e imprimir reporte?")) return;
@@ -161,6 +172,15 @@ document.addEventListener('DOMContentLoaded', async () => {
             num_ventas: ventasHoy.length,
             usuario: sesion?.nombre || 'Desconocido'
         });
+
+        // 🧩 Actualizar corte persistente
+        const fechaCorte = new Date().toISOString();
+        await db.from('restaurantes')
+            .update({ corte_actual: fechaCorte })
+            .eq('id', sesion.restaurante_id);
+
+        // 🧠 Guardar también en localStorage
+        localStorage.setItem(`ultimo_corte_${sesion.restaurante_id}`, fechaCorte);
 
         ventasHoy = [];
         actualizarKPIs();

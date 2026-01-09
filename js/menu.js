@@ -1,4 +1,4 @@
-// js/menu.js - GESTIÓN INTEGRAL DE MENÚ Y PEDIDOS (v10.2 - persistencia + ticket + ventas)
+// js/menu.js - GESTIÓN INTEGRAL DE MENÚ Y PEDIDOS (v10.4 - integración visual de cobro)
 document.addEventListener("DOMContentLoaded", async () => {
   const params = new URLSearchParams(window.location.search);
   const mesaURL = params.get("mesa");
@@ -34,7 +34,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   }
 
   // =====================================================
-  // 2️⃣ CARGA DE MESAS (solo lectura)
+  // 2️⃣ CARGA DE MESAS
   // =====================================================
   async function cargarMesas() {
     if (!selectMesa) return;
@@ -63,7 +63,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   }
 
   // =====================================================
-  // 3️⃣ CARGA DE DATOS DE MENÚ
+  // 3️⃣ CARGA DE PRODUCTOS
   // =====================================================
   async function cargarDatosMenu() {
     try {
@@ -95,7 +95,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   }
 
   // =====================================================
-  // 4️⃣ FILTROS Y RENDERIZADO
+  // 4️⃣ FILTROS
   // =====================================================
   function configurarFiltros() {
     if (inputBuscar) inputBuscar.addEventListener("input", aplicarFiltros);
@@ -219,7 +219,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   }
 
   // =====================================================
-  // 7️⃣ COBRO Y TICKET (AHORA CON REGISTRO EN 'ventas')
+  // 7️⃣ GUARDAR PEDIDO / COBRO + TICKET
   // =====================================================
   btnProcesar.onclick = async () => {
     const mesaLabel = modoLlevar ? "Para Llevar" : selectMesa.value;
@@ -257,141 +257,77 @@ document.addEventListener("DOMContentLoaded", async () => {
       }
 
       generarTicket(total, metodoPago || "Pendiente", mesaLabel);
-
-      alert("✅ Pedido enviado a cocina!");
       App?.notifyUpdate?.();
-      window.location.href =
-        sesion.rol === "invitado"
-          ? `menu.html?rid=${restoIdActivo}`
-          : "mesas.html";
+      alert("✅ Pedido enviado a cocina!");
     } catch (err) {
       alert("Error: " + err.message);
     }
   }
 
+  // =====================================================
+  // 8️⃣ MODAL DE COBRO (Para Llevar) — AHORA VISUAL UNIFICADO
+  // =====================================================
   function mostrarModalPago(total) {
-    const modal = document.createElement("div");
-    modal.id = "modalPago";
-    modal.style = `
-      position:fixed;top:0;left:0;width:100%;height:100%;
-      background:rgba(0,0,0,0.8);display:flex;align-items:center;
-      justify-content:center;z-index:10000;
-    `;
-    modal.innerHTML = `
-      <div style="background:white;padding:20px;border-radius:10px;max-width:400px;width:90%;">
-        <h3>💰 Cobrar Pedido Para Llevar</h3>
-        <p><strong>Total:</strong> $${total.toFixed(2)}</p>
-        <button id="pagoEfectivo">💵 Efectivo</button>
-        <button id="pagoTarjeta">💳 Tarjeta</button>
-        <div id="panelEfectivo" style="display:none;margin-top:15px;">
-          <label>Monto recibido:</label>
-          <input id="montoRecibido" type="number" min="0" step="0.01" style="width:100%;">
-          <p id="txtCambio"></p>
-          <button id="confirmarEfectivo" disabled>Confirmar Cobro</button>
-        </div>
-        <button id="cerrarModal" style="margin-top:10px;">Cancelar</button>
-      </div>
-    `;
-    document.body.appendChild(modal);
+    const modal = document.getElementById("modalCobro");
+    if (!modal) return alert("Modal de cobro no encontrado.");
 
-    const panel = modal.querySelector("#panelEfectivo");
-    const inputMonto = modal.querySelector("#montoRecibido");
-    const txtCambio = modal.querySelector("#txtCambio");
-    const btnConfirmar = modal.querySelector("#confirmarEfectivo");
+    const totalLabel = document.getElementById("montoTotalModal");
+    totalLabel.textContent = `$${total.toFixed(2)}`;
 
-    modal.querySelector("#pagoEfectivo").onclick = () => (panel.style.display = "block");
-    modal.querySelector("#pagoTarjeta").onclick = async () => {
-      await guardarOrden("Para Llevar", total, "Tarjeta");
-      modal.remove();
-    };
-    modal.querySelector("#cerrarModal").onclick = () => modal.remove();
-
-    inputMonto.oninput = () => {
-      const recibido = parseFloat(inputMonto.value) || 0;
-      const cambio = recibido - total;
-      if (recibido >= total) {
-        txtCambio.textContent = `Cambio: $${cambio.toFixed(2)}`;
-        txtCambio.style.color = "green";
-        btnConfirmar.disabled = false;
-      } else {
-        txtCambio.textContent = "Monto insuficiente";
-        txtCambio.style.color = "red";
-        btnConfirmar.disabled = true;
-      }
-    };
-
-    btnConfirmar.onclick = async () => {
-      await guardarOrden("Para Llevar", total, "Efectivo");
-      modal.remove();
-    };
-  }
-
-  function generarTicket(total, metodo, mesa) {
-    const ticket = window.open("", "_blank");
-    const contenido = `
-      <html><head><title>Ticket ${mesa}</title></head>
-      <body style="font-family:monospace;">
-        <h2>OrdenLista</h2>
-        <p><strong>Mesa:</strong> ${mesa}</p>
-        <p><strong>Total:</strong> $${total.toFixed(2)}</p>
-        <p><strong>Pago:</strong> ${metodo}</p>
-        <p>${new Date().toLocaleString()}</p>
-        <hr><p>¡Gracias por su compra!</p>
-      </body></html>
-    `;
-    ticket.document.write(contenido);
-    ticket.document.close();
-  }
-
-  // =====================================================
-  // 8️⃣ EDITOR DE PRODUCTOS
-  // =====================================================
-  window.abrirEditor = (id = null) => {
-    const modal = document.getElementById("modalEditarMenu");
-    const form = document.getElementById("formProducto");
-    form.reset();
-    document.getElementById("editId").value = id || "";
-
-    if (id) {
-      const p = productosMenu.find((x) => x.id === id);
-      if (p) {
-        document.getElementById("editNombre").value = p.nombre;
-        document.getElementById("editPrecio").value = p.precio;
-        document.getElementById("editImg").value = p.imagen_url || "";
-        document.getElementById("imgPreview").src = p.imagen_url || "https://via.placeholder.com/150";
-        document.getElementById("editCategoria").value = p.categoria || "General";
-      }
-    }
     modal.showModal();
-  };
 
-  const formProducto = document.getElementById("formProducto");
-  if (formProducto) {
-    formProducto.onsubmit = async (e) => {
-      e.preventDefault();
-      const id = document.getElementById("editId").value;
-      const nombre = document.getElementById("editNombre").value.trim();
-      const precio = parseFloat(document.getElementById("editPrecio").value);
+    const btnEfectivo = document.getElementById("btnCobroEfectivo");
+    const btnTarjeta = document.getElementById("btnCobroTarjeta");
+    const btnCancelar = document.getElementById("cancelarCobro");
 
-      const datos = {
-        nombre,
-        precio,
-        imagen_url: document.getElementById("editImg").value || null,
-        categoria: document.getElementById("editCategoria").value,
-        restaurante_id: restoIdActivo,
-      };
-
-      try {
-        const { error } = id
-          ? await db.from("productos").update(datos).eq("id", id)
-          : await db.from("productos").insert([datos]);
-        if (error) throw error;
-        document.getElementById("modalEditarMenu").close();
-        cargarDatosMenu();
-      } catch (err) {
-        alert("Error: " + err.message);
-      }
+    btnEfectivo.onclick = async () => {
+      await guardarOrden("Para Llevar", total, "Efectivo");
+      modal.close();
     };
+    btnTarjeta.onclick = async () => {
+      await guardarOrden("Para Llevar", total, "Tarjeta");
+      modal.close();
+    };
+    btnCancelar.onclick = () => modal.close();
+  }
+
+  // =====================================================
+  // 9️⃣ GENERAR TICKET EN MODAL
+  // =====================================================
+  function generarTicket(total, metodo, mesa) {
+    let modal = document.getElementById("modalTicketMenu");
+    if (!modal) {
+      modal = document.createElement("dialog");
+      modal.id = "modalTicketMenu";
+      modal.innerHTML = `
+        <article style="text-align:center; max-width:400px;">
+          <h3>🧾 Ticket del Pedido</h3>
+          <div id="ticketContenidoMenu" style="text-align:left; font-family:monospace; margin:1rem 0;"></div>
+          <footer style="display:flex; gap:10px; justify-content:center;">
+            <button id="btnImprimirTicketMenu">🖨️ Imprimir</button>
+            <button onclick="document.getElementById('modalTicketMenu').close()">Cerrar</button>
+          </footer>
+        </article>`;
+      document.body.appendChild(modal);
+
+      document.getElementById("btnImprimirTicketMenu").onclick = () => {
+        const contenido = document.getElementById("ticketContenidoMenu").innerHTML;
+        const ventana = window.open('', '_blank');
+        ventana.document.write(`<html><body>${contenido}</body></html>`);
+        ventana.print();
+        ventana.close();
+      };
+    }
+
+    document.getElementById("ticketContenidoMenu").innerHTML = `
+      <p><strong>Mesa:</strong> ${mesa}</p>
+      <p><strong>Total:</strong> $${total.toFixed(2)}</p>
+      <p><strong>Método:</strong> ${metodo}</p>
+      <p><strong>Fecha:</strong> ${new Date().toLocaleString()}</p>
+      <hr>
+      <p>¡Gracias por su compra!</p>
+    `;
+    modal.showModal();
   }
 
   inicializar();

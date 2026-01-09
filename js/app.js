@@ -1,4 +1,4 @@
-// js/app.js - NÚCLEO CENTRALIZADO (V8.1 - Notificación universal + ticket + realtime optimizado + persistencia)
+// js/app.js - NÚCLEO CENTRALIZADO (V8.3 - Ticket modal y persistencia total)
 const App = (function() {
     let ordenes = [];
     let suministros = [];
@@ -49,10 +49,10 @@ const App = (function() {
         }
     };
 
-    // === NOTIFICACIÓN VISUAL + SONIDO ===
+    // === NOTIFICACIÓN UNIVERSAL ===
     const mostrarNotificacionNuevaOrden = (orden) => {
         const rol = getRol();
-        if (!["encargado", "mesero", "dueño", "administrador"].includes(rol)) return;
+        if (!["mesero", "encargado", "dueño", "administrador", "cocinero"].includes(rol)) return;
 
         try { sonidoNotificacion.play(); } catch(e){ console.warn("No se pudo reproducir sonido"); }
 
@@ -86,22 +86,29 @@ const App = (function() {
         div.innerHTML = `
             <strong>🔔 Nueva orden recibida</strong><br>
             <small>${orden.mesa ? "Mesa " + orden.mesa : "Pedido para llevar"}</small><br>
-            <button style="margin-top:10px;background:#10ad93;color:white;border:none;padding:6px 10px;border-radius:5px;cursor:pointer;">
-                Enviar a cocina
-            </button>
+            ${
+                rol === "mesero" || rol === "encargado"
+                ? `<button style="margin-top:10px;background:#10ad93;color:white;border:none;padding:6px 10px;border-radius:5px;cursor:pointer;">
+                        Enviar a cocina
+                   </button>`
+                : ""
+            }
         `;
 
-        div.querySelector('button').onclick = async () => {
-            try {
-                await db.from('ordenes')
-                    .update({ estado: 'preparando' })
-                    .eq('id', orden.id);
-                div.remove();
-                alert("📦 Orden enviada a cocina");
-            } catch (e) {
-                alert("Error al actualizar orden.");
-            }
-        };
+        const boton = div.querySelector('button');
+        if (boton) {
+            boton.onclick = async () => {
+                try {
+                    await db.from('ordenes')
+                        .update({ estado: 'preparando' })
+                        .eq('id', orden.id);
+                    div.remove();
+                    alert("📦 Orden enviada a cocina");
+                } catch (e) {
+                    alert("Error al actualizar orden.");
+                }
+            };
+        }
 
         document.getElementById('notifContenedor').appendChild(div);
         setTimeout(() => div.remove(), 15000);
@@ -113,6 +120,10 @@ const App = (function() {
         @keyframes aparecerNoti {
             from { opacity: 0; transform: translateY(-10px); }
             to { opacity: 1; transform: translateY(0); }
+        }
+        dialog#modalTicketApp::backdrop {
+            background: rgba(0,0,0,0.6);
+            backdrop-filter: blur(4px);
         }
     `;
     document.head.appendChild(style);
@@ -199,26 +210,47 @@ const App = (function() {
         });
 
         // Confirmaciones
-        document.getElementById('btnConfirmarEfectivo').onclick = () => { generarTicket(orden, 'efectivo'); callbackPago('efectivo'); modal.remove(); };
-        document.getElementById('btnTarjetaUI').onclick = () => { if(confirm("¿Terminal aprobada?")) { generarTicket(orden, 'tarjeta'); callbackPago('tarjeta'); modal.remove(); } };
-        document.getElementById('btnQRUI').onclick = () => { if(confirm("¿Transferencia recibida?")) { generarTicket(orden, 'qr'); callbackPago('qr'); modal.remove(); } };
+        document.getElementById('btnConfirmarEfectivo').onclick = () => { generarTicket(orden, 'Efectivo'); callbackPago('efectivo'); modal.remove(); };
+        document.getElementById('btnTarjetaUI').onclick = () => { if(confirm("¿Terminal aprobada?")) { generarTicket(orden, 'Tarjeta'); callbackPago('tarjeta'); modal.remove(); } };
+        document.getElementById('btnQRUI').onclick = () => { if(confirm("¿Transferencia recibida?")) { generarTicket(orden, 'QR / Transferencia'); callbackPago('qr'); modal.remove(); } };
         document.getElementById('btnCancelar').onclick = () => modal.remove();
     };
 
-    // === TICKET ===
+    // === NUEVO SISTEMA DE TICKET EN MODAL ===
     const generarTicket = (orden, metodo) => {
-        const ticket = window.open('', '_blank');
-        ticket.document.write(`
-            <h3>OrdenLista - Ticket</h3>
+        let modal = document.getElementById("modalTicketApp");
+        if (!modal) {
+            modal = document.createElement("dialog");
+            modal.id = "modalTicketApp";
+            modal.innerHTML = `
+              <article style="text-align:center; max-width:400px;">
+                <h3>🧾 Ticket de Venta</h3>
+                <div id="ticketContenido" style="text-align:left; font-family:monospace; margin:1rem 0; background:#f9f9f9; padding:10px; border-radius:8px;"></div>
+                <footer style="display:flex; gap:10px; justify-content:center;">
+                  <button id="btnImprimirTicket">🖨️ Imprimir</button>
+                  <button onclick="document.getElementById('modalTicketApp').close()">Cerrar</button>
+                </footer>
+              </article>`;
+            document.body.appendChild(modal);
+
+            document.getElementById("btnImprimirTicket").onclick = () => {
+                const contenido = document.getElementById("ticketContenido").innerHTML;
+                const ventana = window.open('', '_blank');
+                ventana.document.write(`<html><body>${contenido}</body></html>`);
+                ventana.print();
+                ventana.close();
+            };
+        }
+
+        document.getElementById("ticketContenido").innerHTML = `
             <p><strong>Mesa:</strong> ${orden.mesa || "Para llevar"}</p>
             <p><strong>Total:</strong> $${orden.total}</p>
             <p><strong>Método:</strong> ${metodo}</p>
             <p><strong>Fecha:</strong> ${new Date().toLocaleString()}</p>
             <hr>
-            <p>¡Gracias por tu compra!</p>
-        `);
-        ticket.document.close();
-        ticket.focus();
+            <p>¡Gracias por su compra!</p>
+        `;
+        modal.showModal();
     };
 
     // === RETORNO DEL MÓDULO ===
@@ -228,8 +260,6 @@ const App = (function() {
         getOrdenes: () => ordenes,
         getSuministros: () => suministros,
         getConfig: () => config,
-
-        // 🔧 FUNCIÓN COMPLETA PARA ACTUALIZAR NÚMERO DE MESAS
         guardarConfiguracionMesas: async (nuevoNumero) => {
             const restoId = getRestoId();
             if (!restoId) return alert("Restaurante no identificado.");
@@ -247,7 +277,6 @@ const App = (function() {
                 alert("❌ Error al actualizar número de mesas.");
             }
         },
-
         updateEstado: async (id, nuevoEstado) => {
             const { error } = await db.from('ordenes').update({ estado: nuevoEstado }).eq('id', id);
             if (error) console.error("Error al actualizar estado:", error);
@@ -263,7 +292,7 @@ const App = (function() {
     };
 })();
 
-// === MENÚ DE NAVEGACIÓN (Con íconos y texto) ===
+// === MENÚ DE NAVEGACIÓN ===
 function renderizarMenuSeguro() {
     const sesion = JSON.parse(localStorage.getItem('sesion_activa'));
     if (!sesion) return;
