@@ -1,4 +1,4 @@
-// js/menu.js - GESTIÓN INTEGRAL DE MENÚ Y PEDIDOS (v10.6 - con Editor Integrado)
+// js/menu.js - GESTIÓN INTEGRAL DE MENÚ Y PEDIDOS (v10.6 - Con editor funcional)
 document.addEventListener("DOMContentLoaded", async () => {
   const params = new URLSearchParams(window.location.search);
   const mesaURL = params.get("mesa");
@@ -16,6 +16,9 @@ document.addEventListener("DOMContentLoaded", async () => {
   const inputBuscar = document.getElementById("buscarProducto");
   const filtroCategoria = document.getElementById("filtroCategoria");
   const btnLlevar = document.getElementById("btnParaLlevar");
+  const modalEditar = document.getElementById("modalEditarMenu");
+  const formProducto = document.getElementById("formProducto");
+  const btnEliminarProd = document.getElementById("btnEliminarProd");
 
   let ordenActual = [];
   let productosMenu = [];
@@ -31,6 +34,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     await cargarDatosMenu();
     configurarFiltros();
     configurarBotonLlevar();
+    configurarEditor();
   }
 
   // =====================================================
@@ -123,7 +127,7 @@ document.addEventListener("DOMContentLoaded", async () => {
       btnNuevo.className = "tarjeta-producto nuevo-producto-btn";
       btnNuevo.innerHTML =
         '<div style="font-size:3rem; color:#10ad93;">+</div><p>Nuevo Platillo</p>';
-      btnNuevo.onclick = () => abrirEditor(); 
+      btnNuevo.onclick = () => abrirEditor();
       contenedorProductos.appendChild(btnNuevo);
     }
 
@@ -158,7 +162,81 @@ document.addEventListener("DOMContentLoaded", async () => {
   }
 
   // =====================================================
-  // 5️⃣ CARRITO
+  // 🧩 5️⃣ BLOQUE NUEVO: EDITOR DE PRODUCTOS
+  // =====================================================
+  window.abrirEditor = async (id = null) => {
+    formProducto.reset();
+    document.getElementById("imgPreview").src = "https://via.placeholder.com/150";
+    document.getElementById("editId").value = id || "";
+    btnEliminarProd.style.display = id ? "inline-block" : "none";
+
+    if (id) {
+      const prod = productosMenu.find((p) => p.id == id);
+      if (prod) {
+        document.getElementById("editNombre").value = prod.nombre;
+        document.getElementById("editImg").value = prod.imagen_url || "";
+        document.getElementById("editPrecio").value = prod.precio;
+        document.getElementById("editCategoria").value = prod.categoria;
+        document.getElementById("imgPreview").src =
+          prod.imagen_url || "https://via.placeholder.com/150";
+      }
+    }
+
+    modalEditar.showModal();
+  };
+
+  function configurarEditor() {
+    if (!formProducto) return;
+
+    // Guardar producto nuevo o editado
+    formProducto.onsubmit = async (e) => {
+      e.preventDefault();
+      const id = document.getElementById("editId").value;
+      const nombre = document.getElementById("editNombre").value.trim();
+      const precio = parseFloat(document.getElementById("editPrecio").value);
+      const imagen_url = document.getElementById("editImg").value.trim();
+      const categoria = document.getElementById("editCategoria").value;
+
+      const productoData = {
+        restaurante_id: restoIdActivo,
+        nombre,
+        precio,
+        imagen_url,
+        categoria,
+      };
+
+      try {
+        if (id) {
+          await db.from("productos").update(productoData).eq("id", id);
+        } else {
+          await db.from("productos").insert([productoData]);
+        }
+        alert("✅ Producto guardado correctamente.");
+        modalEditar.close();
+        await cargarDatosMenu();
+      } catch (err) {
+        alert("❌ Error al guardar producto: " + err.message);
+      }
+    };
+
+    // Eliminar producto
+    btnEliminarProd.onclick = async () => {
+      const id = document.getElementById("editId").value;
+      if (!id) return;
+      if (!confirm("¿Eliminar este producto permanentemente?")) return;
+      try {
+        await db.from("productos").delete().eq("id", id);
+        alert("🗑️ Producto eliminado.");
+        modalEditar.close();
+        await cargarDatosMenu();
+      } catch (err) {
+        alert("Error al eliminar: " + err.message);
+      }
+    };
+  }
+
+  // =====================================================
+  // 6️⃣ CARRITO
   // =====================================================
   function agregarItem(producto) {
     if (producto.stock !== "∞" && producto.stock <= 0)
@@ -204,7 +282,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   };
 
   // =====================================================
-  // 6️⃣ PARA LLEVAR
+  // 7️⃣ BOTÓN PARA LLEVAR
   // =====================================================
   function configurarBotonLlevar() {
     if (!btnLlevar) return;
@@ -218,130 +296,6 @@ document.addEventListener("DOMContentLoaded", async () => {
       }
     });
   }
-
-  // =====================================================
-  // 7️⃣ PROCESAR ORDEN
-  // =====================================================
-  btnProcesar.onclick = async () => {
-    const mesaLabel = modoLlevar ? "Para Llevar" : selectMesa.value;
-    if (!mesaLabel) return alert("Selecciona mesa o activa Para Llevar");
-    const total = ordenActual.reduce((acc, i) => acc + i.precio * i.cantidad, 0);
-
-    if (modoLlevar) return mostrarCalculadoraPago(total);
-    await guardarOrden(mesaLabel, total);
-  };
-
-  async function guardarOrden(mesaLabel, total, metodoPago = null) {
-    try {
-      const { error } = await db.from("ordenes").insert([
-        {
-          restaurante_id: restoIdActivo,
-          mesa: mesaLabel,
-          productos: ordenActual.map((i) => `${i.cantidad}x ${i.nombre}`).join(", "),
-          total,
-          comentarios: comentarioInput.value || "",
-          estado: metodoPago ? "pagado" : "pendiente",
-        },
-      ]);
-      if (error) throw error;
-
-      if (metodoPago) {
-        await db.from("ventas").insert([
-          {
-            restaurante_id: restoIdActivo,
-            mesa: mesaLabel,
-            productos: ordenActual.map((i) => `${i.cantidad}x ${i.nombre}`).join(", "),
-            total,
-            metodo_pago: metodoPago,
-          },
-        ]);
-      }
-
-      generarTicket(total, metodoPago || "Pendiente", mesaLabel);
-      if (App && App.notifyUpdate) App.notifyUpdate();
-
-      ordenActual = [];
-      renderizarCarrito();
-      if (comentarioInput) comentarioInput.value = "";
-      alert("✅ Pedido procesado exitosamente!");
-    } catch (err) {
-      alert("Error: " + err.message);
-    }
-  }
-
-  // =====================================================
-  // 🔧 EDITOR DE PRODUCTOS (CREAR / EDITAR PLATILLOS)
-  // =====================================================
-  window.abrirEditor = async (id = null) => {
-    let producto = { nombre: "", precio: "", categoria: "", imagen_url: "" };
-
-    if (id) {
-      const { data } = await db.from("productos").select("*").eq("id", id).single();
-      if (data) producto = data;
-    }
-
-    let modal = document.getElementById("modalProducto");
-    if (!modal) {
-      modal = document.createElement("dialog");
-      modal.id = "modalProducto";
-      modal.style = "border:none; border-radius:10px; padding:20px; max-width:400px; width:90%;";
-      document.body.appendChild(modal);
-    }
-
-    modal.innerHTML = `
-      <h3 style="margin-top:0;">${id ? "Editar Platillo" : "Nuevo Platillo"}</h3>
-      <label>Nombre:</label>
-      <input type="text" id="prodNombre" value="${producto.nombre || ""}" />
-      
-      <label>Precio:</label>
-      <input type="number" id="prodPrecio" value="${producto.precio || ""}" />
-      
-      <label>Categoría:</label>
-      <select id="prodCategoria">
-        <option value="Platillo" ${producto.categoria === "Platillo" ? "selected" : ""}>Platillo</option>
-        <option value="Bebidas" ${producto.categoria === "Bebidas" ? "selected" : ""}>Bebida</option>
-        <option value="Postres" ${producto.categoria === "Postres" ? "selected" : ""}>Postre</option>
-      </select>
-      
-      <label>Imagen URL:</label>
-      <input type="text" id="prodImagen" value="${producto.imagen_url || ""}" placeholder="https://..." />
-      
-      <div style="display:flex; gap:10px; margin-top:20px; justify-content:center;">
-        <button id="btnCancelarProd" style="flex:1;">Cancelar</button>
-        <button id="btnGuardarProd" style="flex:1; background:#10ad93; color:white; border:none;">Guardar</button>
-      </div>
-    `;
-
-    modal.showModal();
-
-    document.getElementById("btnCancelarProd").onclick = () => modal.close();
-
-    document.getElementById("btnGuardarProd").onclick = async () => {
-      const nuevo = {
-        restaurante_id: restoIdActivo,
-        nombre: document.getElementById("prodNombre").value.trim(),
-        precio: parseFloat(document.getElementById("prodPrecio").value) || 0,
-        categoria: document.getElementById("prodCategoria").value,
-        imagen_url: document.getElementById("prodImagen").value.trim(),
-      };
-
-      if (!nuevo.nombre || !nuevo.precio) return alert("Completa nombre y precio");
-
-      try {
-        if (id) {
-          await db.from("productos").update(nuevo).eq("id", id);
-          alert("✅ Producto actualizado");
-        } else {
-          await db.from("productos").insert([nuevo]);
-          alert("✅ Nuevo platillo agregado");
-        }
-        modal.close();
-        await cargarDatosMenu();
-      } catch (e) {
-        alert("Error guardando producto: " + e.message);
-      }
-    };
-  };
 
   inicializar();
 });
