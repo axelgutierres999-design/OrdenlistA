@@ -130,6 +130,15 @@
       from { opacity: 0; transform: translateY(-5px); }
       to { opacity: 1; transform: translateY(0); }
     }
+    .btn-eliminar {
+      background: #dc3545;
+      color: white;
+      border: none;
+      padding: 0.5rem 1rem;
+      border-radius: 8px;
+      cursor: pointer;
+      flex: 1;
+    }
   </style>
 </head>
 <body>
@@ -196,10 +205,10 @@
     </div>
   </main>
 
-  <!-- Botón flotante para agregar productos -->
+  <!-- FAB para agregar producto -->
   <button id="btnAgregarProducto" class="fab-add" title="Agregar producto" style="display:none;">＋</button>
 
-  <!-- MODAL DE EDICIÓN DE PRODUCTO -->
+  <!-- MODAL DE EDICIÓN / CREACIÓN DE PRODUCTO -->
   <dialog id="modalEditarMenu">
     <article style="max-width:500px;border-radius:15px;">
       <header>
@@ -225,43 +234,10 @@
         </div>
         <footer style="display:flex;gap:10px;">
           <button type="button" class="secondary outline" onclick="document.getElementById('modalEditarMenu').close()">Cancelar</button>
+          <button id="btnEliminarProd" type="button" class="btn-eliminar" style="display:none;">🗑️ Eliminar</button>
           <button type="submit" style="background:#10ad93;border:none;">Guardar</button>
         </footer>
       </form>
-    </article>
-  </dialog>
-
-  <!-- MODAL DE COBRO UNIFICADO -->
-  <dialog id="modalCobro">
-    <article style="max-width:420px; border-radius:15px; text-align:center;">
-      <header>
-        <h3>💰 Cobrar Pedido Para Llevar</h3>
-      </header>
-      <section>
-        <p style="font-size:1.1rem;">Total:</p>
-        <h2 id="montoTotalModal" style="color:#10ad93; font-size:2rem;">$0.00</h2>
-      </section>
-      <footer style="display:flex; flex-direction:column; gap:10px; margin-top:1rem;">
-        <button id="btnCobroEfectivo" style="background:#10ad93; color:white; border:none; padding:0.8rem; font-size:1.1rem; border-radius:8px;">💵 Efectivo</button>
-        <button id="btnCobroTarjeta" style="background:#2196f3; color:white; border:none; padding:0.8rem; font-size:1.1rem; border-radius:8px;">💳 Tarjeta</button>
-        <button id="cancelarCobro" class="secondary outline" style="padding:0.7rem;">Cancelar</button>
-      </footer>
-    </article>
-  </dialog>
-
-  <!-- MODAL DE TICKET (NO NUEVA PÁGINA) -->
-  <dialog id="modalTicket">
-    <article style="max-width:420px; border-radius:15px; text-align:center;">
-      <header>
-        <h3>🧾 Ticket de Pedido</h3>
-      </header>
-      <section id="ticketContenido" style="text-align:left; font-family:monospace; white-space:pre-wrap; background:#fafafa; border-radius:8px; padding:1rem; max-height:300px; overflow-y:auto;">
-        Cargando ticket...
-      </section>
-      <footer style="display:flex; flex-direction:column; gap:10px; margin-top:1rem;">
-        <button id="btnImprimirTicket" style="background:#10ad93; color:white; border:none; padding:0.8rem; border-radius:8px;">🖨️ Imprimir Ticket</button>
-        <button onclick="document.getElementById('modalTicket').close()" class="secondary outline">Cerrar</button>
-      </footer>
     </article>
   </dialog>
 
@@ -270,64 +246,5 @@
   <script src="js/supabase-client.js"></script>
   <script src="js/app.js"></script>
   <script src="js/menu.js"></script>
-
-  <script>
-    document.addEventListener("DOMContentLoaded", ()=>{
-      const sesion = JSON.parse(localStorage.getItem('sesion_activa') || "{}");
-      if(["dueño","administrador"].includes(sesion.rol)){
-        document.getElementById("btnAgregarProducto").style.display="flex";
-      }
-
-      // 🟢 Botón "Para Llevar"
-      const btn = document.getElementById("btnParaLlevar");
-      const panel = document.getElementById("panelOrden");
-      const alerta = document.getElementById("alertaLlevar");
-      const selectMesa = document.getElementById("selectMesa");
-
-      btn.addEventListener("click", ()=>{
-        btn.classList.toggle("activo");
-        const activo = btn.classList.contains("activo");
-
-        if (activo) {
-          alerta.classList.add("mostrar");
-          panel.classList.add("llevar-activo");
-          selectMesa.disabled = true;
-        } else {
-          alerta.classList.remove("mostrar");
-          panel.classList.remove("llevar-activo");
-          selectMesa.disabled = false;
-        }
-      });
-
-      // 💳 Cobro para llevar
-      const modalCobro = document.getElementById('modalCobro');
-      const modalTicket = document.getElementById('modalTicket');
-      const ticketContenido = document.getElementById('ticketContenido');
-
-      function mostrarTicket(total, metodo) {
-        ticketContenido.textContent = 
-          `ORDENLISTA - TICKET\n-------------------------\n` +
-          `Pedido: Para Llevar\n` +
-          `Total: $${total}\n` +
-          `Método: ${metodo}\n` +
-          `Fecha: ${new Date().toLocaleString()}\n\nGracias por su compra 🍽️`;
-        modalTicket.showModal();
-      }
-
-      document.getElementById('btnCobroEfectivo').onclick = ()=>{
-        modalCobro.close();
-        mostrarTicket('44.00', 'Efectivo');
-      };
-      document.getElementById('btnCobroTarjeta').onclick = ()=>{
-        modalCobro.close();
-        mostrarTicket('44.00', 'Tarjeta');
-      };
-      document.getElementById('cancelarCobro').onclick = ()=> modalCobro.close();
-
-      document.getElementById('btnImprimirTicket').onclick = ()=>{
-        window.print();
-      };
-    });
-  </script>
 </body>
 </html>
