@@ -297,10 +297,18 @@
           estado: "pendiente_aprobacion"
         }]);
         if (error) throw error;
+
         carrito = [];
         renderizarCarrito();
         document.getElementById("comentarioCliente").value = "";
-        document.getElementById("modalConfirm").showModal();
+        const modal = document.getElementById("modalConfirm");
+        modal.showModal();
+
+        // 🔹 Cerrar pestaña automáticamente después de mostrar confirmación
+        setTimeout(() => {
+          modal.close();
+          window.close();
+        }, 4000); // 4 segundos
       } catch (err) {
         alert("Error al enviar pedido: " + err.message);
       }
