@@ -173,7 +173,7 @@
   <dialog id="modalConfirm">
     <article style="text-align:center;">
       <h3>✅ Pedido enviado para aprobación</h3>
-      <p>Tu orden ha sido enviada al encargado para aprobación.<br>Te avisaremos cuando sea aceptada.</p>
+      <p>Tu orden ha sido enviada al encargado para confirmación.<br>Te avisaremos cuando sea aceptada.</p>
       <footer><button onclick="document.getElementById('modalConfirm').close()">Cerrar</button></footer>
     </article>
   </dialog>
@@ -294,7 +294,7 @@
           productos: productosTexto,
           total,
           comentarios: comentario,
-          estado: "pendiente_aprobacion"
+          estado: "por_confirmar" // 🔹 Ahora sí aparece en Órdenes con Confirmar QR
         }]);
         if (error) throw error;
 
@@ -308,7 +308,7 @@
         setTimeout(() => {
           modal.close();
           window.close();
-        }, 4000); // 4 segundos
+        }, 4000);
       } catch (err) {
         alert("Error al enviar pedido: " + err.message);
       }
