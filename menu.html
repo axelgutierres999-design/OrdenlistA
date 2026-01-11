@@ -144,7 +144,6 @@
       <p>Selecciona los productos para generar una nueva orden.</p>
     </header>
 
-    <!-- 🔍 Búsqueda y filtro -->
     <div class="buscador-container">
       <input type="search" id="buscarProducto" placeholder="🔍 Buscar platillo o bebida..." style="flex:1;">
       <select id="filtroCategoria">
@@ -156,14 +155,12 @@
     </div>
 
     <div class="grid">
-      <!-- 📋 MENÚ DE PRODUCTOS -->
       <section>
         <div id="contenedorProductos" class="grid" style="grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:1.5rem;">
           <article aria-busy="true">Cargando catálogo...</article>
         </div>
       </section>
 
-      <!-- 🛒 PANEL DE ORDEN -->
       <section class="panel-orden" id="panelOrden">
         <div class="orden-header" style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.5rem;">
           <h3>🛒 Tu Orden</h3>
@@ -196,42 +193,54 @@
     </div>
   </main>
 
-  <!-- Botón flotante para agregar productos -->
   <button id="btnAgregarProducto" class="fab-add" title="Agregar producto" style="display:none;">＋</button>
 
-  <!-- MODAL DE EDICIÓN DE PRODUCTO -->
-  <dialog id="modalEditarMenu">
-    <article style="max-width:500px;border-radius:15px;">
-      <header>
-        <button aria-label="Close" rel="prev" onclick="document.getElementById('modalEditarMenu').close()"></button>
-        <h3>Configuración de Producto</h3>
-      </header>
-      <form id="formProducto">
-        <input type="hidden" id="editId">
-        <div style="text-align:center;margin-bottom:1.5rem;">
-          <img id="imgPreview" src="https://via.placeholder.com/150" style="width:140px;height:140px;object-fit:cover;border-radius:12px;border:3px solid #f0f0f0;">
-        </div>
-        <label>Nombre del Platillo<input type="text" id="editNombre" required></label>
-        <label>URL de Imagen<input type="url" id="editImg" oninput="document.getElementById('imgPreview').src=this.value"></label>
-        <div class="grid">
-          <label>Precio ($)<input type="number" id="editPrecio" step="0.01" required></label>
-          <label>Categoría
-            <select id="editCategoria">
-              <option value="Platillo">🍱 Platillo</option>
-              <option value="Bebidas">🥤 Bebida</option>
-              <option value="Postres">🍰 Postre</option>
-            </select>
-          </label>
-        </div>
-        <footer style="display:flex;gap:10px;">
-          <button type="button" class="secondary outline" onclick="document.getElementById('modalEditarMenu').close()">Cancelar</button>
-          <button type="submit" style="background:#10ad93;border:none;">Guardar</button>
-        </footer>
-      </form>
-    </article>
+  <dialog id="modalEditarMenu" style="border:none; border-radius:15px; padding:20px; box-shadow:0 10px 40px rgba(0,0,0,0.3); width:90%; max-width:400px;">
+    <h3 style="margin-top:0;">✏️ Editar Platillo</h3>
+     
+    <form id="formProducto" style="display:flex; flex-direction:column; gap:10px;">
+      <input type="hidden" id="editId">
+      
+      <div style="text-align:center;">
+        <img id="imgPreview" src="https://via.placeholder.com/150" 
+             style="width:100px; height:100px; object-fit:cover; border-radius:10px; border:2px dashed #ccc; cursor:pointer;"
+             onclick="const url=prompt('Ingresa URL de imagen:', document.getElementById('editImg').value); if(url){document.getElementById('editImg').value=url; this.src=url;}">
+        <p style="font-size:12px; color:#888; margin:5px 0;">Click en la imagen para cambiarla</p>
+      </div>
+      
+      <input type="hidden" id="editImg"> 
+      
+      <label>
+        Nombre:
+        <input type="text" id="editNombre" required style="width:100%; padding:8px;">
+      </label>
+      
+      <label>
+        Precio:
+        <input type="number" id="editPrecio" step="0.01" required style="width:100%; padding:8px;">
+      </label>
+      
+      <label>
+        Categoría:
+        <select id="editCategoria" style="width:100%; padding:8px;">
+          <option value="Platillo">Platillo</option>
+          <option value="Bebidas">Bebidas</option>
+          <option value="Postres">Postres</option>
+          <option value="Otros">Otros</option>
+        </select>
+      </label>
+  
+      <div style="display:flex; gap:10px; margin-top:10px;">
+        <button type="button" onclick="document.getElementById('modalEditarMenu').close()" style="flex:1; background:#ccc; border:none; padding:10px; border-radius:5px; color:black;">Cancelar</button>
+        <button type="submit" style="flex:1; background:#10ad93; color:white; border:none; padding:10px; border-radius:5px;">Guardar</button>
+      </div>
+      
+      <button type="button" id="btnEliminarProd" style="background:#e74c3c; color:white; border:none; padding:10px; border-radius:5px; margin-top:10px; display:none;">
+        🗑️ Eliminar Platillo
+      </button>
+    </form>
   </dialog>
 
-  <!-- MODAL DE COBRO UNIFICADO -->
   <dialog id="modalCobro">
     <article style="max-width:420px; border-radius:15px; text-align:center;">
       <header>
@@ -249,7 +258,6 @@
     </article>
   </dialog>
 
-  <!-- MODAL DE TICKET (NO NUEVA PÁGINA) -->
   <dialog id="modalTicket">
     <article style="max-width:420px; border-radius:15px; text-align:center;">
       <header>
@@ -265,7 +273,6 @@
     </article>
   </dialog>
 
-  <!-- Scripts -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="js/supabase-client.js"></script>
   <script src="js/app.js"></script>
@@ -328,6 +335,7 @@
         window.print();
       };
     });
+    
   </script>
 </body>
 </html>
