@@ -1,4 +1,4 @@
-// js/menu.js - CORREGIDO (Validación de Elementos nulos)
+// js/menu.js - ACTUALIZADO: Flujo Directo y Sincronización de Inventario
 document.addEventListener("DOMContentLoaded", async () => {
   // =====================================================
   // 0️⃣ VARIABLES Y SELECTORES
@@ -10,7 +10,6 @@ document.addEventListener("DOMContentLoaded", async () => {
   const sesion = JSON.parse(localStorage.getItem("sesion_activa")) || { rol: "invitado" };
   const restoIdActivo = restauranteIdURL || sesion.restaurante_id;
 
-  // Contenedores principales
   const contenedorProductos = document.getElementById("contenedorProductos");
   const listaItemsOrden = document.getElementById("listaItemsOrden");
   const ordenTotalSpan = document.getElementById("ordenTotal");
@@ -21,14 +20,12 @@ document.addEventListener("DOMContentLoaded", async () => {
   const filtroCategoria = document.getElementById("filtroCategoria");
   const btnLlevar = document.getElementById("btnParaLlevar");
 
-  // Elementos del Modal Editor (Pueden no existir en el HTML)
   const modalEditar = document.getElementById("modalEditarMenu");
   const formProducto = document.getElementById("formProducto");
   const btnEliminarProd = document.getElementById("btnEliminarProd");
   const imgPreview = document.getElementById("imgPreview");
   const inputUrlImg = document.getElementById("editImg");
 
-  // Input de archivo oculto para la subida de imágenes
   const inputFile = document.createElement("input");
   inputFile.type = "file";
   inputFile.accept = "image/*";
@@ -44,15 +41,13 @@ document.addEventListener("DOMContentLoaded", async () => {
   // 1️⃣ INICIALIZACIÓN
   // =====================================================
   async function inicializar() {
-    console.log("Iniciando Menu...");
-    if (!restoIdActivo) return console.error("No hay ID de restaurante");
-    
+    if (!restoIdActivo) return;
     await cargarMesas();
     await cargarDatosMenu();
     configurarFiltros();
     configurarBotonLlevar();
     configurarSubidaImagen(); 
-    configurarEventosEditor(); // Nueva función segura
+    configurarEventosEditor();
   }
 
   // =====================================================
@@ -62,88 +57,45 @@ document.addEventListener("DOMContentLoaded", async () => {
     if (!selectMesa) return;
     selectMesa.innerHTML = '<option value="" disabled selected>Selecciona mesa...</option>';
     try {
-      const { data: resto } = await db
-        .from("restaurantes")
-        .select("num_mesas")
-        .eq("id", restoIdActivo)
-        .single();
-
+      const { data: resto } = await db.from("restaurantes").select("num_mesas").eq("id", restoIdActivo).single();
       const numMesas = resto?.num_mesas || 10;
       for (let i = 1; i <= numMesas; i++) {
         const mStr = `Mesa ${i}`;
         const isSelected = mesaURL === mStr ? "selected" : "";
         selectMesa.innerHTML += `<option value="${mStr}" ${isSelected}>${mStr}</option>`;
       }
-    } catch (e) {
-      console.error("Error cargando mesas", e);
-    }
-    if (mesaURL) {
-      selectMesa.value = mesaURL;
-      selectMesa.disabled = true;
-    }
+    } catch (e) { console.error(e); }
+    if (mesaURL) { selectMesa.value = mesaURL; selectMesa.disabled = true; }
   }
 
   async function cargarDatosMenu() {
     try {
-      // 1. Cargar Productos
-      const { data: productos, error } = await db
-        .from("productos")
-        .select("*")
-        .eq("restaurante_id", restoIdActivo);
-
-      if (error) throw error;
-      
-      // 2. Cargar Suministros (para validar stock real)
-      const { data: suministros } = await db
-        .from("suministros")
-        .select("nombre, cantidad")
-        .eq("restaurante_id", restoIdActivo);
+      const { data: productos } = await db.from("productos").select("*").eq("restaurante_id", restoIdActivo);
+      const { data: suministros } = await db.from("suministros").select("nombre, cantidad").eq("restaurante_id", restoIdActivo);
 
       if (productos) {
         productosMenu = productos.map((p) => {
-          // Buscamos si existe un insumo con el mismo nombre para ver su stock real
-          const insumo = suministros?.find(
-            (s) => s.nombre.toLowerCase() === p.nombre.toLowerCase()
-          );
-          return {
-            ...p,
-            stock: insumo ? Math.floor(insumo.cantidad) : "∞",
-          };
+          const insumo = suministros?.find(s => s.nombre.toLowerCase() === p.nombre.toLowerCase());
+          return { ...p, stock: insumo ? Math.floor(insumo.cantidad) : "∞" };
         });
         productosFiltrados = [...productosMenu];
         dibujarMenu();
       }
-    } catch (err) {
-      console.error("Error al cargar datos del menú:", err);
-      if(contenedorProductos) contenedorProductos.innerHTML = `<p style="color:red">Error cargando menú: ${err.message}</p>`;
-    }
+    } catch (err) { console.error(err); }
   }
 
-  // =====================================================
-  // 3️⃣ RENDERIZADO DEL MENÚ
-  // =====================================================
   function dibujarMenu() {
     if (!contenedorProductos) return;
     contenedorProductos.innerHTML = "";
 
-    // BOTÓN DE NUEVO PRODUCTO (Solo Admins/Dueños)
     if (["dueño", "administrador"].includes(sesion.rol)) {
       const btnNuevo = document.createElement("article");
       btnNuevo.className = "tarjeta-producto";
       btnNuevo.style.border = "2px dashed #10ad93";
       btnNuevo.style.justifyContent = "center";
-      btnNuevo.style.cursor = "pointer";
-      btnNuevo.innerHTML = `
-        <div style="font-size:3rem; color:#10ad93;">+</div>
-        <p style="margin:0; font-weight:bold; color:#10ad93;">Nuevo Platillo</p>
-      `;
+      btnNuevo.innerHTML = `<div style="font-size:3rem; color:#10ad93;">+</div><p style="font-weight:bold; color:#10ad93;">Nuevo Platillo</p>`;
       btnNuevo.onclick = () => window.abrirEditor(); 
       contenedorProductos.appendChild(btnNuevo);
-    }
-
-    if (productosFiltrados.length === 0 && !["dueño", "administrador"].includes(sesion.rol)) {
-      contenedorProductos.innerHTML = `<article><small>No hay productos disponibles.</small></article>`;
-      return;
     }
 
     productosFiltrados.forEach((p) => {
@@ -151,12 +103,8 @@ document.addEventListener("DOMContentLoaded", async () => {
       art.className = "tarjeta-producto";
       art.innerHTML = `
         <div class="img-container" style="position:relative;">
-          <img src="${p.imagen_url || "https://via.placeholder.com/150"}" alt="${p.nombre}" onerror="this.src='https://via.placeholder.com/150'">
-          ${
-            ["dueño", "administrador"].includes(sesion.rol)
-              ? `<button class="edit-btn" onclick="event.stopPropagation(); window.abrirEditor('${p.id}')">✏️</button>`
-              : ""
-          }
+          <img src="${p.imagen_url || "https://via.placeholder.com/150"}" onerror="this.src='https://via.placeholder.com/150'">
+          ${["dueño", "administrador"].includes(sesion.rol) ? `<button class="edit-btn" onclick="event.stopPropagation(); window.abrirEditor('${p.id}')">✏️</button>` : ""}
         </div>
         <div class="info">
           <h4>${p.nombre}</h4>
@@ -164,19 +112,17 @@ document.addEventListener("DOMContentLoaded", async () => {
           <small class="stock-tag ${p.stock !== "∞" && p.stock <= 0 ? "sin-stock" : ""}">
             ${p.stock !== "∞" && p.stock <= 0 ? "Agotado" : "Stock: " + p.stock}
           </small>
-        </div>
-      `;
+        </div>`;
       art.onclick = () => agregarItem(p);
       contenedorProductos.appendChild(art);
     });
   }
 
   // =====================================================
-  // 4️⃣ LÓGICA DE CARRITO Y PEDIDOS
+  // 3️⃣ LÓGICA DE PEDIDOS
   // =====================================================
   function agregarItem(producto) {
-    if (producto.stock !== "∞" && producto.stock <= 0)
-      return alert("Producto sin existencias");
+    if (producto.stock !== "∞" && producto.stock <= 0) return alert("Producto sin existencias");
     const existe = ordenActual.find((i) => i.id === producto.id);
     if (existe) existe.cantidad++;
     else ordenActual.push({ ...producto, cantidad: 1 });
@@ -191,20 +137,12 @@ document.addEventListener("DOMContentLoaded", async () => {
       if(btnProcesar) btnProcesar.disabled = true;
       return;
     }
-
-    listaItemsOrden.innerHTML = ordenActual
-      .map(
-        (item) => `
+    listaItemsOrden.innerHTML = ordenActual.map(item => `
       <div class="item-carrito">
         <div><strong>${item.cantidad}x</strong> ${item.nombre}</div>
-        <div>
-          <span>$${(item.precio * item.cantidad).toFixed(2)}</span>
-          <button style="background:none; border:none; color:red; cursor:pointer;" onclick="window.quitarUno('${item.id}')">✕</button>
-        </div>
-      </div>`
-      )
-      .join("");
-
+        <div><span>$${(item.precio * item.cantidad).toFixed(2)}</span>
+        <button style="background:none; border:none; color:red; cursor:pointer;" onclick="window.quitarUno('${item.id}')">✕</button></div>
+      </div>`).join("");
     const total = ordenActual.reduce((acc, i) => acc + i.precio * i.cantidad, 0);
     ordenTotalSpan.textContent = `$${total.toFixed(2)}`;
     if(btnProcesar) btnProcesar.disabled = false;
@@ -217,323 +155,230 @@ document.addEventListener("DOMContentLoaded", async () => {
     renderizarCarrito();
   };
 
-  function configurarFiltros() {
-    if (inputBuscar) inputBuscar.addEventListener("input", aplicarFiltros);
-    if (filtroCategoria) filtroCategoria.addEventListener("change", aplicarFiltros);
-  }
-
   function aplicarFiltros() {
     const texto = (inputBuscar?.value || "").toLowerCase();
     const categoria = filtroCategoria?.value || "Todos";
     productosFiltrados = productosMenu.filter((p) => {
       const coincideTexto = p.nombre.toLowerCase().includes(texto);
-      const coincideCat = categoria === "Todos" || p.categoria === categoria;
-      return coincideTexto && coincideCat;
+      return coincideTexto && (categoria === "Todos" || p.categoria === categoria);
     });
     dibujarMenu();
   }
 
+  function configurarFiltros() {
+    inputBuscar?.addEventListener("input", aplicarFiltros);
+    filtroCategoria?.addEventListener("change", aplicarFiltros);
+  }
+
   function configurarBotonLlevar() {
-    if (!btnLlevar) return;
-    btnLlevar.addEventListener("click", () => {
+    btnLlevar?.addEventListener("click", () => {
       modoLlevar = !modoLlevar;
       btnLlevar.classList.toggle("activo", modoLlevar);
-      btnLlevar.textContent = modoLlevar ? "✅ Para Llevar" : "🥡 Para Llevar";
-      const alerta = document.getElementById("alertaLlevar");
-      if(alerta) alerta.classList.toggle("mostrar", modoLlevar);
-      if (selectMesa) {
-        selectMesa.disabled = modoLlevar;
-        if (modoLlevar) selectMesa.value = "";
-      }
+      btnLlevar.innerHTML = modoLlevar ? "✅ Para Llevar" : "🥡 Para Llevar";
+      document.getElementById("alertaLlevar")?.classList.toggle("mostrar", modoLlevar);
+      if (selectMesa) { selectMesa.disabled = modoLlevar; if (modoLlevar) selectMesa.value = ""; }
     });
   }
 
-  if (btnProcesar) {
-      btnProcesar.onclick = async () => {
-        const mesaLabel = modoLlevar ? "Para Llevar" : selectMesa?.value;
-        if (!mesaLabel) return alert("Selecciona mesa o activa Para Llevar");
-        const total = ordenActual.reduce((acc, i) => acc + i.precio * i.cantidad, 0);
-
-        if (modoLlevar) return mostrarCalculadoraPago(total);
-        await guardarOrden(mesaLabel, total);
-      };
-  }
+  btnProcesar.onclick = async () => {
+    const mesaLabel = modoLlevar ? "Para Llevar" : selectMesa?.value;
+    if (!mesaLabel) return alert("Selecciona mesa o activa Para Llevar");
+    const total = ordenActual.reduce((acc, i) => acc + i.precio * i.cantidad, 0);
+    if (modoLlevar) mostrarCalculadoraPago(total);
+    else await guardarOrden(mesaLabel, total);
+  };
 
   async function guardarOrden(mesaLabel, total, metodoPago = null) {
     try {
-      const { error } = await db.from("ordenes").insert([
-        {
-          restaurante_id: restoIdActivo,
-          mesa: mesaLabel,
-          productos: ordenActual.map((i) => `${i.cantidad}x ${i.nombre}`).join(", "),
-          total,
-          comentarios: comentarioInput?.value || "",
-          estado: metodoPago ? "pagado" : "pendiente",
-        },
-      ]);
-      if (error) throw error;
+      const ordenData = {
+        restaurante_id: restoIdActivo,
+        mesa: mesaLabel,
+        productos: ordenActual.map((i) => `${i.cantidad}x ${i.nombre}`).join(", "),
+        total,
+        comentarios: comentarioInput?.value || "",
+        estado: metodoPago ? "pagado" : "pendiente", // Las de llevar van pagadas (cocina directa)
+      };
+
+      const { error: errorOrden } = await db.from("ordenes").insert([ordenData]);
+      if (errorOrden) throw errorOrden;
 
       if (metodoPago) {
-        await db.from("ventas").insert([
-          {
-            restaurante_id: restoIdActivo,
-            mesa: mesaLabel,
-            productos: ordenActual.map((i) => `${i.cantidad}x ${i.nombre}`).join(", "),
-            total,
-            metodo_pago: metodoPago,
-          },
-        ]);
+        await db.from("ventas").insert([{
+          restaurante_id: restoIdActivo,
+          mesa: mesaLabel,
+          productos: ordenData.productos,
+          total,
+          metodo_pago: metodoPago,
+        }]);
       }
 
       generarTicket(total, metodoPago || "Pendiente", mesaLabel);
-      if(typeof App !== 'undefined' && App.notifyUpdate) App.notifyUpdate();
+      if(window.App?.notifyUpdate) window.App.notifyUpdate();
       
       ordenActual = [];
       renderizarCarrito();
       if(comentarioInput) comentarioInput.value = "";
-      alert("✅ Pedido procesado exitosamente!");
       
-    } catch (err) {
-      alert("Error: " + err.message);
-    }
+    } catch (err) { alert("Error: " + err.message); }
   }
 
   // =====================================================
-  // 5️⃣ EDITOR DE PRODUCTOS (CORREGIDO Y SEGURO)
+  // 4️⃣ EDITOR Y SINCRONIZACIÓN INVENTARIO
   // =====================================================
-
   function configurarSubidaImagen() {
-    if(!imgPreview) return; // Si no existe el preview, salimos para no dar error
-
-    imgPreview.style.cursor = "pointer";
-    imgPreview.title = "Click para cambiar imagen";
+    if(!imgPreview) return;
     imgPreview.onclick = () => inputFile.click();
-
     inputFile.onchange = (e) => {
-        const file = e.target.files[0];
-        if (!file) return;
-        if (file.size > 500000) return alert("⚠️ Imagen muy pesada (Máx 500KB)");
-
-        const reader = new FileReader();
-        reader.onload = (evt) => {
-            if(inputUrlImg) inputUrlImg.value = evt.target.result;
-            if(imgPreview) imgPreview.src = evt.target.result;
-        };
-        reader.readAsDataURL(file);
+      const file = e.target.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = (evt) => {
+        if(inputUrlImg) inputUrlImg.value = evt.target.result;
+        imgPreview.src = evt.target.result;
+      };
+      reader.readAsDataURL(file);
     };
   }
 
   function configurarEventosEditor() {
-    // Si el formulario no existe (porque falta el HTML), no hacemos nada
     if (!formProducto) return;
-
     formProducto.onsubmit = async (e) => {
-        e.preventDefault();
-        const id = document.getElementById("editId").value;
-        const datos = {
+      e.preventDefault();
+      const id = document.getElementById("editId").value;
+      const nombre = document.getElementById("editNombre").value;
+      const datos = {
         restaurante_id: restoIdActivo,
-        nombre: document.getElementById("editNombre").value,
+        nombre: nombre,
         precio: parseFloat(document.getElementById("editPrecio").value),
         imagen_url: inputUrlImg ? inputUrlImg.value : "",
         categoria: document.getElementById("editCategoria").value
-        };
+      };
 
-        try {
+      try {
         if (id) {
-            const { error } = await db.from("productos").update(datos).eq("id", id);
-            if (error) throw error;
+          await db.from("productos").update(datos).eq("id", id);
         } else {
-            const { error } = await db.from("productos").insert([datos]);
-            if (error) throw error;
+          // Crear Producto
+          await db.from("productos").insert([datos]);
+          // Crear automáticamente en Suministros (Inventario)
+          await db.from("suministros").insert([{
+            restaurante_id: restoIdActivo,
+            nombre: nombre,
+            cantidad: 0,
+            unidad: "Pz"
+          }]);
         }
-        
-        alert("✅ Menú actualizado");
-        if(modalEditar) modalEditar.close();
+        modalEditar.close();
         cargarDatosMenu(); 
-        } catch (err) {
-        alert("Error al guardar: " + err.message);
-        }
+      } catch (err) { alert("Error: " + err.message); }
     };
-
-    if (btnEliminarProd) {
-        btnEliminarProd.onclick = async () => {
-            const id = document.getElementById("editId").value;
-            if (!id || !confirm("¿Estás seguro de eliminar este platillo?")) return;
-
-            try {
-            const { error } = await db.from("productos").delete().eq("id", id);
-            if (error) throw error;
-            if(modalEditar) modalEditar.close();
-            cargarDatosMenu();
-            } catch (err) {
-            alert("Error al eliminar: " + err.message);
-            }
-        };
-    }
   }
 
-  window.abrirEditor = async (id = null) => {
-    if(!modalEditar) return alert("Error: Falta el HTML del modal editor en menu.html");
-
-    if(formProducto) formProducto.reset();
-    const inputId = document.getElementById("editId");
-    if(inputId) inputId.value = id || "";
-    
-    if(imgPreview) imgPreview.src = "https://via.placeholder.com/150";
-    
+  window.abrirEditor = (id = null) => {
+    formProducto.reset();
+    document.getElementById("editId").value = id || "";
+    imgPreview.src = "https://via.placeholder.com/150";
     if (id) {
       const prod = productosMenu.find(p => p.id === id);
       if (prod) {
-        if(document.getElementById("editNombre")) document.getElementById("editNombre").value = prod.nombre;
-        if(document.getElementById("editPrecio")) document.getElementById("editPrecio").value = prod.precio;
+        document.getElementById("editNombre").value = prod.nombre;
+        document.getElementById("editPrecio").value = prod.precio;
         if(inputUrlImg) inputUrlImg.value = prod.imagen_url || "";
-        if(document.getElementById("editCategoria")) document.getElementById("editCategoria").value = prod.categoria;
-        if (prod.imagen_url && imgPreview) imgPreview.src = prod.imagen_url;
-        if(btnEliminarProd) btnEliminarProd.style.display = "block";
+        document.getElementById("editCategoria").value = prod.categoria;
+        imgPreview.src = prod.imagen_url || imgPreview.src;
+        btnEliminarProd.style.display = "block";
       }
-    } else {
-      if(btnEliminarProd) btnEliminarProd.style.display = "none";
-    }
-    
+    } else { btnEliminarProd.style.display = "none"; }
     modalEditar.showModal();
   };
 
-  // Función para cerrar modal desde HTML
-  window.cerrarEditor = () => {
-      if(modalEditar) modalEditar.close();
-  };
-
   // =====================================================
-  // 6️⃣ HERRAMIENTAS DE PAGO
+  // 5️⃣ CALCULADORA Y TICKET PROFESIONAL
   // =====================================================
   function mostrarCalculadoraPago(total) {
-    let modal = document.getElementById("modalCalculadora");
-    if (!modal) {
-      modal = document.createElement("dialog");
-      modal.id = "modalCalculadora";
-      modal.style = "border:none; border-radius:15px; padding:0; box-shadow:0 10px 40px rgba(0,0,0,0.3); overflow:hidden; max-width:400px; width:90%; z-index:9999;";
-      document.body.appendChild(modal);
-    }
-    // ... Contenido del modal calculadora ...
+    let modal = document.getElementById("modalCalculadora") || document.createElement("dialog");
+    modal.id = "modalCalculadora";
+    modal.style = "border:none; border-radius:15px; padding:0; width:90%; max-width:400px;";
+    document.body.appendChild(modal);
+
     modal.innerHTML = `
       <div style="background:#10ad93; color:white; padding:20px; text-align:center;">
         <h3 style="margin:0;">Cobrar Pedido</h3>
-        <p style="margin:5px 0 0 0; opacity:0.9;">Total a Pagar</p>
-        <div style="font-size:2.5rem; font-weight:bold;">$${total.toFixed(2)}</div>
+        <div style="font-size:2rem; font-weight:bold;">$${total.toFixed(2)}</div>
       </div>
-      <div style="padding:20px; background:white;">
-        <div style="display:flex; gap:10px; margin-bottom:20px;">
-          <button id="btnModoEfectivo" style="flex:1; padding:10px; border:2px solid #10ad93; background:#10ad93; color:white; border-radius:8px;">💵 Efectivo</button>
-          <button id="btnModoTarjeta" style="flex:1; padding:10px; border:2px solid #ddd; background:white; color:#555; border-radius:8px;">💳 Tarjeta</button>
+      <div style="padding:20px;">
+        <div style="display:flex; gap:10px; margin-bottom:15px;">
+          <button id="btnEf" style="flex:1; padding:10px; background:#10ad93; color:white; border-radius:8px; border:none;">💵 Efectivo</button>
+          <button id="btnTj" style="flex:1; padding:10px; background:#eee; border-radius:8px; border:none;">💳 Tarjeta</button>
         </div>
-        <div id="panelCalcEfectivo">
-           <label style="font-weight:bold; display:block; margin-bottom:5px;">Dinero Recibido:</label>
-           <input type="number" id="inputRecibido" placeholder="0.00" style="width:100%; font-size:1.5rem; padding:10px; border:2px solid #ddd; border-radius:8px;">
-           <div style="margin-top:15px; text-align:center;">
-              <span style="color:#888;">Cambio a devolver:</span>
-              <div id="txtCambio" style="font-size:1.8rem; font-weight:bold; color:#e74c3c;">$0.00</div>
-           </div>
+        <div id="pEf">
+          <input type="number" id="inRec" placeholder="Recibido..." style="width:100%; font-size:1.5rem; padding:10px;">
+          <div style="text-align:center; margin-top:10px;">Cambio: <b id="valCam" style="color:#27ae60;">$0.00</b></div>
         </div>
-        <div style="margin-top:20px; display:flex; gap:10px;">
-          <button id="btnCancelarCalc" style="flex:1; background:#f1f1f1; border:none; padding:12px; border-radius:8px;">Cancelar</button>
-          <button id="btnConfirmarPago" disabled style="flex:2; background:#ccc; color:white; border:none; padding:12px; border-radius:8px; font-weight:bold;">CONFIRMAR</button>
+        <div style="display:flex; gap:10px; margin-top:20px;">
+          <button onclick="this.closest('dialog').close()" style="flex:1; background:#f1f1f1; border:none; padding:10px; border-radius:8px;">Cancelar</button>
+          <button id="btnCf" disabled style="flex:2; background:#ccc; color:white; border:none; border-radius:8px;">CONFIRMAR PAGO</button>
         </div>
-      </div>
-    `;
+      </div>`;
     modal.showModal();
-    // ... Logica interna calculadora ...
-    const btnEfec = modal.querySelector("#btnModoEfectivo");
-    const btnTarj = modal.querySelector("#btnModoTarjeta");
-    const panelEfec = modal.querySelector("#panelCalcEfectivo");
-    const inputRec = modal.querySelector("#inputRecibido");
-    const txtCambio = modal.querySelector("#txtCambio");
-    const btnConf = modal.querySelector("#btnConfirmarPago");
-    let metodo = "Efectivo";
 
-    const setMetodo = (m) => {
-      metodo = m;
-      if (m === "Efectivo") {
-        btnEfec.style.background = "#10ad93"; btnEfec.style.color = "white"; btnEfec.style.borderColor = "#10ad93";
-        btnTarj.style.background = "white"; btnTarj.style.color = "#555"; btnTarj.style.borderColor = "#ddd";
-        panelEfec.style.display = "block";
-        validar();
-      } else {
-        btnTarj.style.background = "#10ad93"; btnTarj.style.color = "white"; btnTarj.style.borderColor = "#10ad93";
-        btnEfec.style.background = "white"; btnEfec.style.color = "#555"; btnEfec.style.borderColor = "#ddd";
-        panelEfec.style.display = "none";
-        btnConf.disabled = false; btnConf.style.background = "#10ad93";
-      }
+    let met = "Efectivo";
+    const btnCf = modal.querySelector("#btnCf");
+    const inRec = modal.querySelector("#inRec");
+
+    modal.querySelector("#btnEf").onclick = () => { met = "Efectivo"; modal.querySelector("#pEf").style.display="block"; };
+    modal.querySelector("#btnTj").onclick = () => { met = "Tarjeta"; modal.querySelector("#pEf").style.display="none"; btnCf.disabled=false; btnCf.style.background="#10ad93"; };
+
+    inRec.oninput = () => {
+      const cam = (parseFloat(inRec.value) || 0) - total;
+      modal.querySelector("#valCam").textContent = `$${cam.toFixed(2)}`;
+      btnCf.disabled = cam < 0;
+      btnCf.style.background = cam >= 0 ? "#10ad93" : "#ccc";
     };
 
-    const validar = () => {
-      const rec = parseFloat(inputRec.value) || 0;
-      const cambio = rec - total;
-      if (rec >= total) {
-        txtCambio.textContent = `$${cambio.toFixed(2)}`;
-        txtCambio.style.color = "#27ae60";
-        btnConf.disabled = false; btnConf.style.background = "#10ad93";
-      } else {
-        txtCambio.textContent = "Faltante";
-        txtCambio.style.color = "#e74c3c";
-        btnConf.disabled = true; btnConf.style.background = "#ccc";
-      }
-    };
-
-    btnEfec.onclick = () => setMetodo("Efectivo");
-    btnTarj.onclick = () => setMetodo("Tarjeta");
-    inputRec.addEventListener("input", validar);
-    modal.querySelector("#btnCancelarCalc").onclick = () => modal.close();
-    btnConf.onclick = async () => {
-      await guardarOrden("Para Llevar", total, metodo);
-      modal.close();
-    };
+    btnCf.onclick = async () => { await guardarOrden("Para Llevar", total, met); modal.close(); };
   }
 
   function generarTicket(total, metodo, mesa) {
-    let modal = document.getElementById("modalTicketMenu");
-    if (!modal) {
-      modal = document.createElement("dialog");
-      modal.id = "modalTicketMenu";
-      modal.style = "padding:20px; border:none; border-radius:10px; text-align:center; box-shadow:0 10px 30px rgba(0,0,0,0.3); z-index:10000;";
-      document.body.appendChild(modal);
-    }
-    // ... Contenido Ticket ...
-    const itemsHtml = ordenActual.map(item => `
-        <div style="display:flex; justify-content:space-between; font-size:12px; margin-bottom:5px;">
-            <span>${item.cantidad} x ${item.nombre}</span>
-            <span>$${(item.cantidad * item.precio).toFixed(2)}</span>
-        </div>
-    `).join("");
+    let modal = document.getElementById("modalTicketMenu") || document.createElement("dialog");
+    modal.id = "modalTicketMenu";
+    modal.style = "padding:20px; border:none; border-radius:12px; box-shadow:0 10px 40px rgba(0,0,0,0.4);";
+    document.body.appendChild(modal);
+
+    const itemsHtml = ordenActual.map(i => `
+      <div style="display:flex; justify-content:space-between; margin-bottom:3px;">
+        <span>${i.cantidad}x ${i.nombre.substring(0,15)}</span>
+        <span>$${(i.cantidad * i.precio).toFixed(2)}</span>
+      </div>`).join("");
 
     modal.innerHTML = `
-      <div>
-        <div id="areaImpresion" style="width: 280px; font-family: 'Courier New', monospace; text-align: left; background:white; color:black;">
-            <div style="text-align:center; border-bottom:1px dashed #000; padding-bottom:10px; margin-bottom:10px;">
-                <h2 style="margin:0; font-size:16px;">Ticket de Venta</h2>
-                <p style="margin:5px 0; font-size:12px;">${new Date().toLocaleString()}</p>
-            </div>
-            <div style="margin-bottom:10px; font-size:14px;">
-                <strong>Mesa:</strong> ${mesa}<br><strong>Método:</strong> ${metodo}
-            </div>
-            <div style="border-bottom:1px dashed #000; padding-bottom:10px; margin-bottom:10px;">${itemsHtml}</div>
-            <div style="text-align:right; font-size:18px; font-weight:bold;">TOTAL: $${total.toFixed(2)}</div>
-            <div style="text-align:center; margin-top:20px; font-size:12px;">¡Gracias por su compra!</div>
+      <div id="areaImpresion" style="width:280px; font-family:'Courier New', monospace; font-size:13px; color:black; background:white; padding:10px;">
+        <div style="text-align:center; font-weight:bold; font-size:16px; margin-bottom:5px;">*** ORDEN LISTA ***</div>
+        <div style="text-align:center; margin-bottom:10px; border-bottom:1px dashed #000; padding-bottom:5px;">
+          ${new Date().toLocaleDateString()} ${new Date().toLocaleTimeString()}
         </div>
-        <div style="margin-top:20px; display:flex; gap:10px; justify-content:center;">
-           <button id="btnImprimirReal" style="padding:10px 20px; background:#333; color:white; border:none; cursor:pointer;">🖨️ Imprimir</button>
-           <button onclick="document.getElementById('modalTicketMenu').close()" style="padding:10px 20px; border:1px solid #333; background:white; cursor:pointer;">Cerrar</button>
+        <div style="margin-bottom:10px;">
+          <b>MESA:</b> ${mesa.toUpperCase()}<br>
+          <b>PAGO:</b> ${metodo.toUpperCase()}
+        </div>
+        <div style="border-bottom:1px dashed #000; margin-bottom:5px;"></div>
+        ${itemsHtml}
+        <div style="border-bottom:1px dashed #000; margin-top:5px; margin-bottom:5px;"></div>
+        <div style="text-align:right; font-size:16px; font-weight:bold;">TOTAL: $${total.toFixed(2)}</div>
+        <div style="text-align:center; margin-top:15px; border-top:1px dashed #000; padding-top:10px;">
+          ¡GRACIAS POR SU COMPRA!
         </div>
       </div>
-    `;
+      <div style="margin-top:20px; display:flex; gap:10px;">
+        <button id="btnPnt" style="flex:1; padding:12px; background:#333; color:white; border:none; border-radius:8px; font-weight:bold; cursor:pointer;">🖨️ IMPRIMIR</button>
+        <button onclick="this.closest('dialog').close()" style="flex:1; padding:12px; background:white; border:1px solid #333; border-radius:8px; cursor:pointer;">CERRAR</button>
+      </div>`;
     modal.showModal();
 
-    modal.querySelector("#btnImprimirReal").onclick = () => {
-        const contenido = document.getElementById("areaImpresion").innerHTML;
-        const ventana = window.open('', 'PRINT', 'height=600,width=400');
-        ventana.document.write(`<html><head><title>Ticket</title><style>@media print { body { margin: 0; padding: 10px; } }</style></head><body>${contenido}</body></html>`);
-        ventana.document.close();
-        ventana.focus();
-        setTimeout(() => { ventana.print(); ventana.close(); }, 500);
+    modal.querySelector("#btnPnt").onclick = () => {
+      const win = window.open('', 'PRINT', 'height=600,width=400');
+      win.document.write(`<html><body onload="window.print();window.close()">${document.getElementById("areaImpresion").innerHTML}</body></html>`);
+      win.document.close();
     };
   }
 
