@@ -23,6 +23,11 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     const btnGuardar = document.getElementById('btnGuardarTodo');
 
+    // 🆕 NUEVOS CAMPOS PARA COORDENADAS
+    const inLat = document.getElementById('inputLat');
+    const inLong = document.getElementById('inputLong');
+    const btnUbicacion = document.getElementById('btnUbicacion');
+
     // 2. CARGAR DATOS EXISTENTES
     async function cargarDatos() {
         try {
@@ -37,8 +42,12 @@ document.addEventListener('DOMContentLoaded', async () => {
                 inDir.value = data.direccion || '';
                 inTel.value = data.telefono || '';
                 inHor.value = data.horarios || '';
-                inBanco.value = data.datos_pancarios || '';
-                
+                inBanco.value = data.datos_bancarios || '';
+
+                // 🆕 Mostrar coordenadas si existen
+                inLat.value = data.lat || '';
+                inLong.value = data.longitud || '';
+
                 if (data.qr_pago_url) {
                     imgQR.src = data.qr_pago_url;
                     imgQR.style.display = 'block';
@@ -54,21 +63,41 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
     }
 
-    // 3. FUNCIÓN PARA SUBIR IMAGEN A STORAGE
+    // 🆕 3. OBTENER UBICACIÓN AUTOMÁTICA
+    btnUbicacion?.addEventListener('click', () => {
+        if (!navigator.geolocation) {
+            alert("Tu navegador no soporta geolocalización.");
+            return;
+        }
+
+        btnUbicacion.textContent = "📡 Obteniendo...";
+        navigator.geolocation.getCurrentPosition(
+            (pos) => {
+                const { latitude, longitude } = pos.coords;
+                inLat.value = latitude.toFixed(6);
+                inLong.value = longitude.toFixed(6);
+                btnUbicacion.textContent = "📍 Obtener mi ubicación";
+            },
+            (err) => {
+                alert("Error obteniendo ubicación: " + err.message);
+                btnUbicacion.textContent = "📍 Obtener mi ubicación";
+            }
+        );
+    });
+
+    // 4. FUNCIÓN PARA SUBIR IMAGEN A STORAGE
     async function subirImagen(file, carpeta) {
         if (!file) return null;
         
         const ext = file.name.split('.').pop();
         const nombreArchivo = `${restoId}/${carpeta}_${Date.now()}.${ext}`;
         
-        // Sube al bucket 'restaurante_assets' (CRÉALO EN SUPABASE)
         const { data, error } = await db.storage
             .from('restaurante_assets')
             .upload(nombreArchivo, file, { upsert: true });
 
         if (error) throw error;
 
-        // Obtener URL pública
         const { data: publicData } = db.storage
             .from('restaurante_assets')
             .getPublicUrl(nombreArchivo);
@@ -76,7 +105,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         return publicData.publicUrl;
     }
 
-    // 4. PREVISUALIZACIÓN DE IMÁGENES LOCALES
+    // 5. PREVISUALIZACIÓN DE IMÁGENES LOCALES
     fileQR.addEventListener('change', (e) => mostrarPreview(e.target, imgQR));
     fileMenu.addEventListener('change', (e) => mostrarPreview(e.target, imgMenu));
 
@@ -91,7 +120,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
     }
 
-    // 5. GUARDAR TODO
+    // 6. GUARDAR TODO
     btnGuardar.onclick = async () => {
         btnGuardar.disabled = true;
         btnGuardar.textContent = "⏳ Guardando...";
@@ -100,7 +129,6 @@ document.addEventListener('DOMContentLoaded', async () => {
             let urlQR = imgQR.src.startsWith('data:') ? null : imgQR.src; 
             let urlMenu = imgMenu.src.startsWith('data:') ? null : imgMenu.src;
 
-            // Si hay nuevos archivos seleccionados, subirlos
             if (fileQR.files.length > 0) {
                 urlQR = await subirImagen(fileQR.files[0], 'qr_pago');
             }
@@ -112,9 +140,11 @@ document.addEventListener('DOMContentLoaded', async () => {
                 direccion: inDir.value,
                 telefono: inTel.value,
                 horarios: inHor.value,
-                datos_pancarios: inBanco.value,
+                datos_bancarios: inBanco.value,
                 qr_pago_url: urlQR,
-                menu_digital_url: urlMenu
+                menu_digital_url: urlMenu,
+                lat: parseFloat(inLat.value) || null,
+                longitud: parseFloat(inLong.value) || null
             };
 
             const { error } = await db

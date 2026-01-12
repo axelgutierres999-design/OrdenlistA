@@ -36,7 +36,6 @@
       color: #10ad93 !important;
     }
 
-    /* Botón de ajustes al lado del logo */
     .logo-section {
       display: flex;
       align-items: center;
@@ -70,6 +69,19 @@
       border: 2px dashed #ccc;
       display: block;
     }
+
+    #btnUbicacion {
+      background-color: #10ad93;
+      color: white;
+      border: none;
+      border-radius: 8px;
+      padding: 10px 16px;
+      cursor: pointer;
+    }
+
+    #btnUbicacion:hover {
+      opacity: 0.9;
+    }
   </style>
 </head>
 <body>
@@ -100,6 +112,7 @@
   <main class="container">
     <h2 style="margin-bottom: 30px;">⚙️ Configuración del Restaurante</h2>
 
+    <!-- 📍 INFORMACIÓN GENERAL -->
     <section class="bloque-ajuste">
       <h3>📍 Información General</h3>
       <p><small>Estos datos aparecerán en los tickets y en el perfil.</small></p>
@@ -117,8 +130,25 @@
         Horarios de Atención
         <textarea id="inputHorarios" placeholder="Lunes a Viernes: 9am - 6pm..."></textarea>
       </label>
+
+      <!-- 🆕 CAMPOS DE UBICACIÓN -->
+      <hr>
+      <h4>🌎 Ubicación GPS</h4>
+      <p><small>Guarda la latitud y longitud exacta de tu restaurante (se usa para mostrarlo en el mapa).</small></p>
+      <div class="grid">
+        <label>
+          Latitud
+          <input type="text" id="inputLat" placeholder="Ej. 19.432608">
+        </label>
+        <label>
+          Longitud
+          <input type="text" id="inputLong" placeholder="Ej. -99.133209">
+        </label>
+      </div>
+      <button id="btnUbicacion" type="button">📍 Obtener mi ubicación actual</button>
     </section>
 
+    <!-- 💳 CONFIGURACIÓN DE PAGOS -->
     <section class="bloque-ajuste">
       <h3>💳 Configuración de Pagos</h3>
       <p><small>Configura los datos para que tus clientes te paguen por transferencia.</small></p>
@@ -135,6 +165,7 @@
       </label>
     </section>
 
+    <!-- 📱 MENÚ DIGITAL -->
     <section class="bloque-ajuste">
       <h3>📱 Menú Digital (Imagen)</h3>
       <p><small>Sube una imagen de tu menú completo para compartir por WhatsApp o redes.</small></p>
