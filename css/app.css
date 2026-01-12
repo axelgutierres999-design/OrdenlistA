@@ -166,3 +166,15 @@ nav.nav-inicio {
 .anim-fade-in {
   animation: fadeIn 0.4s ease-out forwards;
 }
+.logo-section a {
+  display: flex;
+  align-items: center;
+  text-decoration: none;
+}
+
+.logo-section a:hover {
+  color: #10ad93 !important;
+}
+.logo-section a {
+  transition: all 0.2s ease;
+}
