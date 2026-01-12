@@ -1,4 +1,4 @@
-// js/app.js - NÚCLEO CENTRALIZADO (V8.3 - Ticket modal y persistencia total)
+// js/app.js - NÚCLEO CENTRALIZADO (V8.4 - Filtros por Rol y Seguridad)
 const App = (function() {
     let ordenes = [];
     let suministros = [];
@@ -52,6 +52,7 @@ const App = (function() {
     // === NOTIFICACIÓN UNIVERSAL ===
     const mostrarNotificacionNuevaOrden = (orden) => {
         const rol = getRol();
+        // Solo notificamos a roles operativos relevantes
         if (!["mesero", "encargado", "dueño", "administrador", "cocinero"].includes(rol)) return;
 
         try { sonidoNotificacion.play(); } catch(e){ console.warn("No se pudo reproducir sonido"); }
@@ -59,54 +60,26 @@ const App = (function() {
         if (!document.getElementById('notifContenedor')) {
             const cont = document.createElement('div');
             cont.id = 'notifContenedor';
-            cont.style = `
-                position: fixed;
-                top: 20px;
-                right: 20px;
-                display: flex;
-                flex-direction: column;
-                gap: 10px;
-                z-index: 99999;
-            `;
+            cont.style = `position: fixed; top: 20px; right: 20px; display: flex; flex-direction: column; gap: 10px; z-index: 99999;`;
             document.body.appendChild(cont);
         }
 
         const div = document.createElement('div');
-        div.style = `
-            background: #fff;
-            color: #333;
-            border-left: 6px solid #10ad93;
-            box-shadow: 0 4px 15px rgba(0,0,0,0.3);
-            padding: 15px 20px;
-            border-radius: 10px;
-            font-family: system-ui, sans-serif;
-            animation: aparecerNoti 0.3s ease-out;
-            min-width: 250px;
-        `;
+        div.style = `background: #fff; color: #333; border-left: 6px solid #10ad93; box-shadow: 0 4px 15px rgba(0,0,0,0.3); padding: 15px 20px; border-radius: 10px; font-family: system-ui, sans-serif; animation: aparecerNoti 0.3s ease-out; min-width: 250px;`;
         div.innerHTML = `
             <strong>🔔 Nueva orden recibida</strong><br>
             <small>${orden.mesa ? "Mesa " + orden.mesa : "Pedido para llevar"}</small><br>
-            ${
-                rol === "mesero" || rol === "encargado"
-                ? `<button style="margin-top:10px;background:#10ad93;color:white;border:none;padding:6px 10px;border-radius:5px;cursor:pointer;">
-                        Enviar a cocina
-                   </button>`
-                : ""
-            }
+            ${(rol === "mesero" || rol === "encargado") ? `<button style="margin-top:10px;background:#10ad93;color:white;border:none;padding:6px 10px;border-radius:5px;cursor:pointer;">Enviar a cocina</button>` : ""}
         `;
 
         const boton = div.querySelector('button');
         if (boton) {
             boton.onclick = async () => {
                 try {
-                    await db.from('ordenes')
-                        .update({ estado: 'preparando' })
-                        .eq('id', orden.id);
+                    await db.from('ordenes').update({ estado: 'preparando' }).eq('id', orden.id);
                     div.remove();
                     alert("📦 Orden enviada a cocina");
-                } catch (e) {
-                    alert("Error al actualizar orden.");
-                }
+                } catch (e) { alert("Error al actualizar orden."); }
             };
         }
 
@@ -116,16 +89,7 @@ const App = (function() {
 
     // === ANIMACIÓN CSS ===
     const style = document.createElement('style');
-    style.textContent = `
-        @keyframes aparecerNoti {
-            from { opacity: 0; transform: translateY(-10px); }
-            to { opacity: 1; transform: translateY(0); }
-        }
-        dialog#modalTicketApp::backdrop {
-            background: rgba(0,0,0,0.6);
-            backdrop-filter: blur(4px);
-        }
-    `;
+    style.textContent = `@keyframes aparecerNoti { from { opacity: 0; transform: translateY(-10px); } to { opacity: 1; transform: translateY(0); } } dialog#modalTicketApp::backdrop { background: rgba(0,0,0,0.6); backdrop-filter: blur(4px); }`;
     document.head.appendChild(style);
 
     // === SUSCRIPCIÓN REALTIME ===
@@ -134,18 +98,12 @@ const App = (function() {
         if (!restoId || typeof db === 'undefined') return;
 
         db.channel('cambios-globales')
-            .on('postgres_changes',
-                { event: '*', schema: 'public', table: 'ordenes', filter: `restaurante_id=eq.${restoId}` },
-                payload => {
-                    if (payload.eventType === 'INSERT') mostrarNotificacionNuevaOrden(payload.new);
-                    cargarDatosIniciales();
-                })
-            .on('postgres_changes',
-                { event: '*', schema: 'public', table: 'suministros', filter: `restaurante_id=eq.${restoId}` },
-                () => cargarDatosIniciales())
-            .on('postgres_changes',
-                { event: '*', schema: 'public', table: 'restaurantes', filter: `id=eq.${restoId}` },
-                () => cargarDatosIniciales())
+            .on('postgres_changes', { event: '*', schema: 'public', table: 'ordenes', filter: `restaurante_id=eq.${restoId}` }, payload => {
+                if (payload.eventType === 'INSERT') mostrarNotificacionNuevaOrden(payload.new);
+                cargarDatosIniciales();
+            })
+            .on('postgres_changes', { event: '*', schema: 'public', table: 'suministros', filter: `restaurante_id=eq.${restoId}` }, () => cargarDatosIniciales())
+            .on('postgres_changes', { event: '*', schema: 'public', table: 'restaurantes', filter: `id=eq.${restoId}` }, () => cargarDatosIniciales())
             .subscribe();
     };
 
@@ -185,7 +143,6 @@ const App = (function() {
         
         document.body.appendChild(modal);
 
-        // Efectivo
         document.getElementById('btnEfectivoUI').onclick = () => { 
             document.getElementById('seccionMetodos').style.display='none'; 
             document.getElementById('panelEfectivo').style.display='block'; 
@@ -209,7 +166,6 @@ const App = (function() {
             }
         });
 
-        // Confirmaciones
         document.getElementById('btnConfirmarEfectivo').onclick = () => { generarTicket(orden, 'Efectivo'); callbackPago('efectivo'); modal.remove(); };
         document.getElementById('btnTarjetaUI').onclick = () => { if(confirm("¿Terminal aprobada?")) { generarTicket(orden, 'Tarjeta'); callbackPago('tarjeta'); modal.remove(); } };
         document.getElementById('btnQRUI').onclick = () => { if(confirm("¿Transferencia recibida?")) { generarTicket(orden, 'QR / Transferencia'); callbackPago('qr'); modal.remove(); } };
@@ -253,7 +209,6 @@ const App = (function() {
         modal.showModal();
     };
 
-    // === RETORNO DEL MÓDULO ===
     return {
         init: async () => { await cargarDatosIniciales(); activarSuscripcionRealtime(); },
         getRestoId, getRol,
@@ -263,19 +218,14 @@ const App = (function() {
         guardarConfiguracionMesas: async (nuevoNumero) => {
             const restoId = getRestoId();
             if (!restoId) return alert("Restaurante no identificado.");
-            if (isNaN(nuevoNumero) || nuevoNumero < 1 || nuevoNumero > 100) {
-                return alert("⚠️ Ingresa un número entre 1 y 100 mesas.");
-            }
+            if (isNaN(nuevoNumero) || nuevoNumero < 1 || nuevoNumero > 100) return alert("⚠️ Ingresa un número entre 1 y 100 mesas.");
             try {
                 const { error } = await db.from('restaurantes').update({ num_mesas: nuevoNumero }).eq('id', restoId);
                 if (error) throw error;
                 config.num_mesas = nuevoNumero;
                 alert("✅ Número de mesas actualizado correctamente.");
                 App.notifyUpdate();
-            } catch (err) {
-                console.error(err);
-                alert("❌ Error al actualizar número de mesas.");
-            }
+            } catch (err) { alert("❌ Error al actualizar número de mesas."); }
         },
         updateEstado: async (id, nuevoEstado) => {
             const { error } = await db.from('ordenes').update({ estado: nuevoEstado }).eq('id', id);
@@ -292,27 +242,64 @@ const App = (function() {
     };
 })();
 
-// === MENÚ DE NAVEGACIÓN ===
+// === MENÚ DE NAVEGACIÓN Y SEGURIDAD ===
 function renderizarMenuSeguro() {
     const sesion = JSON.parse(localStorage.getItem('sesion_activa'));
-    if (!sesion) return;
+    if (!sesion) return; // Si no hay sesión, el usuario debería estar en login.html
+    
     const navContenedor = document.getElementById('menuNavegacion');
     if (!navContenedor) return;
+    
+    // Normalizar ruta actual para comparaciones
     const rutaActual = window.location.pathname.split("/").pop() || "index.html";
+    const rol = sesion.rol;
+    let menuItems = [];
 
-    const menuItems = [
-        { h: "mesas.html", i: "🪑", t: "Mesas" },
-        { h: "menu.html", i: "📜", t: "Menú" },
-        { h: "ordenes.html", i: "📋", t: "Órdenes" },
-        { h: "cocina.html", i: "👨‍🍳", t: "Cocina" },
-        { h: "stock.html", i: "📦", t: "Stock" }
-    ];
+    // 1. DEFINICIÓN DE PERMISOS POR ROL
+    if (rol === "mesero") {
+        menuItems = [
+            { h: "mesas.html", i: "🪑", t: "Mesas" },
+            { h: "menu.html", i: "📜", t: "Menú" }
+        ];
+    } 
+    else if (rol === "cocinero") {
+        menuItems = [
+            { h: "ordenes.html", i: "📋", t: "Órdenes" },
+            { h: "cocina.html", i: "👨‍🍳", t: "Cocina" }
+        ];
+    }
+    else {
+        // Lógica base para Encargado, Dueño, Admin (Ver todo lo operativo)
+        menuItems = [
+            { h: "mesas.html", i: "🪑", t: "Mesas" },
+            { h: "menu.html", i: "📜", t: "Menú" },
+            { h: "ordenes.html", i: "📋", t: "Órdenes" },
+            { h: "cocina.html", i: "👨‍🍳", t: "Cocina" },
+            { h: "stock.html", i: "📦", t: "Stock" }
+        ];
 
-    if (["dueño", "administrador"].includes(sesion.rol)) {
-        menuItems.push({ h: "ventas.html", i: "📊", t: "Ventas" });
-        menuItems.push({ h: "empleados.html", i: "👥", t: "Personal" });
+        // Agregados exclusivos para Dueño/Admin
+        if (["dueño", "administrador"].includes(rol)) {
+            menuItems.push({ h: "ventas.html", i: "📊", t: "Ventas" });
+            menuItems.push({ h: "empleados.html", i: "👥", t: "Personal" });
+        }
     }
 
+    // 2. SEGURIDAD DE NAVEGACIÓN (Redirección si intentan entrar donde no deben)
+    // Lista de páginas públicas que no requieren filtro de rol
+    const paginasPublicas = ["index.html", "login.html", ""]; 
+    
+    // Verificamos si la página actual está en su menú permitido
+    const accesoPermitido = menuItems.some(item => item.h === rutaActual) || paginasPublicas.includes(rutaActual);
+
+    // Si estás en una página que no te corresponde, te sacamos
+    if (!accesoPermitido && rutaActual !== 'index.html') {
+        // Redirigir a su primera opción disponible
+        window.location.href = menuItems[0].h;
+        return;
+    }
+
+    // 3. RENDERIZADO VISUAL DEL MENÚ
     navContenedor.innerHTML = menuItems.map(item => `
         <li>
             <a href="${item.h}" class="${rutaActual === item.h ? 'activo' : ''}"
@@ -329,12 +316,17 @@ function renderizarMenuSeguro() {
 
 async function cerrarSesionApp() {
     if (confirm("¿Cerrar sesión?")) {
-        localStorage.removeItem('sesion_activa');
-        window.location.href = 'login.html';
+        // Usamos la función global de logout.js si existe, sino lo hacemos manual
+        if(window.cerrarSesion) {
+             await window.cerrarSesion();
+        } else {
+             localStorage.removeItem('sesion_activa');
+             window.location.href = 'login.html';
+        }
     }
 }
 
 document.addEventListener('DOMContentLoaded', () => {
     renderizarMenuSeguro();
     App.init();
-});
+});     

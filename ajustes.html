@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Ajustes del Restaurante | OrdenLista</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@picocss/pico@1/css/pico.min.css">
+  <style>
+    /* --- ESTILO BARRA DE NAVEGACIÓN NEGRA --- */
+    nav {
+      background-color: #000;
+      color: #fff;
+      padding: 10px 20px;
+      border-bottom: 3px solid #10ad93;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    nav ul {
+      display: flex;
+      align-items: center;
+      list-style: none;
+      margin: 0;
+      padding: 0;
+      gap: 1rem;
+    }
+
+    nav a, nav strong {
+      color: #fff !important;
+      text-decoration: none;
+      font-weight: 500;
+    }
+
+    nav a:hover {
+      color: #10ad93 !important;
+    }
+
+    /* Botón de ajustes al lado del logo */
+    .logo-section {
+      display: flex;
+      align-items: center;
+      gap: 0.6rem;
+    }
+
+    .logo-section a {
+      display: flex;
+      align-items: center;
+    }
+
+    /* Estilos de la página de Ajustes */
+    main.container {
+      margin-top: 2rem;
+    }
+
+    .bloque-ajuste {
+      background: #fff;
+      border-radius: 10px;
+      padding: 20px;
+      margin-bottom: 20px;
+      box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+      border-left: 5px solid #10ad93;
+    }
+
+    .preview-img {
+      max-width: 100%;
+      height: auto;
+      border-radius: 8px;
+      margin-top: 10px;
+      border: 2px dashed #ccc;
+      display: block;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- 🔝 NAV SUPERIOR -->
+  <nav>
+    <ul class="logo-section">
+      <li>
+        <a href="index.html" title="Inicio">
+          <span style="font-size: 1.6rem;">☕</span>
+        </a>
+      </li>
+      <li>
+        <a href="ajustes.html" role="button" class="contrast" style="border:1px solid white; border-radius:8px; padding:4px 10px;">
+          ⚙️ Ajustes
+        </a>
+      </li>
+    </ul>
+
+    <ul>
+      <li><a href="mesas.html">Mesas</a></li>
+      <li><a href="menu.html">Menú</a></li>
+      <li><a href="#" id="btnLogout" style="color:#ff6b6b !important;">Salir</a></li>
+    </ul>
+  </nav>
+
+  <!-- 🧩 CONTENIDO PRINCIPAL -->
+  <main class="container">
+    <h2 style="margin-bottom: 30px;">⚙️ Configuración del Restaurante</h2>
+
+    <section class="bloque-ajuste">
+      <h3>📍 Información General</h3>
+      <p><small>Estos datos aparecerán en los tickets y en el perfil.</small></p>
+      <div class="grid">
+        <label>
+          Dirección Completa
+          <input type="text" id="inputDireccion" placeholder="Ej. Av. Reforma 123, Centro...">
+        </label>
+        <label>
+          Teléfono de Contacto
+          <input type="tel" id="inputTelefono" placeholder="Ej. 55 1234 5678">
+        </label>
+      </div>
+      <label>
+        Horarios de Atención
+        <textarea id="inputHorarios" placeholder="Lunes a Viernes: 9am - 6pm..."></textarea>
+      </label>
+    </section>
+
+    <section class="bloque-ajuste">
+      <h3>💳 Configuración de Pagos</h3>
+      <p><small>Configura los datos para que tus clientes te paguen por transferencia.</small></p>
+      
+      <label>
+        Instrucciones / Datos Bancarios
+        <textarea id="inputDatosBanco" rows="3" placeholder="Banco: BBVA&#10;Cuenta: 1234567890&#10;CLABE: 012345678901234567"></textarea>
+      </label>
+
+      <label>
+        Subir Imagen de tu QR de Cobro (CoDi, MercadoPago, Banco)
+        <input type="file" id="fileQR" accept="image/*">
+        <img id="previewQR" src="" class="preview-img" style="max-width: 200px;">
+      </label>
+    </section>
+
+    <section class="bloque-ajuste">
+      <h3>📱 Menú Digital (Imagen)</h3>
+      <p><small>Sube una imagen de tu menú completo para compartir por WhatsApp o redes.</small></p>
+      <input type="file" id="fileMenu" accept="image/*">
+      <img id="previewMenu" src="" class="preview-img">
+    </section>
+
+    <button id="btnGuardarTodo" style="background-color: #10ad93; border: none; padding: 15px; font-size: 1.2rem; width: 100%;">
+      💾 Guardar Todos los Cambios
+    </button>
+  </main>
+
+  <!-- 🔗 SCRIPTS -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="js/supabase-client.js"></script>
+  <script src="js/ajustes.js"></script>
+</body>
+</html>

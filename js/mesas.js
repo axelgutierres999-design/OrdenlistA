@@ -1,4 +1,4 @@
-// js/mesas.js - GESTIÓN DE MESAS, COBROS, QR, CONFIGURACIÓN Y PEDIDO QR CLIENTE (V9.6 - persistencia real + ticket auto)
+// js/mesas.js - GESTIÓN DE MESAS, COBROS (QR/TRANSFERENCIA/TERMINAL), CONFIGURACIÓN
 document.addEventListener('DOMContentLoaded', async () => {
   const gridMesas = document.getElementById('gridMesas');
   const modalCobro = document.getElementById('modalCobro');
@@ -6,18 +6,32 @@ document.addEventListener('DOMContentLoaded', async () => {
   let mesaActualCobro = null;
   let totalActualCobro = 0;
   let ordenesIdsCobro = [];
+  let configRestaurante = {}; // Guardará datos bancarios y URL del QR
 
   // =====================================================
-  // 1️⃣ ESPERA APP PRINCIPAL Y SINCRONIZA
+  // 1️⃣ INICIALIZACIÓN Y CARGA DE CONFIG
   // =====================================================
   async function esperarAppYRenderizar() {
     if (typeof App !== 'undefined' && App.getOrdenes && App.getConfig) {
+      // Cargamos la config del restaurante (QR, Banco, etc)
+      await cargarConfigRestaurante();
+      
       App.registerRender('mesas', renderizarMesas);
       await renderizarMesas();
     } else {
       setTimeout(esperarAppYRenderizar, 300);
     }
   }
+
+  async function cargarConfigRestaurante() {
+    const sesion = JSON.parse(localStorage.getItem('sesion_activa'));
+    if(!sesion) return;
+    try {
+      const { data } = await db.from('restaurantes').select('*').eq('id', sesion.restaurante_id).single();
+      if(data) configRestaurante = data;
+    } catch(e) { console.error("Error cargando config pagos:", e); }
+  }
+
   esperarAppYRenderizar();
 
   // =====================================================
@@ -26,19 +40,10 @@ document.addEventListener('DOMContentLoaded', async () => {
   async function renderizarMesas() {
     if (!gridMesas || typeof App === 'undefined') return;
 
-    const sesion = JSON.parse(localStorage.getItem('sesion_activa')) || {};
-    const restoId = sesion.restaurante_id;
-
-    // 🔄 Obtenemos num_mesas directamente de la BD (persistente)
-    let numMesas = 10;
-    try {
-      const { data } = await db.from('restaurantes').select('num_mesas').eq('id', restoId).single();
-      if (data?.num_mesas) numMesas = data.num_mesas;
-    } catch (e) {
-      console.warn('No se pudo cargar número de mesas desde BD:', e);
-    }
-
+    // Usar config cargada o valor por defecto
+    const numMesas = configRestaurante.num_mesas || 10;
     const ordenes = App.getOrdenes();
+
     gridMesas.innerHTML = '';
     gridMesas.style.display = 'grid';
     gridMesas.style.gridTemplateColumns = `repeat(auto-fill, minmax(160px, 1fr))`;
@@ -55,6 +60,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
       let estadoClase = 'libre';
       let estadoTexto = 'Libre';
+      
       if (ocupada) {
         const hayListas = ordenesMesa.some(o => o.estado === 'terminado');
         if (hayListas) {
@@ -110,7 +116,7 @@ document.addEventListener('DOMContentLoaded', async () => {
           }
           <button onclick="generarQR('${nombreMesa}')"
             class="outline secondary"
-            style="margin-top:5px; font-size:0.8rem;">📱 QR de esta Mesa</button>
+            style="margin-top:5px; font-size:0.8rem;">📱 QR Pedido</button>
         </div>
       `;
       gridMesas.appendChild(div);
@@ -118,7 +124,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   }
 
   // =====================================================
-  // 3️⃣ COBRO Y PAGO + TICKET AUTOMÁTICO
+  // 3️⃣ LÓGICA DE COBRO (ACTUALIZADA V9.0)
   // =====================================================
   window.abrirModalCobro = (mesa, total) => {
     mesaActualCobro = mesa;
@@ -131,32 +137,150 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     document.getElementById('cobroMesaTitulo').textContent = mesa;
     document.getElementById('cobroTotal').textContent = total.toFixed(2);
+    
+    // Si tienes un input de efectivo en el HTML, límpialo
+    const inputEfec = document.getElementById('inputEfectivo'); 
+    if(inputEfec) inputEfec.value = '';
+
     modalCobro.showModal();
   };
 
-  async function calcularCambio(total) {
-    const entregado = parseFloat(prompt(`💵 Total: $${total.toFixed(2)}\nIngrese monto entregado:`));
-    if (isNaN(entregado)) return alert("⚠️ Monto no válido.");
-    if (entregado < total) return alert("❌ El monto entregado es menor al total.");
-    const cambio = entregado - total;
-    alert(`✅ Cambio: $${cambio.toFixed(2)}`);
-    return true;
+  // Función principal llamada por los botones del HTML (Efectivo / Tarjeta)
+  window.procesarPago = async (metodoInicial) => {
+    if (!mesaActualCobro || ordenesIdsCobro.length === 0) return;
+
+    // 1. PAGO EFECTIVO (Flujo normal)
+    if (metodoInicial === 'efectivo') {
+      const entregado = parseFloat(prompt(`💵 Total: $${totalActualCobro.toFixed(2)}\nIngrese monto entregado:`));
+      if (isNaN(entregado)) return alert("⚠️ Monto no válido.");
+      if (entregado < totalActualCobro) return alert("❌ Falta dinero.");
+      
+      const cambio = entregado - totalActualCobro;
+      alert(`✅ Cambio: $${cambio.toFixed(2)}`);
+      await ejecutarTransaccionDB('efectivo');
+      return;
+    }
+
+    // 2. PAGO TARJETA/DIGITAL (Muestra sub-menú)
+    if (metodoInicial === 'tarjeta') {
+      mostrarOpcionesDigitales();
+    }
+  };
+
+  // =====================================================
+  // 4️⃣ MENÚ SELECCIÓN PAGO DIGITAL (QR / TRANSF / TERMINAL)
+  // =====================================================
+  function mostrarOpcionesDigitales() {
+    // Cerramos temporalmente el modal de cobro principal si es necesario, 
+    // o sobreponemos este nuevo modal.
+    
+    const div = document.createElement('dialog');
+    div.style = "padding:20px; border-radius:15px; border:none; box-shadow:0 10px 30px rgba(0,0,0,0.5); max-width:400px; width:90%";
+    div.innerHTML = `
+      <header style="text-align:center; margin-bottom:15px;">
+        <h3>💳 Tipo de Pago Digital</h3>
+        <p>Selecciona la opción para la <b>${mesaActualCobro}</b></p>
+      </header>
+      <div style="display:flex; flex-direction:column; gap:10px;">
+        
+        <button id="btnPagoQR" style="padding:15px; background:#fff; border:2px solid #10ad93; color:#10ad93; border-radius:10px; font-weight:bold; cursor:pointer; display:flex; align-items:center; justify-content:center; gap:10px;">
+          📱 Código QR (CoDi / App)
+        </button>
+
+        <button id="btnPagoTransf" style="padding:15px; background:#fff; border:2px solid #3b82f6; color:#3b82f6; border-radius:10px; font-weight:bold; cursor:pointer; display:flex; align-items:center; justify-content:center; gap:10px;">
+          🏦 Transferencia
+        </button>
+
+        <button id="btnPagoTerminal" style="padding:15px; background:#333; color:white; border:none; border-radius:10px; font-weight:bold; cursor:pointer; display:flex; align-items:center; justify-content:center; gap:10px;">
+          📟 Terminal Bancaria
+        </button>
+
+      </div>
+      <footer style="margin-top:15px; text-align:center;">
+        <button id="btnCancelarSel" style="background:transparent; border:none; color:grey; text-decoration:underline; cursor:pointer;">Cancelar</button>
+      </footer>
+    `;
+    document.body.appendChild(div);
+    div.showModal();
+
+    // -- LOGICA BOTONES --
+
+    // 1. TERMINAL: Cobro directo y ticket
+    div.querySelector('#btnPagoTerminal').onclick = () => {
+      div.close();
+      ejecutarTransaccionDB('tarjeta'); // Guarda como 'tarjeta' en BD
+    };
+
+    // 2. QR: Muestra imagen del QR configurada
+    div.querySelector('#btnPagoQR').onclick = () => {
+      div.close();
+      mostrarModalInfoPago('qr');
+    };
+
+    // 3. TRANSFERENCIA: Muestra datos bancarios
+    div.querySelector('#btnPagoTransf').onclick = () => {
+      div.close();
+      mostrarModalInfoPago('transferencia');
+    };
+
+    div.querySelector('#btnCancelarSel').onclick = () => div.close();
   }
 
-  window.procesarPago = async (metodo) => {
-    if (!mesaActualCobro || ordenesIdsCobro.length === 0) return;
-    const restoId = App.getRestoId ? App.getRestoId() : null;
-    if (!restoId) return alert("Error: restaurante no identificado.");
+  // Muestra el detalle (Imagen QR o Texto Banco) y espera confirmación
+  function mostrarModalInfoPago(tipo) {
+    const dialogInfo = document.createElement('dialog');
+    dialogInfo.style = "padding:0; border-radius:15px; border:none; max-width:350px; width:90%; overflow:hidden;";
+    
+    let contenido = '';
+    let titulo = '';
 
-    if (metodo === 'efectivo') {
-      const continuar = await calcularCambio(totalActualCobro);
-      if (!continuar) return;
+    if (tipo === 'qr') {
+      titulo = 'Escanea para Pagar';
+      const imgUrl = configRestaurante.qr_pago_url 
+        ? configRestaurante.qr_pago_url 
+        : 'https://via.placeholder.com/200?text=QR+No+Configurado';
+      contenido = `<img src="${imgUrl}" style="width:100%; display:block;">`;
+    } else {
+      titulo = 'Datos Bancarios';
+      const texto = configRestaurante.datos_bancarios 
+        ? configRestaurante.datos_bancarios.replace(/\n/g, '<br>') 
+        : 'Sin datos configurados.';
+      contenido = `<div style="padding:20px; font-size:1.1rem; color:#333; background:#f9f9f9;">${texto}</div>`;
     }
+
+    dialogInfo.innerHTML = `
+      <div style="background:#10ad93; color:white; padding:15px; text-align:center;">
+        <h3 style="margin:0;">${titulo}</h3>
+        <small>Total: $${totalActualCobro.toFixed(2)}</small>
+      </div>
+      ${contenido}
+      <div style="padding:15px; display:flex; gap:10px;">
+        <button id="btnConfirmarPago" style="flex:1; background:#10ad93; color:white; border:none; padding:12px; border-radius:8px; font-weight:bold;">✅ Ya Pagaron</button>
+        <button onclick="this.closest('dialog').close()" style="flex:1; background:#ccc; border:none; padding:12px; border-radius:8px;">Cerrar</button>
+      </div>
+    `;
+
+    document.body.appendChild(dialogInfo);
+    dialogInfo.showModal();
+
+    dialogInfo.querySelector('#btnConfirmarPago').onclick = async () => {
+      dialogInfo.close();
+      await ejecutarTransaccionDB(tipo); // Guarda como 'qr' o 'transferencia'
+    };
+  }
+
+  // =====================================================
+  // 5️⃣ EJECUCIÓN REAL DEL COBRO (BASE DE DATOS)
+  // =====================================================
+  async function ejecutarTransaccionDB(metodo) {
+    const sesion = JSON.parse(localStorage.getItem('sesion_activa'));
+    if (!sesion?.restaurante_id) return alert("Error de sesión.");
 
     try {
       let todosProductos = [];
       let folio = Date.now();
 
+      // Recopilar productos y actualizar estado
       for (const id of ordenesIdsCobro) {
         const ordenData = App.getOrdenes().find(o => o.id === id);
         if (ordenData) {
@@ -165,37 +289,43 @@ document.addEventListener('DOMContentLoaded', async () => {
               ? ordenData.productos.split(',')
               : ordenData.productos
           );
+          
+          // Registrar Venta
           await db.from('ventas').insert([{
-            restaurante_id: restoId,
+            restaurante_id: sesion.restaurante_id,
             mesa: ordenData.mesa,
             productos: ordenData.productos,
             total: ordenData.total,
             metodo_pago: metodo
           }]);
+          
+          // Cerrar Orden
           await db.from('ordenes').update({ estado: 'pagado' }).eq('id', id);
         }
       }
 
+      // Éxito
       alert("✅ Pago registrado correctamente.");
-      modalCobro.close();
+      if(modalCobro.open) modalCobro.close();
       renderizarMesas();
 
-      // ✅ MOSTRAR TICKET AUTOMÁTICO
+      // GENERAR TICKET AUTOMÁTICO
       mostrarTicket({
         id: folio,
         mesa: mesaActualCobro,
         total: totalActualCobro,
-        productos: todosProductos
+        productos: todosProductos,
+        metodo: metodo // Pasamos el método para que salga en el ticket si quieres
       });
 
     } catch (error) {
       console.error(error);
-      alert("❌ Error al procesar el pago.");
+      alert("❌ Error al procesar el pago en base de datos.");
     }
-  };
+  }
 
   // =====================================================
-  // 4️⃣ MOSTRAR TICKET
+  // 6️⃣ MOSTRAR TICKET (Resto del código igual)
   // =====================================================
   function mostrarTicket(orden) {
     const modal = document.getElementById('modalTicket');
@@ -203,6 +333,10 @@ document.addEventListener('DOMContentLoaded', async () => {
     document.getElementById('t-fecha').textContent = new Date().toLocaleString();
     document.getElementById('t-folio').textContent = orden.id;
     document.getElementById('t-total').textContent = parseFloat(orden.total).toFixed(2);
+    
+    // Opcional: mostrar método en ticket si tienes un elemento con id 't-metodo'
+    const elMetodo = document.getElementById('t-metodo');
+    if(elMetodo) elMetodo.textContent = (orden.metodo || 'Efectivo').toUpperCase();
 
     const tbody = document.getElementById('t-items');
     tbody.innerHTML = (orden.productos || [])
@@ -213,45 +347,37 @@ document.addEventListener('DOMContentLoaded', async () => {
   }
 
   // =====================================================
-  // 5️⃣ CONFIGURACIÓN DE MESAS (GUARDADO PERSISTENTE)
+  // 7️⃣ CONFIGURACIÓN DE MESAS Y QR MÓVIL
   // =====================================================
   window.guardarConfiguracionMesas = async () => {
     const sesion = JSON.parse(localStorage.getItem('sesion_activa')) || {};
-    const restoId = sesion.restaurante_id;
     const n = parseInt(document.getElementById('inputNumMesas').value);
-    if (isNaN(n) || n <= 0 || n > 100) return alert("Ingresa un número entre 1 y 100.");
+    if (isNaN(n) || n <= 0) return alert("Ingresa un número válido.");
     try {
-      await db.from('restaurantes').update({ num_mesas: n }).eq('id', restoId);
-      alert("✅ Número de mesas actualizado.");
+      await db.from('restaurantes').update({ num_mesas: n }).eq('id', sesion.restaurante_id);
+      alert("✅ Configuración guardada.");
+      // Actualizamos localmente para ver el cambio rápido
+      configRestaurante.num_mesas = n; 
       renderizarMesas();
-    } catch (err) {
-      console.error(err);
-      alert("❌ Error al guardar configuración.");
-    }
+    } catch (err) { console.error(err); alert("Error al guardar."); }
   };
 
-  // =====================================================
-  // 6️⃣ AGREGAR PEDIDO (MODO MESERO)
-  // =====================================================
   window.agregarPedido = (numMesa) => {
     window.location.href = `menu.html?mesa=Mesa ${numMesa}`;
   };
 
-  // =====================================================
-  // 7️⃣ GENERAR CÓDIGO QR POR MESA (CLIENTE MÓVIL)
-  // =====================================================
   window.generarQR = (mesaLabel) => {
     const sesion = JSON.parse(localStorage.getItem('sesion_activa'));
-    if (!sesion?.restaurante_id) return alert("Error: restaurante no identificado.");
-
+    if (!sesion?.restaurante_id) return alert("Error sesión.");
     const urlMesa = `${window.location.origin}/pedido.html?rid=${sesion.restaurante_id}&mesa=${encodeURIComponent(mesaLabel)}`;
-
+    
+    // Crear modal dinámico para el QR
     const modal = document.createElement('dialog');
     modal.innerHTML = `
       <article style="text-align:center;">
         <h3>📱 QR - ${mesaLabel}</h3>
         <div id="qrCanvas" style="margin:1rem auto;"></div>
-        <p style="font-size:0.8rem; color:#555;">${urlMesa}</p>
+        <p style="font-size:0.8rem; color:#555;">Escanea para pedir</p>
         <footer><button onclick="this.closest('dialog').close()">Cerrar</button></footer>
       </article>
     `;
