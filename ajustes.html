@@ -47,7 +47,7 @@
       align-items: center;
     }
 
-    /* Estilos de la página de Ajustes */
+    /* Estilos generales */
     main.container {
       margin-top: 2rem;
     }
@@ -82,6 +82,17 @@
     #btnUbicacion:hover {
       opacity: 0.9;
     }
+
+    #btnGuardarTodo {
+      background-color: #10ad93;
+      border: none;
+      padding: 15px;
+      font-size: 1.2rem;
+      width: 100%;
+      color: white;
+      border-radius: 8px;
+      cursor: pointer;
+    }
   </style>
 </head>
 <body>
@@ -102,15 +113,24 @@
     </ul>
 
     <ul>
-      <li><a href="mesas.html">Mesas</a></li>
-      <li><a href="menu.html">Menú</a></li>
-      <li><a href="#" id="btnLogout" style="color:#ff6b6b !important;">Salir</a></li>
+      <li><a href="mesas.html">🪑 Mesas</a></li>
+      <li><a href="menu.html">📋 Menú</a></li>
+      <li><a href="estadisticas.html">📈 Estadísticas</a></li>
+      <li><a href="#" id="btnLogout" style="color:#ff6b6b !important;">🚪 Salir</a></li>
     </ul>
   </nav>
 
   <!-- 🧩 CONTENIDO PRINCIPAL -->
   <main class="container">
     <h2 style="margin-bottom: 30px;">⚙️ Configuración del Restaurante</h2>
+
+    <!-- 🏪 LOGO DEL RESTAURANTE -->
+    <section class="bloque-ajuste">
+      <h3>🏪 Logo del Restaurante</h3>
+      <p><small>Sube el logotipo de tu restaurante. Se usará en los tickets y encabezados.</small></p>
+      <input type="file" id="fileLogo" accept="image/*">
+      <img id="previewLogo" src="" class="preview-img" style="max-width: 200px;">
+    </section>
 
     <!-- 📍 INFORMACIÓN GENERAL -->
     <section class="bloque-ajuste">
@@ -131,7 +151,6 @@
         <textarea id="inputHorarios" placeholder="Lunes a Viernes: 9am - 6pm..."></textarea>
       </label>
 
-      <!-- 🆕 CAMPOS DE UBICACIÓN -->
       <hr>
       <h4>🌎 Ubicación GPS</h4>
       <p><small>Guarda la latitud y longitud exacta de tu restaurante (se usa para mostrarlo en el mapa).</small></p>
@@ -151,7 +170,7 @@
     <!-- 💳 CONFIGURACIÓN DE PAGOS -->
     <section class="bloque-ajuste">
       <h3>💳 Configuración de Pagos</h3>
-      <p><small>Configura los datos para que tus clientes te paguen por transferencia.</small></p>
+      <p><small>Configura los datos para que tus clientes te paguen por transferencia o QR.</small></p>
       
       <label>
         Instrucciones / Datos Bancarios
@@ -173,7 +192,8 @@
       <img id="previewMenu" src="" class="preview-img">
     </section>
 
-    <button id="btnGuardarTodo" style="background-color: #10ad93; border: none; padding: 15px; font-size: 1.2rem; width: 100%;">
+    <!-- BOTÓN GUARDAR -->
+    <button id="btnGuardarTodo">
       💾 Guardar Todos los Cambios
     </button>
   </main>
