@@ -1,10 +1,10 @@
-// js/menu.js - ACTUALIZADO: Flujo Directo y Sincronización de Inventario
+// js/menu.js - CORREGIDO: Lógica de Estados (QR vs Staff/Llevar)
 document.addEventListener("DOMContentLoaded", async () => {
   // =====================================================
   // 0️⃣ VARIABLES Y SELECTORES
   // =====================================================
   const params = new URLSearchParams(window.location.search);
-  const mesaURL = params.get("mesa");
+  const mesaURL = params.get("mesa"); // Detecta si viene de un QR
   const restauranteIdURL = params.get("rid");
 
   const sesion = JSON.parse(localStorage.getItem("sesion_activa")) || { rol: "invitado" };
@@ -188,20 +188,33 @@ document.addEventListener("DOMContentLoaded", async () => {
     else await guardarOrden(mesaLabel, total);
   };
 
+  // 🔴 AQUÍ ESTÁ LA CORRECCIÓN CLAVE
   async function guardarOrden(mesaLabel, total, metodoPago = null) {
     try {
+      // Por defecto, asumimos que es una orden interna (Mesero/Dueño/Para llevar)
+      // Estado: 'pendiente' -> Pasa directo a Cocina
+      let estadoInicial = "pendiente";
+
+      // LÓGICA DE VALIDACIÓN:
+      // Si existe 'mesaURL' (parametro ?mesa= en URL) Y el usuario es 'invitado'
+      // Significa que es un cliente externo escaneando QR -> Requiere confirmación.
+      if (mesaURL && sesion.rol === "invitado") {
+        estadoInicial = "por_confirmar";
+      }
+
       const ordenData = {
         restaurante_id: restoIdActivo,
         mesa: mesaLabel,
         productos: ordenActual.map((i) => `${i.cantidad}x ${i.nombre}`).join(", "),
         total,
         comentarios: comentarioInput?.value || "",
-        estado: metodoPago ? "pagado" : "pendiente", // Las de llevar van pagadas (cocina directa)
+        estado: estadoInicial // Asignamos el estado calculado
       };
 
       const { error: errorOrden } = await db.from("ordenes").insert([ordenData]);
       if (errorOrden) throw errorOrden;
 
+      // Si hay método de pago (Para llevar), registramos la venta inmediatamente
       if (metodoPago) {
         await db.from("ventas").insert([{
           restaurante_id: restoIdActivo,
