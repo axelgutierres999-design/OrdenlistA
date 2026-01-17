@@ -142,7 +142,6 @@
     <p style="margin:0;">Elige tus platillos favoritos</p>
   </header>
 
-  <!-- 🔍 Buscador y categorías -->
   <section class="buscador-container">
     <input type="search" id="buscarProducto" placeholder="Buscar platillo o bebida...">
     <select id="filtroCategoria">
@@ -159,17 +158,15 @@
     </div>
   </main>
 
-  <!-- 🛒 Carrito -->
   <section id="carritoCliente" hidden>
     <div id="listaItemsCarrito"></div>
     <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:0.5rem;">
       <strong>Total:</strong> <span id="totalCliente">$0.00</span>
     </div>
-    <textarea id="comentarioCliente" rows="2" placeholder="Comentario general al restaurante..." style="width:100%; margin-bottom:0.5rem;"></textarea>
+    <textarea id="comentarioCliente" rows="2" placeholder="Comentario general al restaurante (ej: Traer servilletas)..." style="width:100%; margin-bottom:0.5rem;"></textarea>
     <button id="btnEnviarPedido">🚀 Enviar Pedido</button>
   </section>
 
-  <!-- ✅ Modal Confirmación -->
   <dialog id="modalConfirm">
     <article style="text-align:center;">
       <h3>✅ Pedido enviado para aprobación</h3>
@@ -227,25 +224,35 @@
             <h4>${p.nombre}</h4>
             <p>$${parseFloat(p.precio).toFixed(2)}</p>
           </div>`;
+        // 🔥 CAMBIO: Llamamos a agregarAlCarrito
         card.onclick = () => agregarAlCarrito(p);
         cont.appendChild(card);
       });
     }
 
+    // 🔥 LÓGICA DE CARRITO NUEVA: Permite items individuales
     function agregarAlCarrito(prod) {
-      const existe = carrito.find(i => i.id === prod.id);
-      if (existe) existe.cantidad++;
-      else carrito.push({ ...prod, cantidad: 1, comentario: "" });
+      // Creamos un ID temporal único para distinguir cada item (aunque sean el mismo platillo)
+      // Esto permite tener 2 "Hamburguesas" separadas con notas distintas.
+      const itemUnico = { 
+        ...prod, 
+        cantidad: 1, 
+        comentario: "", 
+        tempId: Date.now() + Math.random() // ID único para el carrito
+      };
+      carrito.push(itemUnico);
       renderizarCarrito();
     }
 
-    function quitarDelCarrito(id) {
-      carrito = carrito.filter(i => i.id !== id);
+    function quitarDelCarrito(tempId) {
+      // Borramos usando el ID temporal
+      carrito = carrito.filter(i => i.tempId !== tempId);
       renderizarCarrito();
     }
 
-    function actualizarComentario(id, texto) {
-      const item = carrito.find(i => i.id === id);
+    function actualizarComentario(tempId, texto) {
+      // Actualizamos nota específica de ese item
+      const item = carrito.find(i => i.tempId === tempId);
       if (item) item.comentario = texto;
     }
 
@@ -266,36 +273,55 @@
             <small>${i.cantidad}x ${i.nombre}</small>
             <div>
               <small>$${(i.cantidad * i.precio).toFixed(2)}</small>
-              <button class="btnQuitar" onclick="quitarDelCarrito(${i.id})">✖</button>
+              <button class="btnQuitar" onclick="quitarDelCarrito(${i.tempId})">✖</button>
             </div>
           </div>
-          <textarea class="item-comentario" placeholder="Comentario para este platillo..." 
-            oninput="actualizarComentario(${i.id}, this.value)">${i.comentario || ""}</textarea>
+          <textarea class="item-comentario" placeholder="Nota (ej: Sin cebolla, término medio)..." 
+            oninput="actualizarComentario(${i.tempId}, this.value)">${i.comentario || ""}</textarea>
         </div>`).join("");
 
       const total = carrito.reduce((acc, i) => acc + i.precio * i.cantidad, 0);
       totalSpan.textContent = `$${total.toFixed(2)}`;
     }
 
+    // 🔥 ENVÍO OPTIMIZADO PARA COCINA.JS
     document.getElementById("btnEnviarPedido").onclick = async () => {
       if (carrito.length === 0) return alert("Agrega productos primero.");
 
-      const productosTexto = carrito.map(i => 
-        `${i.cantidad}x ${i.nombre}${i.comentario ? " (" + i.comentario + ")" : ""}`
-      ).join(", ");
+      // 1. Preparar lista de productos con sus notas incrustadas
+      // Se reemplazan comas en los comentarios por puntos para no romper la lista de cocina.js
+      const productosTexto = carrito.map(i => {
+         const notaLimpia = i.comentario.replace(/,/g, '.'); 
+         return `${i.cantidad}x ${i.nombre}${notaLimpia ? " [" + notaLimpia + "]" : ""}`;
+      }).join(", ");
+
+      // 2. Extraer notas individuales para el "Cuadro Amarillo" de cocina
+      const notasDePlatos = carrito
+        .filter(i => i.comentario.trim() !== "")
+        .map(i => `🔹${i.nombre}: ${i.comentario}`)
+        .join(" | ");
+
+      const comentarioGeneral = document.getElementById("comentarioCliente").value.trim();
+
+      // 3. Unir todo para el campo 'comentarios' de la BD
+      // Esto asegura que en el cuadro amarillo se vea TODO (platos + general)
+      let comentarioFinal = "";
+      if (notasDePlatos) comentarioFinal += notasDePlatos;
+      if (notasDePlatos && comentarioGeneral) comentarioFinal += " --- ";
+      if (comentarioGeneral) comentarioFinal += `GENERAL: ${comentarioGeneral}`;
 
       const total = carrito.reduce((a, b) => a + b.precio * b.cantidad, 0);
-      const comentario = document.getElementById("comentarioCliente").value.trim();
 
       try {
         const { error } = await db.from("ordenes").insert([{
           restaurante_id: ridParam,
           mesa: mesaParam,
-          productos: productosTexto,
+          productos: productosTexto, // Va a la lista de items
           total,
-          comentarios: comentario,
-          estado: "por_confirmar" // 🔹 Ahora sí aparece en Órdenes con Confirmar QR
+          comentarios: comentarioFinal, // Va al cuadro amarillo de alerta
+          estado: "por_confirmar"
         }]);
+        
         if (error) throw error;
 
         carrito = [];
@@ -304,7 +330,6 @@
         const modal = document.getElementById("modalConfirm");
         modal.showModal();
 
-        // 🔹 Cerrar pestaña automáticamente después de mostrar confirmación
         setTimeout(() => {
           modal.close();
           window.close();
