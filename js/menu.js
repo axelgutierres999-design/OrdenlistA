@@ -1,4 +1,4 @@
-// js/menu.js - CORREGIDO: Lógica de Estados (QR vs Staff/Llevar)
+// js/menu.js - VERSIÓN FINAL: Comentarios Individuales + Cocina Compatible + Ticket
 document.addEventListener("DOMContentLoaded", async () => {
   // =====================================================
   // 0️⃣ VARIABLES Y SELECTORES
@@ -15,24 +15,26 @@ document.addEventListener("DOMContentLoaded", async () => {
   const ordenTotalSpan = document.getElementById("ordenTotal");
   const btnProcesar = document.getElementById("btnProcesarOrden");
   const selectMesa = document.getElementById("selectMesa");
-  const comentarioInput = document.getElementById("comentarioPedido");
+  const comentarioInput = document.getElementById("comentarioPedido"); // Comentario GENERAL
   const inputBuscar = document.getElementById("buscarProducto");
   const filtroCategoria = document.getElementById("filtroCategoria");
   const btnLlevar = document.getElementById("btnParaLlevar");
 
+  // Variables del Editor de Menú
   const modalEditar = document.getElementById("modalEditarMenu");
   const formProducto = document.getElementById("formProducto");
   const btnEliminarProd = document.getElementById("btnEliminarProd");
   const imgPreview = document.getElementById("imgPreview");
   const inputUrlImg = document.getElementById("editImg");
 
+  // Input file invisible para subida de imágenes
   const inputFile = document.createElement("input");
   inputFile.type = "file";
   inputFile.accept = "image/*";
   inputFile.style.display = "none";
   document.body.appendChild(inputFile);
 
-  let ordenActual = [];
+  let ordenActual = []; // Carrito
   let productosMenu = [];
   let productosFiltrados = [];
   let modoLlevar = false;
@@ -88,11 +90,13 @@ document.addEventListener("DOMContentLoaded", async () => {
     if (!contenedorProductos) return;
     contenedorProductos.innerHTML = "";
 
+    // Botón Nuevo Platillo (Solo Admin/Dueño)
     if (["dueño", "administrador"].includes(sesion.rol)) {
       const btnNuevo = document.createElement("article");
       btnNuevo.className = "tarjeta-producto";
       btnNuevo.style.border = "2px dashed #10ad93";
       btnNuevo.style.justifyContent = "center";
+      btnNuevo.style.cursor = "pointer";
       btnNuevo.innerHTML = `<div style="font-size:3rem; color:#10ad93;">+</div><p style="font-weight:bold; color:#10ad93;">Nuevo Platillo</p>`;
       btnNuevo.onclick = () => window.abrirEditor(); 
       contenedorProductos.appendChild(btnNuevo);
@@ -119,39 +123,65 @@ document.addEventListener("DOMContentLoaded", async () => {
   }
 
   // =====================================================
-  // 3️⃣ LÓGICA DE PEDIDOS
+  // 3️⃣ LÓGICA DE PEDIDOS (NUEVA ESTRUCTURA TIPO PEDIDO.HTML)
   // =====================================================
+  
   function agregarItem(producto) {
     if (producto.stock !== "∞" && producto.stock <= 0) return alert("Producto sin existencias");
-    const existe = ordenActual.find((i) => i.id === producto.id);
-    if (existe) existe.cantidad++;
-    else ordenActual.push({ ...producto, cantidad: 1 });
+    
+    // 🔥 CAMBIO CLAVE: Agregamos items individuales con un ID temporal único
+    // Esto permite que cada item tenga su propia nota.
+    const nuevoItem = {
+        ...producto,
+        cantidad: 1,
+        comentario: "",
+        tempId: Date.now() + Math.random() // ID único para el carrito
+    };
+    
+    ordenActual.push(nuevoItem);
     renderizarCarrito();
   }
 
+  // Función global para actualizar comentarios desde el input HTML
+  window.actualizarNotaItem = (tempId, texto) => {
+      const item = ordenActual.find(i => i.tempId === tempId);
+      if(item) item.comentario = texto;
+  };
+
   function renderizarCarrito() {
     if (!listaItemsOrden) return;
+    
     if (ordenActual.length === 0) {
-      listaItemsOrden.innerHTML = "<small>No hay productos.</small>";
+      listaItemsOrden.innerHTML = "<small style='display:block; text-align:center; color:#888;'>El carrito está vacío.</small>";
       ordenTotalSpan.textContent = "$0.00";
       if(btnProcesar) btnProcesar.disabled = true;
       return;
     }
+
+    // Renderizamos cada item con su campo de nota
     listaItemsOrden.innerHTML = ordenActual.map(item => `
-      <div class="item-carrito">
-        <div><strong>${item.cantidad}x</strong> ${item.nombre}</div>
-        <div><span>$${(item.precio * item.cantidad).toFixed(2)}</span>
-        <button style="background:none; border:none; color:red; cursor:pointer;" onclick="window.quitarUno('${item.id}')">✕</button></div>
+      <div class="item-carrito" style="border-bottom:1px solid #eee; padding-bottom:8px; margin-bottom:8px;">
+        <div style="display:flex; justify-content:space-between; align-items:center;">
+            <div style="font-weight:bold;">1x ${item.nombre}</div>
+            <div style="display:flex; align-items:center; gap:8px;">
+                <span>$${parseFloat(item.precio).toFixed(2)}</span>
+                <button style="background:#ffebee; border:none; color:#c62828; width:24px; height:24px; border-radius:4px; cursor:pointer; font-weight:bold;" onclick="window.quitarItem(${item.tempId})">✕</button>
+            </div>
+        </div>
+        <input type="text" 
+            placeholder="Nota (ej: Sin cebolla)..." 
+            value="${item.comentario}" 
+            oninput="window.actualizarNotaItem(${item.tempId}, this.value)"
+            style="width:100%; font-size:0.85rem; padding:4px; margin-top:4px; border:1px solid #ddd; border-radius:4px;">
       </div>`).join("");
+
     const total = ordenActual.reduce((acc, i) => acc + i.precio * i.cantidad, 0);
     ordenTotalSpan.textContent = `$${total.toFixed(2)}`;
     if(btnProcesar) btnProcesar.disabled = false;
   }
 
-  window.quitarUno = (id) => {
-    const item = ordenActual.find((i) => i.id === id);
-    if (item.cantidad > 1) item.cantidad--;
-    else ordenActual = ordenActual.filter((i) => i.id !== id);
+  window.quitarItem = (tempId) => {
+    ordenActual = ordenActual.filter((i) => i.tempId !== tempId);
     renderizarCarrito();
   };
 
@@ -188,38 +218,49 @@ document.addEventListener("DOMContentLoaded", async () => {
     else await guardarOrden(mesaLabel, total);
   };
 
-  // 🔴 AQUÍ ESTÁ LA CORRECCIÓN CLAVE
+  // 🔥 NUEVA LÓGICA DE GUARDADO COMPATIBLE CON COCINA.JS
   async function guardarOrden(mesaLabel, total, metodoPago = null) {
     try {
-      // Por defecto, asumimos que es una orden interna (Mesero/Dueño/Para llevar)
-      // Estado: 'pendiente' -> Pasa directo a Cocina
       let estadoInicial = "pendiente";
+      if (mesaURL && sesion.rol === "invitado") estadoInicial = "por_confirmar";
 
-      // LÓGICA DE VALIDACIÓN:
-      // Si existe 'mesaURL' (parametro ?mesa= en URL) Y el usuario es 'invitado'
-      // Significa que es un cliente externo escaneando QR -> Requiere confirmación.
-      if (mesaURL && sesion.rol === "invitado") {
-        estadoInicial = "por_confirmar";
-      }
+      // 1. Crear el String de Productos (formato: "1x Tacos [Sin cebolla], 1x Refresco")
+      const productosTexto = ordenActual.map(i => {
+          const notaLimpia = i.comentario.replace(/,/g, '.'); // Evitar comas en la nota
+          return `${i.cantidad}x ${i.nombre}${notaLimpia ? " [" + notaLimpia + "]" : ""}`;
+      }).join(", ");
+
+      // 2. Extraer notas para el cuadro amarillo de Cocina
+      const notasDePlatos = ordenActual
+        .filter(i => i.comentario.trim() !== "")
+        .map(i => `🔹${i.nombre}: ${i.comentario}`)
+        .join(" | ");
+      
+      const comentarioGeneral = comentarioInput?.value || "";
+
+      // 3. Unir notas individuales + nota general
+      let comentarioFinal = "";
+      if (notasDePlatos) comentarioFinal += notasDePlatos;
+      if (notasDePlatos && comentarioGeneral) comentarioFinal += " --- ";
+      if (comentarioGeneral) comentarioFinal += `GENERAL: ${comentarioGeneral}`;
 
       const ordenData = {
         restaurante_id: restoIdActivo,
         mesa: mesaLabel,
-        productos: ordenActual.map((i) => `${i.cantidad}x ${i.nombre}`).join(", "),
+        productos: productosTexto,
         total,
-        comentarios: comentarioInput?.value || "",
-        estado: estadoInicial // Asignamos el estado calculado
+        comentarios: comentarioFinal,
+        estado: estadoInicial
       };
 
       const { error: errorOrden } = await db.from("ordenes").insert([ordenData]);
       if (errorOrden) throw errorOrden;
 
-      // Si hay método de pago (Para llevar), registramos la venta inmediatamente
       if (metodoPago) {
         await db.from("ventas").insert([{
           restaurante_id: restoIdActivo,
           mesa: mesaLabel,
-          productos: ordenData.productos,
+          productos: ordenData.productos, // Guardamos con notas en ventas también
           total,
           metodo_pago: metodoPago,
         }]);
@@ -236,7 +277,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   }
 
   // =====================================================
-  // 4️⃣ EDITOR Y SINCRONIZACIÓN INVENTARIO
+  // 4️⃣ EDITOR Y SUBIDA DE IMAGEN
   // =====================================================
   function configurarSubidaImagen() {
     if(!imgPreview) return;
@@ -271,10 +312,8 @@ document.addEventListener("DOMContentLoaded", async () => {
         if (id) {
           await db.from("productos").update(datos).eq("id", id);
         } else {
-          // Crear Producto
           await db.from("productos").insert([datos]);
-          // Crear automáticamente en Suministros (Inventario)
-          await db.from("suministros").insert([{
+          await db.from("suministros").insert([{ // Crear en inventario
             restaurante_id: restoIdActivo,
             nombre: nombre,
             cantidad: 0,
@@ -306,7 +345,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   };
 
   // =====================================================
-  // 5️⃣ CALCULADORA Y TICKET PROFESIONAL
+  // 5️⃣ CALCULADORA Y TICKET (Actualizado con Notas)
   // =====================================================
   function mostrarCalculadoraPago(total) {
     let modal = document.getElementById("modalCalculadora") || document.createElement("dialog");
@@ -358,10 +397,14 @@ document.addEventListener("DOMContentLoaded", async () => {
     modal.style = "padding:20px; border:none; border-radius:12px; box-shadow:0 10px 40px rgba(0,0,0,0.4);";
     document.body.appendChild(modal);
 
+    // Formatear items con notas para el ticket
     const itemsHtml = ordenActual.map(i => `
-      <div style="display:flex; justify-content:space-between; margin-bottom:3px;">
-        <span>${i.cantidad}x ${i.nombre.substring(0,15)}</span>
-        <span>$${(i.cantidad * i.precio).toFixed(2)}</span>
+      <div style="margin-bottom:5px;">
+        <div style="display:flex; justify-content:space-between;">
+            <span>${i.cantidad}x ${i.nombre.substring(0,18)}</span>
+            <span>$${(i.cantidad * i.precio).toFixed(2)}</span>
+        </div>
+        ${i.comentario ? `<div style="font-size:11px; color:#555; margin-left:10px; font-style:italic;">└ ${i.comentario}</div>` : ''}
       </div>`).join("");
 
     modal.innerHTML = `
