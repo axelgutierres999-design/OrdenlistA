@@ -1,4 +1,4 @@
-// js/menu.js - VERSIÓN FINAL: Comentarios Individuales + Cocina Compatible + Ticket
+// js/menu.js - DISEÑO COMPACTO Y ESTÉTICO (VERSIÓN FINAL)
 document.addEventListener("DOMContentLoaded", async () => {
   // =====================================================
   // 0️⃣ VARIABLES Y SELECTORES
@@ -123,26 +123,25 @@ document.addEventListener("DOMContentLoaded", async () => {
   }
 
   // =====================================================
-  // 3️⃣ LÓGICA DE PEDIDOS (NUEVA ESTRUCTURA TIPO PEDIDO.HTML)
+  // 3️⃣ LÓGICA DE PEDIDOS (DISEÑO MEJORADO)
   // =====================================================
   
   function agregarItem(producto) {
     if (producto.stock !== "∞" && producto.stock <= 0) return alert("Producto sin existencias");
     
-    // 🔥 CAMBIO CLAVE: Agregamos items individuales con un ID temporal único
-    // Esto permite que cada item tenga su propia nota.
+    // Creamos un ID temporal único para permitir notas individuales
     const nuevoItem = {
         ...producto,
         cantidad: 1,
         comentario: "",
-        tempId: Date.now() + Math.random() // ID único para el carrito
+        tempId: Date.now() + Math.random() 
     };
     
     ordenActual.push(nuevoItem);
     renderizarCarrito();
   }
 
-  // Función global para actualizar comentarios desde el input HTML
+  // Función global para actualizar comentarios
   window.actualizarNotaItem = (tempId, texto) => {
       const item = ordenActual.find(i => i.tempId === tempId);
       if(item) item.comentario = texto;
@@ -152,27 +151,37 @@ document.addEventListener("DOMContentLoaded", async () => {
     if (!listaItemsOrden) return;
     
     if (ordenActual.length === 0) {
-      listaItemsOrden.innerHTML = "<small style='display:block; text-align:center; color:#888;'>El carrito está vacío.</small>";
+      listaItemsOrden.innerHTML = "<small style='display:block; text-align:center; color:#999; margin-top:20px;'>Tu orden está vacía.</small>";
       ordenTotalSpan.textContent = "$0.00";
       if(btnProcesar) btnProcesar.disabled = true;
       return;
     }
 
-    // Renderizamos cada item con su campo de nota
+    // 🔥 AQUI ESTÁ EL DISEÑO QUE ME PEDISTE
     listaItemsOrden.innerHTML = ordenActual.map(item => `
-      <div class="item-carrito" style="border-bottom:1px solid #eee; padding-bottom:8px; margin-bottom:8px;">
-        <div style="display:flex; justify-content:space-between; align-items:center;">
-            <div style="font-weight:bold;">1x ${item.nombre}</div>
-            <div style="display:flex; align-items:center; gap:8px;">
-                <span>$${parseFloat(item.precio).toFixed(2)}</span>
-                <button style="background:#ffebee; border:none; color:#c62828; width:24px; height:24px; border-radius:4px; cursor:pointer; font-weight:bold;" onclick="window.quitarItem(${item.tempId})">✕</button>
+      <div class="item-carrito" style="border-bottom: 1px dashed #e0e0e0; padding: 10px 0; animation: fadeIn 0.3s ease;">
+        
+        <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 4px;">
+            <div style="font-weight: 600; font-size: 0.95rem; color: #333; width: 70%; line-height: 1.2;">
+                ${item.cantidad}x ${item.nombre}
+            </div>
+            <div style="text-align: right; display: flex; flex-direction: column; align-items: flex-end;">
+                <span style="font-weight: bold; font-size: 0.95rem; color: #333;">$${(item.precio * item.cantidad).toFixed(2)}</span>
+                <button onclick="window.quitarItem(${item.tempId})" 
+                        style="background: none; border: none; color: #ff5252; cursor: pointer; font-size: 1.2rem; line-height: 1; margin-top: 2px; padding: 0;">
+                   &times;
+                </button>
             </div>
         </div>
-        <input type="text" 
-            placeholder="Nota (ej: Sin cebolla)..." 
-            value="${item.comentario}" 
-            oninput="window.actualizarNotaItem(${item.tempId}, this.value)"
-            style="width:100%; font-size:0.85rem; padding:4px; margin-top:4px; border:1px solid #ddd; border-radius:4px;">
+
+        <div style="position: relative; width: 100%;">
+            <input type="text" 
+                placeholder="Escribe una nota..." 
+                value="${item.comentario}" 
+                oninput="window.actualizarNotaItem(${item.tempId}, this.value)"
+                style="width: 100%; font-size: 0.8rem; padding: 4px 0; border: none; border-bottom: 1px solid #ddd; background: transparent; color: #666; outline: none;">
+        </div>
+
       </div>`).join("");
 
     const total = ordenActual.reduce((acc, i) => acc + i.precio * i.cantidad, 0);
@@ -218,19 +227,19 @@ document.addEventListener("DOMContentLoaded", async () => {
     else await guardarOrden(mesaLabel, total);
   };
 
-  // 🔥 NUEVA LÓGICA DE GUARDADO COMPATIBLE CON COCINA.JS
+  // 🔥 LÓGICA DE GUARDADO COMPATIBLE CON COCINA
   async function guardarOrden(mesaLabel, total, metodoPago = null) {
     try {
       let estadoInicial = "pendiente";
       if (mesaURL && sesion.rol === "invitado") estadoInicial = "por_confirmar";
 
-      // 1. Crear el String de Productos (formato: "1x Tacos [Sin cebolla], 1x Refresco")
+      // Crear String de productos con Notas limpias
       const productosTexto = ordenActual.map(i => {
-          const notaLimpia = i.comentario.replace(/,/g, '.'); // Evitar comas en la nota
+          const notaLimpia = i.comentario.replace(/,/g, '.'); 
           return `${i.cantidad}x ${i.nombre}${notaLimpia ? " [" + notaLimpia + "]" : ""}`;
       }).join(", ");
 
-      // 2. Extraer notas para el cuadro amarillo de Cocina
+      // Notas para el cuadro amarillo de Cocina
       const notasDePlatos = ordenActual
         .filter(i => i.comentario.trim() !== "")
         .map(i => `🔹${i.nombre}: ${i.comentario}`)
@@ -238,7 +247,6 @@ document.addEventListener("DOMContentLoaded", async () => {
       
       const comentarioGeneral = comentarioInput?.value || "";
 
-      // 3. Unir notas individuales + nota general
       let comentarioFinal = "";
       if (notasDePlatos) comentarioFinal += notasDePlatos;
       if (notasDePlatos && comentarioGeneral) comentarioFinal += " --- ";
@@ -260,7 +268,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         await db.from("ventas").insert([{
           restaurante_id: restoIdActivo,
           mesa: mesaLabel,
-          productos: ordenData.productos, // Guardamos con notas en ventas también
+          productos: ordenData.productos, 
           total,
           metodo_pago: metodoPago,
         }]);
@@ -313,7 +321,7 @@ document.addEventListener("DOMContentLoaded", async () => {
           await db.from("productos").update(datos).eq("id", id);
         } else {
           await db.from("productos").insert([datos]);
-          await db.from("suministros").insert([{ // Crear en inventario
+          await db.from("suministros").insert([{ 
             restaurante_id: restoIdActivo,
             nombre: nombre,
             cantidad: 0,
@@ -345,7 +353,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   };
 
   // =====================================================
-  // 5️⃣ CALCULADORA Y TICKET (Actualizado con Notas)
+  // 5️⃣ CALCULADORA Y TICKET
   // =====================================================
   function mostrarCalculadoraPago(total) {
     let modal = document.getElementById("modalCalculadora") || document.createElement("dialog");
@@ -397,7 +405,6 @@ document.addEventListener("DOMContentLoaded", async () => {
     modal.style = "padding:20px; border:none; border-radius:12px; box-shadow:0 10px 40px rgba(0,0,0,0.4);";
     document.body.appendChild(modal);
 
-    // Formatear items con notas para el ticket
     const itemsHtml = ordenActual.map(i => `
       <div style="margin-bottom:5px;">
         <div style="display:flex; justify-content:space-between;">
