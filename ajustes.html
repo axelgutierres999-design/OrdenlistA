@@ -6,7 +6,7 @@
   <title>Ajustes del Restaurante | OrdenLista</title>
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@picocss/pico@1/css/pico.min.css">
   <style>
-    /* --- ESTILO BARRA DE NAVEGACIÓN NEGRA --- */
+    /* --- ESTILO BARRA DE NAVEGACIÓN --- */
     nav {
       background-color: #000;
       color: #fff;
@@ -16,7 +16,6 @@
       justify-content: space-between;
       align-items: center;
     }
-
     nav ul {
       display: flex;
       align-items: center;
@@ -25,33 +24,22 @@
       padding: 0;
       gap: 1rem;
     }
-
     nav a, nav strong {
       color: #fff !important;
       text-decoration: none;
       font-weight: 500;
     }
-
     nav a:hover {
       color: #10ad93 !important;
     }
-
     .logo-section {
       display: flex;
       align-items: center;
       gap: 0.6rem;
     }
 
-    .logo-section a {
-      display: flex;
-      align-items: center;
-    }
-
-    /* Estilos generales */
-    main.container {
-      margin-top: 2rem;
-    }
-
+    /* Estilos de bloques */
+    main.container { margin-top: 2rem; padding-bottom: 100px; }
     .bloque-ajuste {
       background: #fff;
       border-radius: 10px;
@@ -60,7 +48,6 @@
       box-shadow: 0 4px 6px rgba(0,0,0,0.1);
       border-left: 5px solid #10ad93;
     }
-
     .preview-img {
       max-width: 100%;
       height: auto;
@@ -70,135 +57,125 @@
       display: block;
     }
 
-    #btnUbicacion {
+    /* Estilos para la Galería de Menú */
+    #contenedorGaleria {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+      gap: 10px;
+      margin-top: 15px;
+    }
+
+    #btnUbicacion, #btnGuardarTodo {
       background-color: #10ad93;
       color: white;
       border: none;
       border-radius: 8px;
-      padding: 10px 16px;
       cursor: pointer;
     }
-
-    #btnUbicacion:hover {
-      opacity: 0.9;
-    }
-
     #btnGuardarTodo {
-      background-color: #10ad93;
-      border: none;
+      position: fixed;
+      bottom: 20px;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 90%;
+      max-width: 600px;
       padding: 15px;
       font-size: 1.2rem;
-      width: 100%;
-      color: white;
-      border-radius: 8px;
-      cursor: pointer;
+      z-index: 100;
+      box-shadow: 0 -4px 10px rgba(0,0,0,0.2);
     }
   </style>
 </head>
 <body>
 
-  <!-- 🔝 NAV SUPERIOR -->
   <nav>
     <ul class="logo-section">
-      <li>
-        <a href="index.html" title="Inicio">
-          <span style="font-size: 1.6rem;">☕</span>
-        </a>
-      </li>
+      <li><a href="index.html">☕ <strong>OrdenLista</strong></a></li>
       <li>
         <a href="ajustes.html" role="button" class="contrast" style="border:1px solid white; border-radius:8px; padding:4px 10px;">
           ⚙️ Ajustes
         </a>
       </li>
     </ul>
-
     <ul>
       <li><a href="mesas.html">🪑 Mesas</a></li>
       <li><a href="menu.html">📋 Menú</a></li>
-      <li><a href="estadisticas.html">📈 Estadísticas</a></li>
+      <li><a href="estadisticas.html">📈 Ventas</a></li>
       <li><a href="#" id="btnLogout" style="color:#ff6b6b !important;">🚪 Salir</a></li>
     </ul>
   </nav>
 
-  <!-- 🧩 CONTENIDO PRINCIPAL -->
   <main class="container">
-    <h2 style="margin-bottom: 30px;">⚙️ Configuración del Restaurante</h2>
+    <h2>⚙️ Configuración del Dueño</h2>
 
-    <!-- 🏪 LOGO DEL RESTAURANTE -->
     <section class="bloque-ajuste">
-      <h3>🏪 Logo del Restaurante</h3>
-      <p><small>Sube el logotipo de tu restaurante. Se usará en los tickets y encabezados.</small></p>
-      <input type="file" id="fileLogo" accept="image/*">
-      <img id="previewLogo" src="" class="preview-img" style="max-width: 200px;">
-    </section>
-
-    <!-- 📍 INFORMACIÓN GENERAL -->
-    <section class="bloque-ajuste">
-      <h3>📍 Información General</h3>
-      <p><small>Estos datos aparecerán en los tickets y en el perfil.</small></p>
+      <h3>🏪 Identidad del Negocio</h3>
       <div class="grid">
         <label>
-          Dirección Completa
-          <input type="text" id="inputDireccion" placeholder="Ej. Av. Reforma 123, Centro...">
+          Tipo de Establecimiento
+          <select id="inputCategoria">
+            <option value="Restaurante">Restaurante</option>
+            <option value="Cafetería">Cafetería</option>
+            <option value="Bar / Pub">Bar / Pub</option>
+            <option value="Taquería">Taquería</option>
+            <option value="Pizzería">Pizzería</option>
+            <option value="Postres/Helados">Postres o Helados</option>
+            <option value="Otro">Otro</option>
+          </select>
         </label>
-        <label>
-          Teléfono de Contacto
-          <input type="tel" id="inputTelefono" placeholder="Ej. 55 1234 5678">
-        </label>
+        <div>
+           <label>Logo (Ticket/Interfaz)</label>
+           <input type="file" id="fileLogo" accept="image/*">
+           <img id="previewLogo" src="" class="preview-img" style="max-height: 100px;">
+        </div>
       </div>
-      <label>
-        Horarios de Atención
-        <textarea id="inputHorarios" placeholder="Lunes a Viernes: 9am - 6pm..."></textarea>
-      </label>
-
-      <hr>
-      <h4>🌎 Ubicación GPS</h4>
-      <p><small>Guarda la latitud y longitud exacta de tu restaurante (se usa para mostrarlo en el mapa).</small></p>
-      <div class="grid">
-        <label>
-          Latitud
-          <input type="text" id="inputLat" placeholder="Ej. 19.432608">
-        </label>
-        <label>
-          Longitud
-          <input type="text" id="inputLong" placeholder="Ej. -99.133209">
-        </label>
-      </div>
-      <button id="btnUbicacion" type="button">📍 Obtener mi ubicación actual</button>
     </section>
 
-    <!-- 💳 CONFIGURACIÓN DE PAGOS -->
     <section class="bloque-ajuste">
-      <h3>💳 Configuración de Pagos</h3>
-      <p><small>Configura los datos para que tus clientes te paguen por transferencia o QR.</small></p>
+      <h3>📸 Foto del Establecimiento</h3>
+      <p><small>Sube una foto de la fachada o el interior de tu local.</small></p>
+      <input type="file" id="fileLugar" accept="image/*">
+      <img id="previewLugar" src="" class="preview-img" style="max-height: 250px;">
+    </section>
+
+    <section class="bloque-ajuste">
+      <h3>📍 Contacto y Ubicación</h3>
+      <div class="grid">
+        <label>Dirección <input type="text" id="inputDireccion"></label>
+        <label>Teléfono <input type="tel" id="inputTelefono"></label>
+      </div>
+      <label>Horarios <textarea id="inputHorarios"></textarea></label>
       
-      <label>
-        Instrucciones / Datos Bancarios
-        <textarea id="inputDatosBanco" rows="3" placeholder="Banco: BBVA&#10;Cuenta: 1234567890&#10;CLABE: 012345678901234567"></textarea>
-      </label>
-
-      <label>
-        Subir Imagen de tu QR de Cobro (CoDi, MercadoPago, Banco)
-        <input type="file" id="fileQR" accept="image/*">
-        <img id="previewQR" src="" class="preview-img" style="max-width: 200px;">
-      </label>
+      <hr>
+      <h4>🌎 Coordenadas GPS</h4>
+      <div class="grid">
+        <input type="text" id="inputLat" placeholder="Latitud" readonly>
+        <input type="text" id="inputLong" placeholder="Longitud" readonly>
+      </div>
+      <button id="btnUbicacion" type="button">📍 Obtener ubicación actual</button>
     </section>
 
-    <!-- 📱 MENÚ DIGITAL -->
     <section class="bloque-ajuste">
-      <h3>📱 Menú Digital (Imagen)</h3>
-      <p><small>Sube una imagen de tu menú completo para compartir por WhatsApp o redes.</small></p>
-      <input type="file" id="fileMenu" accept="image/*">
-      <img id="previewMenu" src="" class="preview-img">
+      <h3>💳 Pagos y Transferencias</h3>
+      <label>Datos Bancarios <textarea id="inputDatosBanco" rows="2"></textarea></label>
+      <label>Imagen QR de Pago <input type="file" id="fileQR" accept="image/*"></label>
+      <img id="previewQR" src="" class="preview-img" style="max-width: 150px;">
     </section>
 
-    <!-- BOTÓN GUARDAR -->
+    <section class="bloque-ajuste">
+      <h3>📱 Galería de Menú Digital</h3>
+      <p><small>Sube una o varias imágenes de tu menú. Los clientes podrán verlas como un carrusel.</small></p>
+      <input type="file" id="fileGaleria" accept="image/*" multiple>
+      
+      <div id="contenedorGaleria">
+        </div>
+    </section>
+
     <button id="btnGuardarTodo">
-      💾 Guardar Todos los Cambios
+      💾 Guardar Cambios del Establecimiento
     </button>
   </main>
 
-  <!-- 🔗 SCRIPTS -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="js/supabase-client.js"></script>
   <script src="js/ajustes.js"></script>
