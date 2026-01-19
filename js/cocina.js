@@ -1,4 +1,4 @@
-// js/cocina.js - MONITOR DE COCINA PROFESIONAL (V7.0 - REALTIME FIX + SYNC OPTIMIZADO)
+// js/cocina.js - MONITOR DE COCINA PROFESIONAL (V7.1 - FIX ARCHIVADO SIN CIERRE DE MESA)
 document.addEventListener('DOMContentLoaded', () => {
     const pendientes = document.getElementById('tareasPendientes');
     const enProceso = document.getElementById('tareasEnProceso');
@@ -69,7 +69,7 @@ document.addEventListener('DOMContentLoaded', () => {
         // Limpiar contenedores
         Object.values(estadosContainer).forEach(c => { if (c) c.innerHTML = ''; });
         
-        // Filtrar órdenes relevantes
+        // Filtrar órdenes relevantes (Solo las que están en proceso de cocina)
         const ordenesCocina = ordenes.filter(o => ['pendiente', 'preparando', 'proceso', 'terminado'].includes(o.estado));
 
         ordenesCocina.forEach(orden => {
@@ -98,6 +98,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!ordenId) return;
 
         button.disabled = true;
+        const textoOriginal = button.innerText;
         button.innerText = "⌛...";
 
         try {
@@ -108,11 +109,22 @@ document.addEventListener('DOMContentLoaded', () => {
                 await App.updateEstado(ordenId, 'terminado');
             }
             else if (action === 'quitar') {
-                await App.updateEstado(ordenId, 'entregado'); 
+                // --- PUNTO 1 CORREGIDO ---
+                const orden = App.getOrdenes().find(o => o.id == ordenId);
+                const esParaLlevar = orden?.mesa?.toUpperCase().includes('LLEVAR') || orden?.mesa?.toUpperCase().includes('LLEV');
+
+                if (esParaLlevar) {
+                    // Para llevar: Cerramos la orden completamente
+                    await App.updateEstado(ordenId, 'entregado'); 
+                } else {
+                    // Para mesa: La quitamos de cocina pero la dejamos activa en el sistema de mesas
+                    await App.updateEstado(ordenId, 'archivado_cocina'); 
+                }
             }
         } catch (err) {
             console.error("Error en acción de cocina:", err);
             button.disabled = false;
+            button.innerText = textoOriginal;
         }
     }
 

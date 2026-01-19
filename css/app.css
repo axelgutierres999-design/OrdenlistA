@@ -113,14 +113,41 @@ body {
   min-height: 100vh;
 }
 
-/* NAVEGACIÓN UNIFICADA */
+/* NAVEGACIÓN UNIFICADA ACTUALIZADA */
 nav.nav-inicio {
-  background-color: white;
-  box-shadow: 0 2px 4px rgba(0,0,0,0.05);
-  padding: 1rem 2rem;
+  background-color: #000000 !important; /* Fondo Negro */
+  border-bottom: 3px solid #10ad93;     /* Línea verde de OrdenLista */
+  padding: 0.5rem 2rem;
   margin-bottom: 2rem;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
 }
 
+/* Estilo de los nombres al lado de los iconos */
+.nav-botones li a {
+  color: white !important; /* Texto Blanco */
+  text-decoration: none;
+  font-weight: 500;
+  padding: 0.5rem 1rem;
+  border-radius: 6px;
+  transition: all 0.2s;
+  display: flex;
+  align-items: center;
+  gap: 8px; /* Esto separa el emoji del nombre */
+}
+
+/* Solo la pestaña activa tendrá el recuadro verde */
+.nav-botones li a.activo {
+  background-color: #10ad93 !important;
+  color: white !important;
+}
+
+/* Efecto al pasar el mouse sobre las que no están activas */
+.nav-botones li a:hover:not(.activo) {
+  background-color: #333; 
+  color: #10ad93 !important;
+}
 /* Menú generado dinámicamente por JS */
 .nav-botones li a {
   color: #555;
