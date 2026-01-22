@@ -1,4 +1,4 @@
-// js/menu.js - DISEÑO COMPACTO Y ESTÉTICO (VERSIÓN FINAL)
+// js/menu.js - VERSIÓN FINAL + INGREDIENTES (INFO TOGGLE)
 document.addEventListener("DOMContentLoaded", async () => {
   // =====================================================
   // 0️⃣ VARIABLES Y SELECTORES
@@ -72,6 +72,7 @@ document.addEventListener("DOMContentLoaded", async () => {
 
   async function cargarDatosMenu() {
     try {
+      // 🔥 IMPORTANTE: Aseguramos traer la columna 'ingredientes'
       const { data: productos } = await db.from("productos").select("*").eq("restaurante_id", restoIdActivo);
       const { data: suministros } = await db.from("suministros").select("nombre, cantidad").eq("restaurante_id", restoIdActivo);
 
@@ -105,11 +106,32 @@ document.addEventListener("DOMContentLoaded", async () => {
     productosFiltrados.forEach((p) => {
       const art = document.createElement("article");
       art.className = "tarjeta-producto";
+      
+      // 🔥 LOGICA NUEVA DE INGREDIENTES
+      const tieneIngredientes = p.ingredientes && p.ingredientes.trim().length > 0;
+      
       art.innerHTML = `
-        <div class="img-container" style="position:relative;">
-          <img src="${p.imagen_url || "https://via.placeholder.com/150"}" onerror="this.src='https://via.placeholder.com/150'">
-          ${["dueño", "administrador"].includes(sesion.rol) ? `<button class="edit-btn" onclick="event.stopPropagation(); window.abrirEditor('${p.id}')">✏️</button>` : ""}
+        <div class="img-container" style="position:relative; overflow:hidden; border-radius:8px 8px 0 0;">
+          <img src="${p.imagen_url || "https://via.placeholder.com/150"}" onerror="this.src='https://via.placeholder.com/150'" style="width:100%; height:150px; object-fit:cover;">
+          
+          ${["dueño", "administrador"].includes(sesion.rol) ? 
+            `<button class="edit-btn" onclick="event.stopPropagation(); window.abrirEditor('${p.id}')" style="position:absolute; top:8px; left:8px; z-index:10;">✏️</button>` : ""}
+
+          ${tieneIngredientes ? `
+            <button onclick="event.stopPropagation(); this.nextElementSibling.style.display='flex'" 
+                style="position:absolute; top:8px; right:8px; background:rgba(255,255,255,0.95); color:#10ad93; border:none; border-radius:50%; width:28px; height:28px; font-weight:bold; box-shadow:0 2px 6px rgba(0,0,0,0.3); z-index:8; cursor:pointer; display:flex; align-items:center; justify-content:center;">
+                ℹ️
+            </button>
+            
+            <div onclick="event.stopPropagation(); this.style.display='none'" 
+                 style="display:none; position:absolute; inset:0; background:rgba(0,0,0,0.85); color:white; flex-direction:column; align-items:center; justify-content:center; padding:15px; text-align:center; backdrop-filter:blur(3px); z-index:9; animation:fadeIn 0.2s ease;">
+                 <h5 style="margin:0 0 5px 0; font-size:0.9rem; color:#10ad93; text-transform:uppercase;">Ingredientes</h5>
+                 <p style="font-size:0.85rem; line-height:1.4; margin:0;">${p.ingredientes}</p>
+                 <small style="margin-top:10px; opacity:0.7; font-size:0.7rem;">(Toca para cerrar)</small>
+            </div>
+          ` : ''}
         </div>
+        
         <div class="info">
           <h4>${p.nombre}</h4>
           <p class="precio">$${parseFloat(p.precio).toFixed(2)}</p>
@@ -117,13 +139,14 @@ document.addEventListener("DOMContentLoaded", async () => {
             ${p.stock !== "∞" && p.stock <= 0 ? "Agotado" : "Stock: " + p.stock}
           </small>
         </div>`;
+      
       art.onclick = () => agregarItem(p);
       contenedorProductos.appendChild(art);
     });
   }
 
   // =====================================================
-  // 3️⃣ LÓGICA DE PEDIDOS (DISEÑO MEJORADO)
+  // 3️⃣ LÓGICA DE PEDIDOS
   // =====================================================
   
   function agregarItem(producto) {
@@ -157,7 +180,6 @@ document.addEventListener("DOMContentLoaded", async () => {
       return;
     }
 
-    // 🔥 AQUI ESTÁ EL DISEÑO QUE ME PEDISTE
     listaItemsOrden.innerHTML = ordenActual.map(item => `
       <div class="item-carrito" style="border-bottom: 1px dashed #e0e0e0; padding: 10px 0; animation: fadeIn 0.3s ease;">
         
@@ -227,19 +249,16 @@ document.addEventListener("DOMContentLoaded", async () => {
     else await guardarOrden(mesaLabel, total);
   };
 
-  // 🔥 LÓGICA DE GUARDADO COMPATIBLE CON COCINA
   async function guardarOrden(mesaLabel, total, metodoPago = null) {
     try {
       let estadoInicial = "pendiente";
       if (mesaURL && sesion.rol === "invitado") estadoInicial = "por_confirmar";
 
-      // Crear String de productos con Notas limpias
       const productosTexto = ordenActual.map(i => {
           const notaLimpia = i.comentario.replace(/,/g, '.'); 
           return `${i.cantidad}x ${i.nombre}${notaLimpia ? " [" + notaLimpia + "]" : ""}`;
       }).join(", ");
 
-      // Notas para el cuadro amarillo de Cocina
       const notasDePlatos = ordenActual
         .filter(i => i.comentario.trim() !== "")
         .map(i => `🔹${i.nombre}: ${i.comentario}`)
@@ -285,7 +304,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   }
 
   // =====================================================
-  // 4️⃣ EDITOR Y SUBIDA DE IMAGEN
+  // 4️⃣ EDITOR, SUBIDA DE IMAGEN Y CAMPO INGREDIENTES
   // =====================================================
   function configurarSubidaImagen() {
     if(!imgPreview) return;
@@ -302,18 +321,40 @@ document.addEventListener("DOMContentLoaded", async () => {
     };
   }
 
+  // 🔥 Función auxiliar para inyectar el campo ingredientes si no existe en el HTML
+  function inyectarInputIngredientes() {
+      if(!document.getElementById("editIngredientes") && formProducto) {
+          const div = document.createElement("div");
+          div.style.marginTop = "10px";
+          div.innerHTML = `
+            <label style="font-weight:bold; font-size:0.9rem;">Ingredientes / Descripción</label>
+            <textarea id="editIngredientes" rows="2" placeholder="Ej: Carne de res, queso, lechuga..." style="width:100%; border:1px solid #ccc; border-radius:4px; padding:5px;"></textarea>
+          `;
+          // Insertar antes de los botones finales
+          const botones = formProducto.querySelector("footer") || formProducto.lastElementChild;
+          formProducto.insertBefore(div, botones);
+      }
+  }
+
   function configurarEventosEditor() {
     if (!formProducto) return;
+    
+    // Inyectamos el campo al cargar
+    inyectarInputIngredientes();
+
     formProducto.onsubmit = async (e) => {
       e.preventDefault();
       const id = document.getElementById("editId").value;
       const nombre = document.getElementById("editNombre").value;
+      const ingreds = document.getElementById("editIngredientes")?.value || "";
+
       const datos = {
         restaurante_id: restoIdActivo,
         nombre: nombre,
         precio: parseFloat(document.getElementById("editPrecio").value),
         imagen_url: inputUrlImg ? inputUrlImg.value : "",
-        categoria: document.getElementById("editCategoria").value
+        categoria: document.getElementById("editCategoria").value,
+        ingredientes: ingreds // 🔥 Guardamos los ingredientes
       };
 
       try {
@@ -321,6 +362,7 @@ document.addEventListener("DOMContentLoaded", async () => {
           await db.from("productos").update(datos).eq("id", id);
         } else {
           await db.from("productos").insert([datos]);
+          // Crear suministro automáticamente
           await db.from("suministros").insert([{ 
             restaurante_id: restoIdActivo,
             nombre: nombre,
@@ -338,6 +380,10 @@ document.addEventListener("DOMContentLoaded", async () => {
     formProducto.reset();
     document.getElementById("editId").value = id || "";
     imgPreview.src = "https://via.placeholder.com/150";
+    
+    // Nos aseguramos que el input exista
+    inyectarInputIngredientes();
+
     if (id) {
       const prod = productosMenu.find(p => p.id === id);
       if (prod) {
@@ -345,6 +391,12 @@ document.addEventListener("DOMContentLoaded", async () => {
         document.getElementById("editPrecio").value = prod.precio;
         if(inputUrlImg) inputUrlImg.value = prod.imagen_url || "";
         document.getElementById("editCategoria").value = prod.categoria;
+        
+        // 🔥 Cargar ingredientes
+        if(document.getElementById("editIngredientes")) {
+            document.getElementById("editIngredientes").value = prod.ingredientes || "";
+        }
+
         imgPreview.src = prod.imagen_url || imgPreview.src;
         btnEliminarProd.style.display = "block";
       }

@@ -6,132 +6,82 @@
   <title>Pedido | OrdenLista</title>
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@picocss/pico@1/css/pico.min.css">
   <style>
-    body {
-      background: #f6f8f9;
-      font-family: "Inter", system-ui, sans-serif;
-    }
-    header {
-      text-align: center;
-      margin-bottom: 1rem;
-    }
-    header h1 {
-      margin: 0.5rem 0;
-      font-size: 1.6rem;
-      color: #10ad93;
-    }
+    body { background: #f6f8f9; font-family: "Inter", system-ui, sans-serif; }
+    
+    header { text-align: center; margin-bottom: 1rem; padding-top: 10px; }
+    header h1 { margin: 0.5rem 0; font-size: 1.6rem; color: #10ad93; }
 
-    /* 🔍 Buscador */
-    .buscador-container {
-      display: flex;
-      gap: 0.5rem;
-      margin: 0 auto 1.5rem auto;
-      flex-wrap: wrap;
-      justify-content: center;
-      max-width: 600px;
+    /* ESTILOS CARRUSEL (Menú Digital) */
+    #btnMenuDigital {
+        display: none; /* Se muestra solo si hay fotos */
+        background-color: #333;
+        border: none;
+        color: white;
+        margin: 0 auto 15px auto;
+        padding: 8px 15px;
+        font-size: 0.9rem;
+        border-radius: 20px;
+        width: fit-content;
     }
-    .buscador-container input, .buscador-container select {
-      flex: 1;
-      min-width: 120px;
+    
+    .carousel-container {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        position: relative;
+        height: 70vh; /* Altura del visor */
+        background: black;
+        border-radius: 8px;
+        overflow: hidden;
     }
+    .carousel-img {
+        max-width: 100%;
+        max-height: 100%;
+        object-fit: contain;
+    }
+    .c-btn {
+        position: absolute;
+        top: 50%;
+        transform: translateY(-50%);
+        background: rgba(255,255,255,0.3);
+        color: white;
+        border: none;
+        width: 40px;
+        height: 40px;
+        border-radius: 50%;
+        cursor: pointer;
+        font-size: 1.2rem;
+        z-index: 10;
+        display: flex; 
+        align-items: center; 
+        justify-content: center;
+    }
+    .c-prev { left: 10px; }
+    .c-next { right: 10px; }
+    .c-btn:hover { background: rgba(255,255,255,0.6); }
 
-    /* 🧾 Productos */
-    .productos-grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
-      gap: 1rem;
-    }
-    .producto-card {
-      background: white;
-      border-radius: 12px;
-      overflow: hidden;
-      box-shadow: 0 2px 6px rgba(0, 0, 0, 0.08);
-      cursor: pointer;
-      transition: transform 0.2s;
-    }
+    /* Estilos Buscador y Productos */
+    .buscador-container { display: flex; gap: 0.5rem; margin: 0 auto 1.5rem auto; flex-wrap: wrap; justify-content: center; max-width: 600px; }
+    .buscador-container input, .buscador-container select { flex: 1; min-width: 120px; }
+
+    .productos-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 1rem; }
+    .producto-card { background: white; border-radius: 12px; overflow: hidden; box-shadow: 0 2px 6px rgba(0, 0, 0, 0.08); cursor: pointer; transition: transform 0.2s; }
     .producto-card:hover { transform: scale(1.03); }
-    .producto-card img {
-      width: 100%;
-      height: 100px;
-      object-fit: cover;
-    }
-    .producto-info {
-      padding: 0.5rem 0.7rem;
-      text-align: center;
-    }
+    .producto-card img { width: 100%; height: 100px; object-fit: cover; }
+    .producto-info { padding: 0.5rem 0.7rem; text-align: center; }
     .producto-info h4 { margin: 0.3rem 0; font-size: 1rem; }
     .producto-info p { margin: 0; color: #10ad93; font-weight: bold; }
 
-    /* 🛒 Carrito fijo */
-    #carritoCliente {
-      position: fixed;
-      bottom: 0;
-      left: 0;
-      width: 100%;
-      background: white;
-      box-shadow: 0 -2px 10px rgba(0,0,0,0.1);
-      padding: 0.7rem 1rem;
-      border-top: 2px solid #10ad93;
-      z-index: 50;
-    }
-    #carritoCliente button {
-      width: 100%;
-      background: #10ad93;
-      border: none;
-      color: white;
-      font-size: 1.1rem;
-      padding: 0.7rem;
-      border-radius: 8px;
-      font-weight: 600;
-    }
-    #listaItemsCarrito {
-      max-height: 230px;
-      overflow-y: auto;
-      margin-bottom: 0.5rem;
-    }
-    .item-carrito {
-      background: #f9f9f9;
-      border-radius: 8px;
-      padding: 6px 8px;
-      margin-bottom: 6px;
-      display: flex;
-      flex-direction: column;
-      gap: 3px;
-    }
-    .item-top {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-    }
-    .item-top small { color: #555; font-size: 0.85rem; }
-    .btnQuitar {
-      background: none;
-      border: none;
-      color: #e74c3c;
-      font-weight: bold;
-      font-size: 1.1rem;
-      cursor: pointer;
-    }
-    .item-comentario {
-      font-size: 0.8rem;
-      border: 1px solid #ddd;
-      border-radius: 6px;
-      padding: 4px;
-      width: 100%;
-      resize: none;
-    }
+    /* Carrito fijo */
+    #carritoCliente { position: fixed; bottom: 0; left: 0; width: 100%; background: white; box-shadow: 0 -2px 10px rgba(0,0,0,0.1); padding: 0.7rem 1rem; border-top: 2px solid #10ad93; z-index: 50; }
+    #carritoCliente button { width: 100%; background: #10ad93; border: none; color: white; font-size: 1.1rem; padding: 0.7rem; border-radius: 8px; font-weight: 600; }
+    #listaItemsCarrito { max-height: 230px; overflow-y: auto; margin-bottom: 0.5rem; }
+    .item-carrito { background: #f9f9f9; border-radius: 8px; padding: 6px 8px; margin-bottom: 6px; display: flex; flex-direction: column; gap: 3px; }
+    .item-top { display: flex; justify-content: space-between; align-items: center; }
+    .btnQuitar { background: none; border: none; color: #e74c3c; font-weight: bold; font-size: 1.1rem; cursor: pointer; }
+    .item-comentario { font-size: 0.8rem; border: 1px solid #ddd; border-radius: 6px; padding: 4px; width: 100%; resize: none; }
 
-    /* Modal */
-    dialog {
-      border: none;
-      border-radius: 12px;
-      max-width: 400px;
-      width: 90%;
-    }
-
-    @media (max-width: 600px) {
-      header h1 { font-size: 1.4rem; }
-      .producto-info h4 { font-size: 0.95rem; }
-    }
+    dialog { border: none; border-radius: 12px; max-width: 500px; width: 95%; }
   </style>
 </head>
 <body>
@@ -139,7 +89,8 @@
   <header>
     <p id="nombreMesa" style="margin:0; color:#888;">Mesa</p>
     <h1>☕ OrdenLista</h1>
-    <p style="margin:0;">Elige tus platillos favoritos</p>
+    
+    <button id="btnMenuDigital" onclick="abrirMenuDigital()">📖 Ver Menú en Fotos</button>
   </header>
 
   <section class="buscador-container">
@@ -163,14 +114,31 @@
     <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:0.5rem;">
       <strong>Total:</strong> <span id="totalCliente">$0.00</span>
     </div>
-    <textarea id="comentarioCliente" rows="2" placeholder="Comentario general al restaurante (ej: Traer servilletas)..." style="width:100%; margin-bottom:0.5rem;"></textarea>
+    <textarea id="comentarioCliente" rows="2" placeholder="Comentario general al restaurante..." style="width:100%; margin-bottom:0.5rem;"></textarea>
     <button id="btnEnviarPedido">🚀 Enviar Pedido</button>
   </section>
 
+  <dialog id="modalMenuFotos">
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
+          <strong style="font-size:1.1rem;">Menú del Restaurante</strong>
+          <button onclick="document.getElementById('modalMenuFotos').close()" style="background:none; border:none; color:black; font-size:1.5rem; line-height:1;">&times;</button>
+      </div>
+      
+      <div class="carousel-container">
+          <button class="c-btn c-prev" onclick="cambiarSlide(-1)">❮</button>
+          <img id="imgSlide" class="carousel-img" src="" alt="Menu">
+          <button class="c-btn c-next" onclick="cambiarSlide(1)">❯</button>
+      </div>
+      
+      <div style="text-align:center; margin-top:10px; color:#666;">
+          <span id="contadorSlide">1 / 1</span>
+      </div>
+  </dialog>
+
   <dialog id="modalConfirm">
     <article style="text-align:center;">
-      <h3>✅ Pedido enviado para aprobación</h3>
-      <p>Tu orden ha sido enviada al encargado para confirmación.<br>Te avisaremos cuando sea aceptada.</p>
+      <h3>✅ Pedido enviado</h3>
+      <p>Tu orden ha sido enviada al encargado.<br>Espera confirmación.</p>
       <footer><button onclick="document.getElementById('modalConfirm').close()">Cerrar</button></footer>
     </article>
   </dialog>
@@ -186,18 +154,62 @@
 
     let carrito = [];
     let productos = [];
+    
+    // VARIABLES PARA EL CARRUSEL
+    let fotosMenu = [];
+    let indiceFoto = 0;
 
-    async function cargarProductos() {
-      if (!ridParam) {
-        alert("Error: restaurante no encontrado");
-        return;
+    // 1. CARGA INICIAL (Productos + Fotos del Menú)
+    async function cargarDatosRestaurante() {
+      if (!ridParam) return alert("Error: restaurante no encontrado");
+
+      // Cargar info del restaurante (para el menú digital)
+      const { data: resto } = await db.from("restaurantes").select("galeria_menu, menu_digital_url").eq("id", ridParam).single();
+      
+      if (resto) {
+          // Lógica para detectar si hay fotos (array nuevo o string viejo)
+          if (resto.galeria_menu && Array.isArray(resto.galeria_menu) && resto.galeria_menu.length > 0) {
+              fotosMenu = resto.galeria_menu;
+          } else if (resto.menu_digital_url) {
+              fotosMenu = [resto.menu_digital_url];
+          }
+
+          // Si hay fotos, mostramos el botón
+          if (fotosMenu.length > 0) {
+              document.getElementById("btnMenuDigital").style.display = "block";
+          }
       }
+
+      // Cargar productos
       const { data, error } = await db.from("productos").select("*").eq("restaurante_id", ridParam);
-      if (error) { console.error(error); return; }
+      if (error) console.error(error);
       productos = data || [];
       renderizarProductos();
     }
 
+    // 2. LÓGICA DEL CARRUSEL
+    window.abrirMenuDigital = () => {
+        indiceFoto = 0;
+        mostrarSlide();
+        document.getElementById("modalMenuFotos").showModal();
+    };
+
+    window.cambiarSlide = (direccion) => {
+        indiceFoto += direccion;
+        if (indiceFoto < 0) indiceFoto = fotosMenu.length - 1;
+        if (indiceFoto >= fotosMenu.length) indiceFoto = 0;
+        mostrarSlide();
+    };
+
+    function mostrarSlide() {
+        const img = document.getElementById("imgSlide");
+        const counter = document.getElementById("contadorSlide");
+        
+        img.src = fotosMenu[indiceFoto];
+        counter.textContent = `${indiceFoto + 1} / ${fotosMenu.length}`;
+    }
+
+    // 3. RENDERIZADO DE PRODUCTOS
     function renderizarProductos() {
       const cont = document.getElementById("productosCliente");
       const texto = document.getElementById("buscarProducto").value.toLowerCase();
@@ -224,34 +236,24 @@
             <h4>${p.nombre}</h4>
             <p>$${parseFloat(p.precio).toFixed(2)}</p>
           </div>`;
-        // 🔥 CAMBIO: Llamamos a agregarAlCarrito
         card.onclick = () => agregarAlCarrito(p);
         cont.appendChild(card);
       });
     }
 
-    // 🔥 LÓGICA DE CARRITO NUEVA: Permite items individuales
+    // 4. LÓGICA DE CARRITO
     function agregarAlCarrito(prod) {
-      // Creamos un ID temporal único para distinguir cada item (aunque sean el mismo platillo)
-      // Esto permite tener 2 "Hamburguesas" separadas con notas distintas.
-      const itemUnico = { 
-        ...prod, 
-        cantidad: 1, 
-        comentario: "", 
-        tempId: Date.now() + Math.random() // ID único para el carrito
-      };
+      const itemUnico = { ...prod, cantidad: 1, comentario: "", tempId: Date.now() + Math.random() };
       carrito.push(itemUnico);
       renderizarCarrito();
     }
 
     function quitarDelCarrito(tempId) {
-      // Borramos usando el ID temporal
       carrito = carrito.filter(i => i.tempId !== tempId);
       renderizarCarrito();
     }
 
     function actualizarComentario(tempId, texto) {
-      // Actualizamos nota específica de ese item
       const item = carrito.find(i => i.tempId === tempId);
       if (item) item.comentario = texto;
     }
@@ -276,7 +278,7 @@
               <button class="btnQuitar" onclick="quitarDelCarrito(${i.tempId})">✖</button>
             </div>
           </div>
-          <textarea class="item-comentario" placeholder="Nota (ej: Sin cebolla, término medio)..." 
+          <textarea class="item-comentario" placeholder="Nota (ej: Sin cebolla)..." 
             oninput="actualizarComentario(${i.tempId}, this.value)">${i.comentario || ""}</textarea>
         </div>`).join("");
 
@@ -284,27 +286,18 @@
       totalSpan.textContent = `$${total.toFixed(2)}`;
     }
 
-    // 🔥 ENVÍO OPTIMIZADO PARA COCINA.JS
+    // 5. ENVIAR PEDIDO
     document.getElementById("btnEnviarPedido").onclick = async () => {
       if (carrito.length === 0) return alert("Agrega productos primero.");
 
-      // 1. Preparar lista de productos con sus notas incrustadas
-      // Se reemplazan comas en los comentarios por puntos para no romper la lista de cocina.js
       const productosTexto = carrito.map(i => {
          const notaLimpia = i.comentario.replace(/,/g, '.'); 
          return `${i.cantidad}x ${i.nombre}${notaLimpia ? " [" + notaLimpia + "]" : ""}`;
       }).join(", ");
 
-      // 2. Extraer notas individuales para el "Cuadro Amarillo" de cocina
-      const notasDePlatos = carrito
-        .filter(i => i.comentario.trim() !== "")
-        .map(i => `🔹${i.nombre}: ${i.comentario}`)
-        .join(" | ");
-
+      const notasDePlatos = carrito.filter(i => i.comentario.trim() !== "").map(i => `🔹${i.nombre}: ${i.comentario}`).join(" | ");
       const comentarioGeneral = document.getElementById("comentarioCliente").value.trim();
-
-      // 3. Unir todo para el campo 'comentarios' de la BD
-      // Esto asegura que en el cuadro amarillo se vea TODO (platos + general)
+      
       let comentarioFinal = "";
       if (notasDePlatos) comentarioFinal += notasDePlatos;
       if (notasDePlatos && comentarioGeneral) comentarioFinal += " --- ";
@@ -314,36 +307,22 @@
 
       try {
         const { error } = await db.from("ordenes").insert([{
-          restaurante_id: ridParam,
-          mesa: mesaParam,
-          productos: productosTexto, // Va a la lista de items
-          total,
-          comentarios: comentarioFinal, // Va al cuadro amarillo de alerta
-          estado: "por_confirmar"
+          restaurante_id: ridParam, mesa: mesaParam, productos: productosTexto,
+          total, comentarios: comentarioFinal, estado: "por_confirmar"
         }]);
         
         if (error) throw error;
-
-        carrito = [];
-        renderizarCarrito();
-        document.getElementById("comentarioCliente").value = "";
+        carrito = []; renderizarCarrito(); document.getElementById("comentarioCliente").value = "";
         const modal = document.getElementById("modalConfirm");
         modal.showModal();
-
-        setTimeout(() => {
-          modal.close();
-          window.close();
-        }, 4000);
-      } catch (err) {
-        alert("Error al enviar pedido: " + err.message);
-      }
+        setTimeout(() => { modal.close(); window.close(); }, 4000);
+      } catch (err) { alert("Error al enviar pedido: " + err.message); }
     };
 
-    // Eventos del buscador y filtro
     document.getElementById("buscarProducto").addEventListener("input", renderizarProductos);
     document.getElementById("filtroCategoria").addEventListener("change", renderizarProductos);
 
-    cargarProductos();
+    cargarDatosRestaurante();
   </script>
 </body>
 </html>
