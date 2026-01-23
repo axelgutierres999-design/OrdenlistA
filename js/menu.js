@@ -1,4 +1,5 @@
-// js/menu.js - VERSIÓN FINAL + INGREDIENTES (INFO TOGGLE)
+// js/menu.js - VERSIÓN COMPATIBLE SQL V9.4 (VIÑETAS + INGREDIENTES)
+
 document.addEventListener("DOMContentLoaded", async () => {
   // =====================================================
   // 0️⃣ VARIABLES Y SELECTORES
@@ -72,15 +73,25 @@ document.addEventListener("DOMContentLoaded", async () => {
 
   async function cargarDatosMenu() {
     try {
-      // 🔥 IMPORTANTE: Aseguramos traer la columna 'ingredientes'
+      // 🔥 IMPORTANTE: Traemos los campos nuevos (ingredientes, es_destacado)
       const { data: productos } = await db.from("productos").select("*").eq("restaurante_id", restoIdActivo);
+      
+      // Intentamos traer suministros para calcular stock real (opcional)
       const { data: suministros } = await db.from("suministros").select("nombre, cantidad").eq("restaurante_id", restoIdActivo);
 
       if (productos) {
         productosMenu = productos.map((p) => {
+          // Si existe un suministro con el mismo nombre, usamos su cantidad como stock
           const insumo = suministros?.find(s => s.nombre.toLowerCase() === p.nombre.toLowerCase());
-          return { ...p, stock: insumo ? Math.floor(insumo.cantidad) : "∞" };
+          // Priorizamos stock_actual de la tabla productos si no hay suministro vinculado
+          const stockReal = insumo ? Math.floor(insumo.cantidad) : p.stock_actual;
+          
+          return { ...p, stock: stockReal };
         });
+        
+        // Ordenamos: Primero los destacados
+        productosMenu.sort((a, b) => (b.es_destacado === true) - (a.es_destacado === true));
+
         productosFiltrados = [...productosMenu];
         dibujarMenu();
       }
@@ -107,26 +118,39 @@ document.addEventListener("DOMContentLoaded", async () => {
       const art = document.createElement("article");
       art.className = "tarjeta-producto";
       
-      // 🔥 LOGICA NUEVA DE INGREDIENTES
-      const tieneIngredientes = p.ingredientes && p.ingredientes.trim().length > 0;
-      
+      // Verificamos estado
+      const agotado = p.stock !== null && p.stock <= 0;
+      const tieneInfo = (p.ingredientes && p.ingredientes.trim().length > 0) || (p.descripcion && p.descripcion.trim().length > 0);
+      const textoInfo = p.descripcion || p.ingredientes; // Priorizamos descripción, si no, ingredientes
+
       art.innerHTML = `
         <div class="img-container" style="position:relative; overflow:hidden; border-radius:8px 8px 0 0;">
-          <img src="${p.imagen_url || "https://via.placeholder.com/150"}" onerror="this.src='https://via.placeholder.com/150'" style="width:100%; height:150px; object-fit:cover;">
+          <img src="${p.imagen_url || "https://via.placeholder.com/150"}" 
+               onerror="this.src='https://via.placeholder.com/150'" 
+               style="width:100%; height:150px; object-fit:cover; ${agotado ? 'filter:grayscale(100%); opacity:0.6;' : ''}">
           
-          ${["dueño", "administrador"].includes(sesion.rol) ? 
-            `<button class="edit-btn" onclick="event.stopPropagation(); window.abrirEditor('${p.id}')" style="position:absolute; top:8px; left:8px; z-index:10;">✏️</button>` : ""}
+          ${/* 🔶 VIÑETA DE DESTACADO (ESTRELLA) */ ''}
+          ${p.es_destacado ? `
+            <div style="position:absolute; top:0; left:0; background:#ff9800; color:white; padding:5px 8px; border-radius:0 0 8px 0; font-weight:bold; font-size:14px; box-shadow:2px 2px 5px rgba(0,0,0,0.3); z-index:5;">
+                ★
+            </div>
+          ` : ''}
 
-          ${tieneIngredientes ? `
+          ${/* ✏️ BOTÓN EDITAR (Solo admin) */ ''}
+          ${["dueño", "administrador"].includes(sesion.rol) ? 
+            `<button class="edit-btn" onclick="event.stopPropagation(); window.abrirEditor('${p.id}')" style="position:absolute; top:8px; left:${p.es_destacado ? '40px' : '8px'}; z-index:10;">✏️</button>` : ""}
+
+          ${/* ℹ️ BOTÓN INFO (Ingredientes) */ ''}
+          ${tieneInfo ? `
             <button onclick="event.stopPropagation(); this.nextElementSibling.style.display='flex'" 
                 style="position:absolute; top:8px; right:8px; background:rgba(255,255,255,0.95); color:#10ad93; border:none; border-radius:50%; width:28px; height:28px; font-weight:bold; box-shadow:0 2px 6px rgba(0,0,0,0.3); z-index:8; cursor:pointer; display:flex; align-items:center; justify-content:center;">
-                ℹ️
+                i
             </button>
             
             <div onclick="event.stopPropagation(); this.style.display='none'" 
                  style="display:none; position:absolute; inset:0; background:rgba(0,0,0,0.85); color:white; flex-direction:column; align-items:center; justify-content:center; padding:15px; text-align:center; backdrop-filter:blur(3px); z-index:9; animation:fadeIn 0.2s ease;">
-                 <h5 style="margin:0 0 5px 0; font-size:0.9rem; color:#10ad93; text-transform:uppercase;">Ingredientes</h5>
-                 <p style="font-size:0.85rem; line-height:1.4; margin:0;">${p.ingredientes}</p>
+                 <h5 style="margin:0 0 5px 0; font-size:0.9rem; color:#10ad93; text-transform:uppercase;">Detalles</h5>
+                 <p style="font-size:0.85rem; line-height:1.4; margin:0;">${textoInfo}</p>
                  <small style="margin-top:10px; opacity:0.7; font-size:0.7rem;">(Toca para cerrar)</small>
             </div>
           ` : ''}
@@ -135,12 +159,19 @@ document.addEventListener("DOMContentLoaded", async () => {
         <div class="info">
           <h4>${p.nombre}</h4>
           <p class="precio">$${parseFloat(p.precio).toFixed(2)}</p>
-          <small class="stock-tag ${p.stock !== "∞" && p.stock <= 0 ? "sin-stock" : ""}">
-            ${p.stock !== "∞" && p.stock <= 0 ? "Agotado" : "Stock: " + p.stock}
+          
+          <small class="stock-tag ${agotado ? "sin-stock" : ""}" style="display:block; margin-top:5px;">
+            ${agotado ? "🚫 AGOTADO" : (p.stock > 50 ? "" : "Disponibles: " + p.stock)}
           </small>
         </div>`;
       
-      art.onclick = () => agregarItem(p);
+      if (!agotado) {
+        art.onclick = () => agregarItem(p);
+      } else {
+        art.style.cursor = "not-allowed";
+        art.style.opacity = "0.8";
+      }
+
       contenedorProductos.appendChild(art);
     });
   }
@@ -150,9 +181,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   // =====================================================
   
   function agregarItem(producto) {
-    if (producto.stock !== "∞" && producto.stock <= 0) return alert("Producto sin existencias");
-    
-    // Creamos un ID temporal único para permitir notas individuales
+    // Creamos un ID temporal único
     const nuevoItem = {
         ...producto,
         cantidad: 1,
@@ -164,7 +193,6 @@ document.addEventListener("DOMContentLoaded", async () => {
     renderizarCarrito();
   }
 
-  // Función global para actualizar comentarios
   window.actualizarNotaItem = (tempId, texto) => {
       const item = ordenActual.find(i => i.tempId === tempId);
       if(item) item.comentario = texto;
@@ -182,28 +210,18 @@ document.addEventListener("DOMContentLoaded", async () => {
 
     listaItemsOrden.innerHTML = ordenActual.map(item => `
       <div class="item-carrito" style="border-bottom: 1px dashed #e0e0e0; padding: 10px 0; animation: fadeIn 0.3s ease;">
-        
         <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 4px;">
             <div style="font-weight: 600; font-size: 0.95rem; color: #333; width: 70%; line-height: 1.2;">
                 ${item.cantidad}x ${item.nombre}
             </div>
-            <div style="text-align: right; display: flex; flex-direction: column; align-items: flex-end;">
-                <span style="font-weight: bold; font-size: 0.95rem; color: #333;">$${(item.precio * item.cantidad).toFixed(2)}</span>
-                <button onclick="window.quitarItem(${item.tempId})" 
-                        style="background: none; border: none; color: #ff5252; cursor: pointer; font-size: 1.2rem; line-height: 1; margin-top: 2px; padding: 0;">
-                   &times;
-                </button>
+            <div style="text-align: right;">
+                <span style="font-weight: bold;">$${(item.precio * item.cantidad).toFixed(2)}</span>
+                <button onclick="window.quitarItem(${item.tempId})" style="border:none; background:none; color:red; font-size:1.2rem; margin-left:5px;">&times;</button>
             </div>
         </div>
-
-        <div style="position: relative; width: 100%;">
-            <input type="text" 
-                placeholder="Escribe una nota..." 
-                value="${item.comentario}" 
-                oninput="window.actualizarNotaItem(${item.tempId}, this.value)"
-                style="width: 100%; font-size: 0.8rem; padding: 4px 0; border: none; border-bottom: 1px solid #ddd; background: transparent; color: #666; outline: none;">
-        </div>
-
+        <input type="text" placeholder="Nota del platillo..." value="${item.comentario}" 
+               oninput="window.actualizarNotaItem(${item.tempId}, this.value)"
+               style="width: 100%; font-size: 0.8rem; border: none; border-bottom: 1px solid #ddd; outline:none;">
       </div>`).join("");
 
     const total = ordenActual.reduce((acc, i) => acc + i.precio * i.cantidad, 0);
@@ -259,11 +277,7 @@ document.addEventListener("DOMContentLoaded", async () => {
           return `${i.cantidad}x ${i.nombre}${notaLimpia ? " [" + notaLimpia + "]" : ""}`;
       }).join(", ");
 
-      const notasDePlatos = ordenActual
-        .filter(i => i.comentario.trim() !== "")
-        .map(i => `🔹${i.nombre}: ${i.comentario}`)
-        .join(" | ");
-      
+      const notasDePlatos = ordenActual.filter(i => i.comentario.trim() !== "").map(i => `🔹${i.nombre}: ${i.comentario}`).join(" | ");
       const comentarioGeneral = comentarioInput?.value || "";
 
       let comentarioFinal = "";
@@ -280,8 +294,17 @@ document.addEventListener("DOMContentLoaded", async () => {
         estado: estadoInicial
       };
 
-      const { error: errorOrden } = await db.from("ordenes").insert([ordenData]);
+      const { data: ordenGuardada, error: errorOrden } = await db.from("ordenes").insert([ordenData]).select().single();
       if (errorOrden) throw errorOrden;
+
+      // Guardar detalles para el inventario
+      const detalles = ordenActual.map(item => ({
+        orden_id: ordenGuardada.id,
+        producto_id: item.id,
+        cantidad: item.cantidad,
+        precio_unitario: item.precio
+      }));
+      await db.from("detalles_orden").insert(detalles);
 
       if (metodoPago) {
         await db.from("ventas").insert([{
@@ -304,7 +327,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   }
 
   // =====================================================
-  // 4️⃣ EDITOR, SUBIDA DE IMAGEN Y CAMPO INGREDIENTES
+  // 4️⃣ EDITOR ACTUALIZADO (Con Ingredientes y Destacado)
   // =====================================================
   function configurarSubidaImagen() {
     if(!imgPreview) return;
@@ -321,40 +344,55 @@ document.addEventListener("DOMContentLoaded", async () => {
     };
   }
 
-  // 🔥 Función auxiliar para inyectar el campo ingredientes si no existe en el HTML
-  function inyectarInputIngredientes() {
+  // Inyectamos dinámicamente los campos que faltan en el HTML
+  function inyectarCamposFaltantes() {
+      // 1. Checkbox Destacado
+      if(!document.getElementById("editDestacadoWrapper") && formProducto) {
+        const divCheck = document.createElement("div");
+        divCheck.id = "editDestacadoWrapper";
+        divCheck.style.marginBottom = "10px";
+        divCheck.innerHTML = `
+           <label style="display:flex; align-items:center; cursor:pointer; gap:8px; font-weight:bold;">
+             <input type="checkbox" id="editDestacado">
+             ⭐ Marcar como Destacado / Recomendado
+           </label>
+        `;
+        // Insertar después del input de imagen o al principio
+        const refNode = document.getElementById("editCategoria")?.parentNode || formProducto.firstChild;
+        formProducto.insertBefore(divCheck, refNode);
+      }
+
+      // 2. Textarea Ingredientes
       if(!document.getElementById("editIngredientes") && formProducto) {
-          const div = document.createElement("div");
-          div.style.marginTop = "10px";
-          div.innerHTML = `
+          const divIng = document.createElement("div");
+          divIng.style.marginTop = "10px";
+          divIng.innerHTML = `
             <label style="font-weight:bold; font-size:0.9rem;">Ingredientes / Descripción</label>
-            <textarea id="editIngredientes" rows="2" placeholder="Ej: Carne de res, queso, lechuga..." style="width:100%; border:1px solid #ccc; border-radius:4px; padding:5px;"></textarea>
+            <textarea id="editIngredientes" rows="3" placeholder="Ej: Salsa de tomate, mozzarella, albahaca..." style="width:100%; border:1px solid #ccc; border-radius:4px; padding:5px;"></textarea>
           `;
-          // Insertar antes de los botones finales
           const botones = formProducto.querySelector("footer") || formProducto.lastElementChild;
-          formProducto.insertBefore(div, botones);
+          formProducto.insertBefore(divIng, botones);
       }
   }
 
   function configurarEventosEditor() {
     if (!formProducto) return;
     
-    // Inyectamos el campo al cargar
-    inyectarInputIngredientes();
+    inyectarCamposFaltantes();
 
     formProducto.onsubmit = async (e) => {
       e.preventDefault();
       const id = document.getElementById("editId").value;
-      const nombre = document.getElementById("editNombre").value;
-      const ingreds = document.getElementById("editIngredientes")?.value || "";
-
+      
       const datos = {
         restaurante_id: restoIdActivo,
-        nombre: nombre,
+        nombre: document.getElementById("editNombre").value,
         precio: parseFloat(document.getElementById("editPrecio").value),
         imagen_url: inputUrlImg ? inputUrlImg.value : "",
         categoria: document.getElementById("editCategoria").value,
-        ingredientes: ingreds // 🔥 Guardamos los ingredientes
+        // 🔥 CAMPOS NUEVOS
+        ingredientes: document.getElementById("editIngredientes")?.value || "",
+        es_destacado: document.getElementById("editDestacado")?.checked || false
       };
 
       try {
@@ -362,11 +400,11 @@ document.addEventListener("DOMContentLoaded", async () => {
           await db.from("productos").update(datos).eq("id", id);
         } else {
           await db.from("productos").insert([datos]);
-          // Crear suministro automáticamente
+          // Crear suministro simple
           await db.from("suministros").insert([{ 
             restaurante_id: restoIdActivo,
-            nombre: nombre,
-            cantidad: 0,
+            nombre: datos.nombre,
+            cantidad: 50, // Stock inicial
             unidad: "Pz"
           }]);
         }
@@ -381,8 +419,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     document.getElementById("editId").value = id || "";
     imgPreview.src = "https://via.placeholder.com/150";
     
-    // Nos aseguramos que el input exista
-    inyectarInputIngredientes();
+    inyectarCamposFaltantes();
 
     if (id) {
       const prod = productosMenu.find(p => p.id === id);
@@ -392,20 +429,32 @@ document.addEventListener("DOMContentLoaded", async () => {
         if(inputUrlImg) inputUrlImg.value = prod.imagen_url || "";
         document.getElementById("editCategoria").value = prod.categoria;
         
-        // 🔥 Cargar ingredientes
-        if(document.getElementById("editIngredientes")) {
-            document.getElementById("editIngredientes").value = prod.ingredientes || "";
-        }
+        // Cargar nuevos campos
+        if(document.getElementById("editIngredientes")) document.getElementById("editIngredientes").value = prod.ingredientes || "";
+        if(document.getElementById("editDestacado")) document.getElementById("editDestacado").checked = prod.es_destacado || false;
 
         imgPreview.src = prod.imagen_url || imgPreview.src;
         btnEliminarProd.style.display = "block";
       }
-    } else { btnEliminarProd.style.display = "none"; }
+    } else { 
+        btnEliminarProd.style.display = "none"; 
+        if(document.getElementById("editDestacado")) document.getElementById("editDestacado").checked = false;
+    }
     modalEditar.showModal();
   };
 
+  btnEliminarProd.onclick = async () => {
+      const id = document.getElementById("editId").value;
+      if(!id) return;
+      if(confirm("¿Eliminar este platillo?")) {
+          await db.from("productos").delete().eq("id", id);
+          modalEditar.close();
+          cargarDatosMenu();
+      }
+  }
+
   // =====================================================
-  // 5️⃣ CALCULADORA Y TICKET
+  // 5️⃣ CALCULADORA Y TICKET (Sin cambios mayores)
   // =====================================================
   function mostrarCalculadoraPago(total) {
     let modal = document.getElementById("modalCalculadora") || document.createElement("dialog");
