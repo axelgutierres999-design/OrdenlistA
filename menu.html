@@ -9,7 +9,7 @@
   <style>
     /* Estilos base */
     .tarjeta-producto {
-      padding: 0; /* Quitamos padding para que la imagen toque bordes */
+      padding: 0; 
       border: 1px solid #eee;
       border-radius: 12px;
       cursor: pointer;
@@ -18,7 +18,7 @@
       display: flex;
       flex-direction: column;
       position: relative;
-      overflow: hidden; /* Importante para bordes redondeados */
+      overflow: hidden; 
     }
     .tarjeta-producto:hover {
       box-shadow: 0 8px 16px rgba(0,0,0,0.1);
@@ -31,10 +31,6 @@
         flex-direction: column;
         justify-content: space-between;
         flex-grow: 1;
-    }
-    .edit-btn {
-      /* Estilos manejados en JS, pero esto es base */
-      z-index: 20;
     }
     .panel-orden {
       background-color: #fff;
@@ -77,7 +73,6 @@
     }
     .alerta-llevar.mostrar { display: block; }
     
-    /* Botón flotante para móvil */
     .fab-add {
       position: fixed;
       bottom: 20px;
@@ -95,6 +90,30 @@
       box-shadow: 0 6px 12px rgba(0,0,0,0.2);
       cursor: pointer;
       z-index: 999;
+    }
+
+    /* --- NUEVOS ESTILOS PARA SUB-OPCIONES DE PAGO --- */
+    #opcionesTarjeta {
+      display: none; /* Oculto por defecto */
+      margin-top: 15px;
+      padding-top: 15px;
+      border-top: 1px dashed #ccc;
+      animation: fadeIn 0.3s ease;
+    }
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(-10px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    .grid-pago {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+    }
+    .btn-subpago {
+      font-size: 0.8rem;
+      padding: 8px;
+      background: #5d6d7e;
+      border: none;
     }
   </style>
 </head>
@@ -168,121 +187,88 @@
     </div>
   </main>
 
-  <button id="btnAgregarProducto" class="fab-add" title="Agregar producto" style="display:none;" onclick="window.abrirEditor()">＋</button>
+  <dialog id="modalCobro">
+    <article style="max-width: 400px;">
+      <header>
+        <button aria-label="Close" rel="prev" onclick="cerrarModalCobro()"></button>
+        <h3>💸 Finalizar Pago</h3>
+      </header>
+      <div style="text-align:center; margin-bottom:20px;">
+          <div style="font-size:2.5rem; font-weight:bold; color:#2ecc71;">$<span id="cobroTotal">0.00</span></div>
+          <p><small>¿Cómo desea pagar el cliente?</small></p>
+      </div>
+      
+      <div class="grid">
+          <button onclick="procesarPagoFinal('efectivo')" style="background:#27ae60; border:none;">💵 Efectivo</button>
+          <button onclick="mostrarSubOpcionesTarjeta()" style="background:#2980b9; border:none;">💳 Tarjeta</button>
+      </div>
+
+      <div id="opcionesTarjeta">
+          <p style="text-align:center; margin-bottom:10px;"><small>Seleccione tipo de pago con tarjeta:</small></p>
+          <div class="grid-pago">
+              <button class="btn-subpago" onclick="procesarPagoFinal('tarjeta-qr')">📱 QR</button>
+              <button class="btn-subpago" onclick="procesarPagoFinal('tarjeta-transferencia')">🏦 Transf.</button>
+              <button class="btn-subpago" onclick="procesarPagoFinal('tarjeta-terminal')" style="grid-column: span 2;">💳 Terminal TPV</button>
+          </div>
+      </div>
+    </article>
+  </dialog>
 
   <dialog id="modalEditarMenu" style="border:none; border-radius:15px; padding:0; width:90%; max-width:450px;">
     <div style="padding:20px;">
         <h3 style="margin-top:0;">✏️ Editar / Crear</h3>
-        
         <form id="formProducto" style="display:flex; flex-direction:column; gap:12px;">
-        <input type="hidden" id="editId">
-        
-        <div style="text-align:center; position:relative;">
-            <img id="imgPreview" src="https://via.placeholder.com/150" 
-                style="width:120px; height:120px; object-fit:cover; border-radius:10px; border:2px dashed #ccc; cursor:pointer;"
-                title="Toca para subir imagen">
-            <p style="font-size:12px; color:#666; margin:5px 0;">📸 Toca la imagen para subir foto</p>
-        </div>
-        <input type="hidden" id="editImg"> 
-        
-        <label>
-            Nombre:
-            <input type="text" id="editNombre" required>
-        </label>
-        
-        <div style="display:flex; gap:10px;">
-            <label style="flex:1">
-            Precio:
-            <input type="number" id="editPrecio" step="0.01" required>
-            </label>
-            <label style="flex:1">
-            Categoría:
-            <select id="editCategoria">
-                <option value="Platillo">Platillo</option>
-                <option value="Bebidas">Bebidas</option>
-                <option value="Postres">Postres</option>
-                <option value="Otros">Otros</option>
-            </select>
-            </label>
-        </div>
-
-        <div style="display:flex; gap:10px; margin-top:10px;">
-            <button type="button" onclick="document.getElementById('modalEditarMenu').close()" style="flex:1; background:#ccc; border:none; color:black;">Cancelar</button>
-            <button type="submit" style="flex:1; background:#10ad93; border:none;">Guardar</button>
-        </div>
-        
-        <button type="button" id="btnEliminarProd" style="background:none; color:#e74c3c; border:1px solid #e74c3c; padding:8px; width:100%; margin-top:5px; display:none;">
-            🗑️ Eliminar Platillo
-        </button>
+            <input type="hidden" id="editId">
+            <div style="text-align:center; position:relative;">
+                <img id="imgPreview" src="https://via.placeholder.com/150" 
+                    style="width:120px; height:120px; object-fit:cover; border-radius:10px; border:2px dashed #ccc; cursor:pointer;">
+                <p style="font-size:12px; color:#666; margin:5px 0;">📸 Toca la imagen para subir foto</p>
+            </div>
+            <input type="hidden" id="editImg"> 
+            <label>Nombre: <input type="text" id="editNombre" required></label>
+            <div style="display:flex; gap:10px;">
+                <label style="flex:1">Precio: <input type="number" id="editPrecio" step="0.01" required></label>
+                <label style="flex:1">Categoría: 
+                    <select id="editCategoria">
+                        <option value="Platillo">Platillo</option>
+                        <option value="Bebidas">Bebidas</option>
+                        <option value="Postres">Postres</option>
+                        <option value="Otros">Otros</option>
+                    </select>
+                </label>
+            </div>
+            <div style="display:flex; gap:10px; margin-top:10px;">
+                <button type="button" onclick="document.getElementById('modalEditarMenu').close()" style="flex:1; background:#ccc; border:none; color:black;">Cancelar</button>
+                <button type="submit" style="flex:1; background:#10ad93; border:none;">Guardar</button>
+            </div>
+            <button type="button" id="btnEliminarProd" style="background:none; color:#e74c3c; border:1px solid #e74c3c; padding:8px; width:100%; margin-top:5px; display:none;">🗑️ Eliminar Platillo</button>
         </form>
     </div>
   </dialog>
-  <!-- ================= MODAL COBRO PEDIDO ================= -->
-<dialog id="modalCobroPedido">
-  <article style="max-width: 420px;">
-    <header>
-      <button aria-label="Close" rel="prev"
-        onclick="document.getElementById('modalCobroPedido').close()"></button>
-      <h3>💸 Cobrar Pedido</h3>
-    </header>
-
-    <div style="text-align:center; margin-bottom:20px;">
-      <h2>Pedido Para Llevar</h2>
-      <div style="font-size:3rem; font-weight:bold; color:#10ad93;">
-        $<span id="totalCobroPedido">0.00</span>
-      </div>
-      <p><small>Selecciona método de pago</small></p>
-    </div>
-
-    <div class="grid">
-      <button onclick="pagarPedido('efectivo')" style="background:#27ae60;border:none;">
-        💵 Efectivo
-      </button>
-
-      <button onclick="mostrarOpcionesTarjeta()" style="background:#2980b9;border:none;">
-        💳 Tarjeta
-      </button>
-    </div>
-  </article>
-</dialog>
-
-<!-- ================= MODAL OPCIONES TARJETA ================= -->
-<dialog id="modalTarjetaPedido">
-  <article style="max-width: 420px;">
-    <header>
-      <button aria-label="Close" rel="prev"
-        onclick="document.getElementById('modalTarjetaPedido').close()"></button>
-      <h3>💳 Pago con Tarjeta</h3>
-    </header>
-
-    <p style="text-align:center;"><small>Selecciona tipo de pago</small></p>
-
-    <div class="grid">
-      <button onclick="pagarPedido('qr')" style="background:#16a085;border:none;">
-        📱 Código QR (CoDi / App)
-      </button>
-
-      <button onclick="pagarPedido('transferencia')" style="background:#3498db;border:none;">
-        🏦 Transferencia
-      </button>
-
-      <button onclick="pagarPedido('terminal')" style="background:#2c3e50;border:none;">
-        💳 Terminal Bancaria
-      </button>
-    </div>
-
-    <footer>
-      <button class="secondary outline"
-        onclick="document.getElementById('modalTarjetaPedido').close()">
-        Cancelar
-      </button>
-    </footer>
-  </article>
-</dialog>
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="js/supabase-client.js"></script>
   <script src="js/app.js"></script>
   <script src="js/menu.js"></script> 
+
+  <script>
+    function mostrarSubOpcionesTarjeta() {
+      const panel = document.getElementById('opcionesTarjeta');
+      panel.style.display = (panel.style.display === 'block') ? 'none' : 'block';
+    }
+
+    function cerrarModalCobro() {
+      document.getElementById('modalCobro').close();
+      document.getElementById('opcionesTarjeta').style.display = 'none'; // Resetear para la próxima vez
+    }
+
+    // Esta función la deberás conectar con tu menu.js para guardar en la DB
+    function procesarPagoFinal(metodo) {
+      console.log("Procesando pago con:", metodo);
+      // Aquí invocarías tu función de supabase que guarda el pedido con el método elegido
+      alert("Pedido pagado con: " + metodo);
+      cerrarModalCobro();
+    }
+  </script>
 </body>
 </html>
