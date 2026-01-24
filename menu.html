@@ -217,6 +217,68 @@
         </form>
     </div>
   </dialog>
+  <!-- ================= MODAL COBRO PEDIDO ================= -->
+<dialog id="modalCobroPedido">
+  <article style="max-width: 420px;">
+    <header>
+      <button aria-label="Close" rel="prev"
+        onclick="document.getElementById('modalCobroPedido').close()"></button>
+      <h3>💸 Cobrar Pedido</h3>
+    </header>
+
+    <div style="text-align:center; margin-bottom:20px;">
+      <h2>Pedido Para Llevar</h2>
+      <div style="font-size:3rem; font-weight:bold; color:#10ad93;">
+        $<span id="totalCobroPedido">0.00</span>
+      </div>
+      <p><small>Selecciona método de pago</small></p>
+    </div>
+
+    <div class="grid">
+      <button onclick="pagarPedido('efectivo')" style="background:#27ae60;border:none;">
+        💵 Efectivo
+      </button>
+
+      <button onclick="mostrarOpcionesTarjeta()" style="background:#2980b9;border:none;">
+        💳 Tarjeta
+      </button>
+    </div>
+  </article>
+</dialog>
+
+<!-- ================= MODAL OPCIONES TARJETA ================= -->
+<dialog id="modalTarjetaPedido">
+  <article style="max-width: 420px;">
+    <header>
+      <button aria-label="Close" rel="prev"
+        onclick="document.getElementById('modalTarjetaPedido').close()"></button>
+      <h3>💳 Pago con Tarjeta</h3>
+    </header>
+
+    <p style="text-align:center;"><small>Selecciona tipo de pago</small></p>
+
+    <div class="grid">
+      <button onclick="pagarPedido('qr')" style="background:#16a085;border:none;">
+        📱 Código QR (CoDi / App)
+      </button>
+
+      <button onclick="pagarPedido('transferencia')" style="background:#3498db;border:none;">
+        🏦 Transferencia
+      </button>
+
+      <button onclick="pagarPedido('terminal')" style="background:#2c3e50;border:none;">
+        💳 Terminal Bancaria
+      </button>
+    </div>
+
+    <footer>
+      <button class="secondary outline"
+        onclick="document.getElementById('modalTarjetaPedido').close()">
+        Cancelar
+      </button>
+    </footer>
+  </article>
+</dialog>
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="js/supabase-client.js"></script>
