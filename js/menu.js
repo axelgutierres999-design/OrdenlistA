@@ -42,6 +42,24 @@ document.addEventListener("DOMContentLoaded", async () => {
   let productosMenu = [];
   let productosFiltrados = [];
   let modoLlevar = false;
+  // ... variables anteriores ...
+let datosRestaurante = {}; // 🆕 Variable para guardar QR y Banco
+
+async function inicializar() {
+    if (!restoIdActivo) return;
+    
+    // 🆕 CARGAR INFO DEL RESTAURANTE (QR y BANCO)
+    const { data: info } = await db.from("restaurantes").select("qr_pago_url, datos_bancarios").eq("id", restoIdActivo).single();
+    if (info) datosRestaurante = info; 
+
+    if (["dueño", "administrador"].includes(sesion.rol) && btnAgregarFloating) {
+        btnAgregarFloating.style.display = "flex";
+    }
+
+    await cargarMesas();
+    await cargarDatosMenu();
+    // ... resto de inicializaciones ...
+}
 
   // =====================================================
   // 1️⃣ INICIALIZACIÓN
@@ -466,8 +484,7 @@ document.addEventListener("DOMContentLoaded", async () => {
       }
   }
 
- // REEMPLAZA ESTA FUNCIÓN EN TU js/menu.js
-function mostrarCalculadoraPago(total) {
+ function mostrarCalculadoraPago(total) {
   let modal = document.getElementById("modalCalculadora") || document.createElement("dialog");
   modal.id = "modalCalculadora";
   modal.style = "border:none; border-radius:15px; padding:0; width:90%; max-width:400px; box-shadow:0 10px 50px rgba(0,0,0,0.5);";
@@ -481,15 +498,18 @@ function mostrarCalculadoraPago(total) {
     <div style="padding:20px;">
       <div style="display:flex; gap:10px; margin-bottom:15px;">
         <button id="btnEf" style="flex:1; padding:12px; background:#10ad93; color:white; border-radius:8px; border:none; cursor:pointer;">💵 Efectivo</button>
-        <button id="btnTj" style="flex:1; padding:12px; background:#eee; color:black; border-radius:8px; border:none; cursor:pointer;">💳 Tarjeta</button>
+        <button id="btnTj" style="flex:1; padding:12px; background:#eee; color:black; border-radius:8px; border:none; cursor:pointer;">💳 Tarjeta/Digital</button>
       </div>
 
       <div id="pTj" style="display:none; margin-bottom:15px; border:1px dashed #ccc; padding:10px; border-radius:10px;">
-        <p style="text-align:center; font-size:0.8rem; margin-bottom:8px;">Seleccione tipo de pago:</p>
-        <div class="grid-subpagos">
-          <button class="btn-subpago" data-met="Tarjeta (QR)">📱 QR</button>
-          <button class="btn-subpago" data-met="Tarjeta (Transf.)">🏦 Transf.</button>
-          <button class="btn-subpago" data-met="Tarjeta (Terminal)" style="grid-column: span 2;">💳 Terminal TPV</button>
+        <p style="text-align:center; font-size:0.8rem; margin-bottom:8px;">Seleccione método:</p>
+        <div class="grid-subpagos" style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
+          <button class="btn-subpago" data-met="Tarjeta (QR)">📱 Ver QR</button>
+          <button class="btn-subpago" data-met="Tarjeta (Transf.)">🏦 Datos Banco</button>
+          <button class="btn-subpago" data-met="Tarjeta (Terminal)" style="grid-column: span 2;">💳 Terminal Física</button>
+        </div>
+        
+        <div id="detallePagoAjustes" style="margin-top:15px; text-align:center; display:none; background:#f9f9f9; padding:10px; border-radius:8px; font-size:0.9rem;">
         </div>
       </div>
 
@@ -505,64 +525,68 @@ function mostrarCalculadoraPago(total) {
     </div>`;
   modal.showModal();
 
-  let met = "Efectivo";
   const btnCf = modal.querySelector("#btnCf");
-  const inRec = modal.querySelector("#inRec");
-  const panelTj = modal.querySelector("#pTj");
-  const panelEf = modal.querySelector("#pEf");
+  const divInfo = modal.querySelector("#detallePagoAjustes");
+  let met = "Efectivo";
 
-  // Lógica Efectivo
-  modal.querySelector("#btnEf").onclick = () => { 
-      met = "Efectivo"; 
-      panelEf.style.display="block"; 
-      panelTj.style.display="none";
-      modal.querySelector("#btnEf").style.background="#10ad93";
-      modal.querySelector("#btnEf").style.color="white";
-      modal.querySelector("#btnTj").style.background="#eee";
-      modal.querySelector("#btnTj").style.color="black";
-      inRec.dispatchEvent(new Event('input')); // Re-validar cambio
-  };
-
-  // Lógica Tarjeta
-  modal.querySelector("#btnTj").onclick = () => { 
-      panelEf.style.display="none"; 
-      panelTj.style.display="block";
-      modal.querySelector("#btnTj").style.background="#10ad93";
-      modal.querySelector("#btnTj").style.color="white";
-      modal.querySelector("#btnEf").style.background="#eee";
-      modal.querySelector("#btnEf").style.color="black";
-      btnCf.disabled = true; // Forzar a elegir una sub-opción
-      btnCf.style.background = "#ccc";
-  };
-
-  // Lógica Sub-botones (QR, Transferencia, Terminal)
+  // Lógica de botones de Tarjeta/Digital
   modal.querySelectorAll(".btn-subpago").forEach(btn => {
     btn.onclick = () => {
       met = btn.getAttribute("data-met");
-      modal.querySelectorAll(".btn-subpago").forEach(b => b.classList.remove("seleccionado"));
-      btn.classList.add("seleccionado");
+      divInfo.style.display = "block";
+      divInfo.innerHTML = ""; // Limpiar
+
+      // MOSTRAR FORMAS SEGÚN EL BOTÓN (Datos de ajustes.js)
+      if (met === "Tarjeta (QR)") {
+          if (datosRestaurante.qr_pago_url) {
+              divInfo.innerHTML = `<img src="${datosRestaurante.qr_pago_url}" style="max-width:150px; border:5px solid white; box-shadow:0 2px 5px rgba(0,0,0,0.1);">
+                                   <p style="margin-top:5px; font-weight:bold;">Escanea para pagar</p>`;
+          } else {
+              divInfo.innerHTML = `<p style="color:red;">⚠️ No se ha configurado un QR.</p>`;
+          }
+      } else if (met === "Tarjeta (Transf.)") {
+          divInfo.innerHTML = `<p style="margin:0; font-weight:bold; color:#10ad93;">Datos Bancarios:</p>
+                               <pre style="white-space:pre-wrap; font-family:sans-serif; margin-top:5px;">${datosRestaurante.datos_bancarios || "No hay datos configurados."}</pre>`;
+      } else {
+          divInfo.innerHTML = `<p>💳 Use la terminal física para procesar el pago.</p>`;
+      }
+
+      modal.querySelectorAll(".btn-subpago").forEach(b => b.style.background = "#5d6d7e");
+      btn.style.background = "#10ad93";
       btnCf.disabled = false;
       btnCf.style.background = "#10ad93";
     };
   });
 
+  // Lógica de Efectivo (Oculta info de tarjeta)
+  modal.querySelector("#btnEf").onclick = () => {
+      met = "Efectivo";
+      modal.querySelector("#pEf").style.display = "block";
+      modal.querySelector("#pTj").style.display = "none";
+      divInfo.style.display = "none";
+      // ... resto de lógica de colores ...
+  };
+
+  modal.querySelector("#btnTj").onclick = () => {
+      modal.querySelector("#pEf").style.display = "none";
+      modal.querySelector("#pTj").style.display = "block";
+      // ... resto de lógica de colores ...
+  };
+
+  // El resto de tu lógica (inRec.oninput y btnCf.onclick) se mantiene igual
+  const inRec = modal.querySelector("#inRec");
   inRec.oninput = () => {
-    if(met === "Efectivo") {
-      const cam = (parseFloat(inRec.value) || 0) - total;
-      modal.querySelector("#valCam").textContent = `$${cam.toFixed(2)}`;
-      if(cam >= 0) {
-          btnCf.disabled = false;
-          btnCf.style.background = "#10ad93";
-      } else {
-          btnCf.disabled = true;
-          btnCf.style.background = "#ccc";
+      if(met === "Efectivo") {
+          const cam = (parseFloat(inRec.value) || 0) - total;
+          modal.querySelector("#valCam").textContent = `$${cam.toFixed(2)}`;
+          btnCf.disabled = cam < 0;
+          btnCf.style.background = cam >= 0 ? "#10ad93" : "#ccc";
       }
-    }
   };
 
   btnCf.onclick = async () => { 
-    await guardarOrden("Para Llevar", total, met); 
-    modal.close(); 
+      await guardarOrden("Para Llevar", total, met); 
+      modal.close(); 
   };
 }
   function generarTicket(total, metodo, mesa) {
