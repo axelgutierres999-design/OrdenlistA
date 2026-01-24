@@ -9,7 +9,7 @@
   <style>
     /* Estilos base */
     .tarjeta-producto {
-      padding: 0; /* Quitamos padding para que la imagen toque bordes */
+      padding: 0;
       border: 1px solid #eee;
       border-radius: 12px;
       cursor: pointer;
@@ -18,7 +18,7 @@
       display: flex;
       flex-direction: column;
       position: relative;
-      overflow: hidden; /* Importante para bordes redondeados */
+      overflow: hidden;
     }
     .tarjeta-producto:hover {
       box-shadow: 0 8px 16px rgba(0,0,0,0.1);
@@ -32,10 +32,8 @@
         justify-content: space-between;
         flex-grow: 1;
     }
-    .edit-btn {
-      /* Estilos manejados en JS, pero esto es base */
-      z-index: 20;
-    }
+    .edit-btn { z-index: 20; }
+    
     .panel-orden {
       background-color: #fff;
       padding: 1.5rem;
@@ -51,6 +49,7 @@
       border-color: #10ad93;
       box-shadow: 0 0 15px rgba(16,173,147,0.3);
     }
+    
     .btn-llevar {
       background: #f4f4f4;
       border: 1px solid #ccc;
@@ -65,6 +64,7 @@
       color: white;
       border-color: #10ad93;
     }
+    
     .alerta-llevar {
       background: #e0fdf5;
       border: 1px solid #10ad93;
@@ -77,28 +77,51 @@
     }
     .alerta-llevar.mostrar { display: block; }
     
-    /* Botón flotante para móvil */
+    /* Botón flotante */
     .fab-add {
-      position: fixed;
-      bottom: 20px;
-      right: 20px;
-      background: #10ad93;
-      color: white;
-      font-size: 2rem;
-      border: none;
-      border-radius: 50%;
-      width: 60px;
-      height: 60px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      box-shadow: 0 6px 12px rgba(0,0,0,0.2);
-      cursor: pointer;
-      z-index: 999;
+      position: fixed; bottom: 20px; right: 20px;
+      background: #10ad93; color: white; font-size: 2rem;
+      border: none; border-radius: 50%; width: 60px; height: 60px;
+      display: flex; align-items: center; justify-content: center;
+      box-shadow: 0 6px 12px rgba(0,0,0,0.2); cursor: pointer; z-index: 999;
+    }
+
+    /* --- ESTILOS NUEVOS PARA EL MODAL DE PAGO (Segun captura) --- */
+    .btn-pago {
+        display: block;
+        width: 100%;
+        margin-bottom: 15px;
+        padding: 15px;
+        font-size: 1.1rem;
+        border-radius: 10px;
+        font-weight: bold;
+        cursor: pointer;
+        transition: transform 0.1s;
+    }
+    .btn-pago:active { transform: scale(0.98); }
+
+    /* Estilo QR (Verde borde) */
+    .btn-qr {
+        background: white;
+        border: 2px solid #10ad93;
+        color: #10ad93;
+    }
+    /* Estilo Transferencia (Azul borde) */
+    .btn-transfer {
+        background: white;
+        border: 2px solid #4a90e2;
+        color: #4a90e2;
+    }
+    /* Estilo Terminal (Negro solido) */
+    .btn-terminal {
+        background: #333;
+        border: 2px solid #333;
+        color: white;
     }
   </style>
 </head>
 <body>
+
  <nav class="container-fluid nav-inicio" style="background: white; box-shadow: 0 2px 5px rgba(0,0,0,0.05);">
   <ul style="display:flex; align-items:center; gap:0.6rem;">
     <li><strong style="font-size: 1.3rem; color: #10ad93;">☕ OrdenLista</strong></li>
@@ -173,10 +196,8 @@
   <dialog id="modalEditarMenu" style="border:none; border-radius:15px; padding:0; width:90%; max-width:450px;">
     <div style="padding:20px;">
         <h3 style="margin-top:0;">✏️ Editar / Crear</h3>
-        
         <form id="formProducto" style="display:flex; flex-direction:column; gap:12px;">
         <input type="hidden" id="editId">
-        
         <div style="text-align:center; position:relative;">
             <img id="imgPreview" src="https://via.placeholder.com/150" 
                 style="width:120px; height:120px; object-fit:cover; border-radius:10px; border:2px dashed #ccc; cursor:pointer;"
@@ -184,12 +205,10 @@
             <p style="font-size:12px; color:#666; margin:5px 0;">📸 Toca la imagen para subir foto</p>
         </div>
         <input type="hidden" id="editImg"> 
-        
         <label>
             Nombre:
             <input type="text" id="editNombre" required>
         </label>
-        
         <div style="display:flex; gap:10px;">
             <label style="flex:1">
             Precio:
@@ -205,12 +224,10 @@
             </select>
             </label>
         </div>
-
         <div style="display:flex; gap:10px; margin-top:10px;">
             <button type="button" onclick="document.getElementById('modalEditarMenu').close()" style="flex:1; background:#ccc; border:none; color:black;">Cancelar</button>
             <button type="submit" style="flex:1; background:#10ad93; border:none;">Guardar</button>
         </div>
-        
         <button type="button" id="btnEliminarProd" style="background:none; color:#e74c3c; border:1px solid #e74c3c; padding:8px; width:100%; margin-top:5px; display:none;">
             🗑️ Eliminar Platillo
         </button>
@@ -218,9 +235,128 @@
     </div>
   </dialog>
 
+  <dialog id="modalPagos">
+    <article style="max-width: 480px; border-radius: 20px; text-align: center;">
+      <header style="border-bottom:none;">
+        <h3 style="margin-bottom: 5px;">💳 Tipo de Pago Digital</h3>
+        <p style="color:#666;">Selecciona la opción para <strong>Llevar</strong></p>
+        <h2 id="totalPagoModal" style="color:#10ad93; font-size:2.5rem; margin:10px 0;">$0.00</h2>
+      </header>
+
+      <section style="padding: 10px 20px;">
+        <button class="btn-pago btn-qr" onclick="finalizarPago('QR / CoDi')">
+            📱 Código QR (CoDi / App)
+        </button>
+
+        <button class="btn-pago btn-transfer" onclick="finalizarPago('Transferencia')">
+            🏢 Transferencia
+        </button>
+
+        <button class="btn-pago btn-terminal" onclick="finalizarPago('Terminal Bancaria')">
+            💳 Terminal Bancaria
+        </button>
+        
+        <button class="btn-pago" style="background:#f0f0f0; border:none; color:#333;" onclick="finalizarPago('Efectivo')">
+            💵 Efectivo
+        </button>
+      </section>
+
+      <footer style="border-top:none;">
+        <a href="#cancel" role="button" class="secondary" onclick="document.getElementById('modalPagos').close()" style="border:none;">
+            Cancelar
+        </a>
+      </footer>
+    </article>
+  </dialog>
+
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="js/supabase-client.js"></script>
   <script src="js/app.js"></script>
   <script src="js/menu.js"></script> 
+
+  <script>
+    document.addEventListener("DOMContentLoaded", () => {
+        const btnLlevar = document.getElementById("btnParaLlevar");
+        const panel = document.getElementById("panelOrden");
+        const alerta = document.getElementById("alertaLlevar");
+        const selectMesa = document.getElementById("selectMesa");
+        const btnProcesar = document.getElementById("btnProcesarOrden");
+        const modalPagos = document.getElementById("modalPagos");
+        const totalPagoModal = document.getElementById("totalPagoModal");
+        const ordenTotal = document.getElementById("ordenTotal");
+
+        // 1. Lógica del Botón "Para Llevar"
+        btnLlevar.addEventListener("click", () => {
+            btnLlevar.classList.toggle("activo");
+            const esParaLlevar = btnLlevar.classList.contains("activo");
+
+            if (esParaLlevar) {
+                alerta.classList.add("mostrar");
+                panel.classList.add("llevar-activo");
+                selectMesa.value = ""; // Limpiar mesa
+                selectMesa.disabled = true; // Deshabilitar selector
+                
+                // Si hay productos, habilitar el botón de procesar (ya que no requiere mesa)
+                verificarBotonProcesar(true);
+            } else {
+                alerta.classList.remove("mostrar");
+                panel.classList.remove("llevar-activo");
+                selectMesa.disabled = false;
+                verificarBotonProcesar(false);
+            }
+        });
+
+        // Helper para habilitar/deshabilitar botón procesar
+        function verificarBotonProcesar(esParaLlevar) {
+            // Esta lógica es visual, la lógica real de validación debe estar en tu app.js al renderizar carrito
+            // Aquí asumimos que si hay items (total > 0) y es para llevar, se habilita.
+            const totalTexto = ordenTotal.textContent.replace('$','');
+            const total = parseFloat(totalTexto);
+            
+            if (total > 0) {
+                if (esParaLlevar) {
+                    btnProcesar.disabled = false;
+                    btnProcesar.textContent = "🥡 Pagar y Entregar";
+                } else {
+                    // Si es mesa, depende de si seleccionó mesa
+                    btnProcesar.textContent = "🚀 Procesar Pedido";
+                    btnProcesar.disabled = selectMesa.value === "";
+                }
+            }
+        }
+        
+        // Listener simple para cuando cambia el select de mesa
+        selectMesa.addEventListener("change", () => verificarBotonProcesar(false));
+
+        // 2. Interceptamos el click en Procesar
+        btnProcesar.addEventListener("click", (e) => {
+            const esParaLlevar = btnLlevar.classList.contains("activo");
+            
+            if (esParaLlevar) {
+                // DETENER el envío normal y mostrar MODAL
+                e.preventDefault(); 
+                e.stopPropagation();
+                
+                // Actualizar total en el modal
+                totalPagoModal.textContent = ordenTotal.textContent;
+                modalPagos.showModal();
+            }
+            // Si NO es para llevar, deja que app.js maneje el envío a la mesa
+        });
+
+        // 3. Función global para procesar el pago desde el modal
+        window.finalizarPago = (metodo) => {
+            console.log("Pago seleccionado:", metodo);
+            // Aquí deberías llamar a tu función de guardar orden en Supabase
+            // pasando el método de pago y marcando la orden como "completada" o "para llevar".
+            
+            alert(`✅ Pedido Para Llevar registrado.\nPago: ${metodo}`);
+            modalPagos.close();
+            
+            // Opcional: Recargar o limpiar carrito
+            location.reload(); 
+        };
+    });
+  </script>
 </body>
 </html>
