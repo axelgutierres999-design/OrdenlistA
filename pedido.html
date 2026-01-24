@@ -29,20 +29,24 @@
         align-items: center;
         justify-content: center;
         position: relative;
-        height: 70vh;
+        height: 75vh; /* Un poco más alto para mejor vista */
         background: black;
         border-radius: 8px;
         overflow: hidden;
     }
     .carousel-img { max-width: 100%; max-height: 100%; object-fit: contain; }
+    
+    /* FLECHAS MEJORADAS */
     .c-btn {
         position: absolute; top: 50%; transform: translateY(-50%);
-        background: rgba(255,255,255,0.3); color: white; border: none;
-        width: 40px; height: 40px; border-radius: 50%; cursor: pointer;
+        background: rgba(0,0,0,0.5); color: white; border: none;
+        width: 50px; height: 50px; border-radius: 50%; cursor: pointer;
         z-index: 10; display: flex; align-items: center; justify-content: center;
+        font-size: 1.5rem; transition: background 0.3s;
     }
-    .c-prev { left: 10px; }
-    .c-next { right: 10px; }
+    .c-btn:hover { background: rgba(16, 173, 147, 0.8); }
+    .c-prev { left: 15px; }
+    .c-next { right: 15px; }
 
     /* Productos Grid */
     .productos-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 1rem; }
@@ -55,7 +59,6 @@
     
     .producto-card img { width: 100%; height: 110px; object-fit: cover; cursor: pointer; }
     
-    /* Botón info en la esquina de la foto */
     .btn-info-detalle {
         position: absolute; top: 8px; right: 8px;
         background: rgba(255,255,255,0.9); color: #10ad93;
@@ -74,8 +77,9 @@
         padding: 5px; border-radius: 6px; font-size: 0.8rem; cursor: pointer;
     }
 
-    /* MODAL DE DETALLES (Grande) */
-    #modalInfoProducto article { max-width: 450px; padding: 0; overflow: hidden; border-radius: 15px; }
+    /* MODALES */
+    dialog article { border-radius: 15px; overflow: hidden; }
+    #modalInfoProducto article { max-width: 450px; padding: 0; }
     .detalle-img { width: 100%; height: 250px; object-fit: cover; }
     .detalle-cuerpo { padding: 20px; }
     .detalle-ingredientes { 
@@ -154,15 +158,15 @@
   </dialog>
 
   <dialog id="modalMenuFotos">
-      <article style="max-width: 90vw;">
+      <article style="max-width: 95vw; width: 600px;">
           <header>
             <strong>Menú Visual</strong>
             <a href="#close" aria-label="Close" class="close" onclick="document.getElementById('modalMenuFotos').close()"></a>
           </header>
           <div class="carousel-container">
-              <button class="c-btn c-prev" onclick="cambiarSlide(-1)">❮</button>
+              <button class="c-btn c-prev" onclick="event.stopPropagation(); cambiarSlide(-1)">❮</button>
               <img id="imgSlide" class="carousel-img" src="">
-              <button class="c-btn c-next" onclick="cambiarSlide(1)">❯</button>
+              <button class="c-btn c-next" onclick="event.stopPropagation(); cambiarSlide(1)">❯</button>
           </div>
           <footer style="text-align:center;"><span id="contadorSlide">1 / 1</span></footer>
       </article>
@@ -187,18 +191,30 @@
 
     let carrito = [];
     let productos = [];
-    let productoSeleccionadoParaModal = null; // Para saber qué agregar desde el modal de info
-    
+    let productoSeleccionadoParaModal = null; 
     let fotosMenu = [];
     let indiceFoto = 0;
+
+    // --- CERRAR MODALES AL TOCAR FUERA ---
+    // Esta lógica hace que si tocas el fondo oscuro (fuera del cuadro blanco), el modal se cierre.
+    document.querySelectorAll('dialog').forEach(modal => {
+        modal.addEventListener('click', (e) => {
+            if (e.target === modal) modal.close();
+        });
+    });
 
     async function cargarDatosRestaurante() {
       if (!ridParam) return alert("ID de restaurante no válido");
 
       const { data: resto } = await db.from("restaurantes").select("galeria_menu, menu_digital_url").eq("id", ridParam).single();
       if (resto) {
-          if (resto.galeria_menu && Array.isArray(resto.galeria_menu) && resto.galeria_menu.length > 0) fotosMenu = resto.galeria_menu;
-          else if (resto.menu_digital_url) fotosMenu = [resto.menu_digital_url];
+          // Cargamos la galería si existe, sino usamos la imagen única
+          if (resto.galeria_menu && Array.isArray(resto.galeria_menu) && resto.galeria_menu.length > 0) {
+              fotosMenu = resto.galeria_menu;
+          } else if (resto.menu_digital_url) {
+              fotosMenu = [resto.menu_digital_url];
+          }
+          
           if (fotosMenu.length > 0) document.getElementById("btnMenuDigital").style.display = "block";
       }
 
@@ -207,7 +223,6 @@
       renderizarProductos();
     }
 
-    // --- FUNCIÓN VER DETALLES (LA QUE PEDISTE) ---
     window.verDetalles = (id) => {
         const p = productos.find(item => item.id === id);
         if(!p) return;
@@ -256,7 +271,6 @@
       });
     }
 
-    // Helper para agregar por ID
     window.agregarAlCarritoById = (id) => {
         const p = productos.find(i => i.id === id);
         if(p) agregarAlCarrito(p);
@@ -313,10 +327,26 @@
       } catch (err) { alert("Error: " + err.message); btn.disabled = false; btn.textContent = "Reintentar"; }
     };
 
-    // Lógica carrusel fotos
-    window.abrirMenuDigital = () => { indiceFoto = 0; mostrarSlide(); document.getElementById("modalMenuFotos").showModal(); };
-    window.cambiarSlide = (d) => { indiceFoto += d; if (indiceFoto < 0) indiceFoto = fotosMenu.length - 1; if (indiceFoto >= fotosMenu.length) indiceFoto = 0; mostrarSlide(); };
-    function mostrarSlide() { document.getElementById("imgSlide").src = fotosMenu[indiceFoto]; document.getElementById("contadorSlide").textContent = `${indiceFoto + 1} / ${fotosMenu.length}`; }
+    // --- LÓGICA CARRUSEL MEJORADA ---
+    window.abrirMenuDigital = () => { 
+        if(fotosMenu.length === 0) return;
+        indiceFoto = 0; 
+        mostrarSlide(); 
+        document.getElementById("modalMenuFotos").showModal(); 
+    };
+
+    window.cambiarSlide = (d) => { 
+        indiceFoto += d; 
+        if (indiceFoto < 0) indiceFoto = fotosMenu.length - 1; 
+        if (indiceFoto >= fotosMenu.length) indiceFoto = 0; 
+        mostrarSlide(); 
+    };
+
+    function mostrarSlide() { 
+        const img = document.getElementById("imgSlide");
+        img.src = fotosMenu[indiceFoto]; 
+        document.getElementById("contadorSlide").textContent = `${indiceFoto + 1} / ${fotosMenu.length}`; 
+    }
 
     document.getElementById("buscarProducto").addEventListener("input", renderizarProductos);
     document.getElementById("filtroCategoria").addEventListener("change", renderizarProductos);
