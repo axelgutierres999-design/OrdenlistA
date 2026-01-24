@@ -466,62 +466,88 @@ document.addEventListener("DOMContentLoaded", async () => {
       }
   }
 
-  // =====================================================
-  // 5️⃣ CALCULADORA Y TICKET
-  // =====================================================
-  function mostrarCalculadoraPago(total) {
-    let modal = document.getElementById("modalCalculadora") || document.createElement("dialog");
-    modal.id = "modalCalculadora";
-    modal.style = "border:none; border-radius:15px; padding:0; width:90%; max-width:400px; box-shadow:0 10px 50px rgba(0,0,0,0.5);";
-    if(!modal.parentElement) document.body.appendChild(modal);
+ // REEMPLAZA ESTA FUNCIÓN EN TU js/menu.js
+function mostrarCalculadoraPago(total) {
+  let modal = document.getElementById("modalCalculadora") || document.createElement("dialog");
+  modal.id = "modalCalculadora";
+  modal.style = "border:none; border-radius:15px; padding:0; width:90%; max-width:400px; box-shadow:0 10px 50px rgba(0,0,0,0.5);";
+  if(!modal.parentElement) document.body.appendChild(modal);
 
-    modal.innerHTML = `
-      <div style="background:#10ad93; color:white; padding:20px; text-align:center;">
-        <h3 style="margin:0;">Cobrar Pedido</h3>
-        <div style="font-size:2.5rem; font-weight:bold;">$${total.toFixed(2)}</div>
+  modal.innerHTML = `
+    <div style="background:#10ad93; color:white; padding:20px; text-align:center;">
+      <h3 style="margin:0;">Cobrar Pedido</h3>
+      <div style="font-size:2.5rem; font-weight:bold;">$${total.toFixed(2)}</div>
+    </div>
+    <div style="padding:20px;">
+      <div style="display:flex; gap:10px; margin-bottom:15px;">
+        <button id="btnEf" style="flex:1; padding:12px; background:#10ad93; color:white; border-radius:8px; border:none; cursor:pointer;">💵 Efectivo</button>
+        <button id="btnTj" style="flex:1; padding:12px; background:#eee; color:black; border-radius:8px; border:none; cursor:pointer;">💳 Tarjeta</button>
       </div>
-      <div style="padding:20px;">
-        <div style="display:flex; gap:10px; margin-bottom:15px;">
-          <button id="btnEf" style="flex:1; padding:12px; background:#10ad93; color:white; border-radius:8px; border:none; cursor:pointer;">💵 Efectivo</button>
-          <button id="btnTj" style="flex:1; padding:12px; background:#eee; border-radius:8px; border:none; cursor:pointer;">💳 Tarjeta</button>
-        </div>
-        <div id="pEf">
-          <input type="number" id="inRec" placeholder="Recibido..." style="width:100%; font-size:1.5rem; padding:10px; border:2px solid #ddd; border-radius:8px; text-align:center;">
-          <div style="text-align:center; margin-top:10px; font-size:1.2rem;">Cambio: <b id="valCam" style="color:#27ae60;">$0.00</b></div>
-        </div>
-        <div style="display:flex; gap:10px; margin-top:20px;">
-          <button onclick="document.getElementById('modalCalculadora').close()" style="flex:1; background:#f1f1f1; border:none; padding:10px; border-radius:8px; cursor:pointer;">Cancelar</button>
-          <button id="btnCf" disabled style="flex:2; background:#ccc; color:white; border:none; border-radius:8px; cursor:pointer; font-weight:bold;">CONFIRMAR</button>
-        </div>
-      </div>`;
-    modal.showModal();
 
-    let met = "Efectivo";
-    const btnCf = modal.querySelector("#btnCf");
-    const inRec = modal.querySelector("#inRec");
+      <div id="pTj" style="display:none; margin-bottom:15px; border:1px dashed #ccc; padding:10px; border-radius:10px;">
+        <p style="text-align:center; font-size:0.8rem; margin-bottom:8px;">Seleccione tipo de pago:</p>
+        <div class="grid-subpagos">
+          <button class="btn-subpago" data-met="Tarjeta (QR)">📱 QR</button>
+          <button class="btn-subpago" data-met="Tarjeta (Transf.)">🏦 Transf.</button>
+          <button class="btn-subpago" data-met="Tarjeta (Terminal)" style="grid-column: span 2;">💳 Terminal TPV</button>
+        </div>
+      </div>
 
-    modal.querySelector("#btnEf").onclick = () => { 
-        met = "Efectivo"; 
-        modal.querySelector("#pEf").style.display="block"; 
-        modal.querySelector("#btnEf").style.background="#10ad93";
-        modal.querySelector("#btnEf").style.color="white";
-        modal.querySelector("#btnTj").style.background="#eee";
-        modal.querySelector("#btnTj").style.color="black";
-        btnCf.disabled = true;
-        btnCf.style.background = "#ccc";
+      <div id="pEf">
+        <input type="number" id="inRec" placeholder="Recibido..." style="width:100%; font-size:1.5rem; padding:10px; border:2px solid #ddd; border-radius:8px; text-align:center;">
+        <div style="text-align:center; margin-top:10px; font-size:1.2rem;">Cambio: <b id="valCam" style="color:#27ae60;">$0.00</b></div>
+      </div>
+
+      <div style="display:flex; gap:10px; margin-top:20px;">
+        <button onclick="document.getElementById('modalCalculadora').close()" style="flex:1; background:#f1f1f1; border:none; padding:10px; border-radius:8px; cursor:pointer;">Cancelar</button>
+        <button id="btnCf" disabled style="flex:2; background:#ccc; color:white; border:none; border-radius:8px; cursor:pointer; font-weight:bold;">CONFIRMAR</button>
+      </div>
+    </div>`;
+  modal.showModal();
+
+  let met = "Efectivo";
+  const btnCf = modal.querySelector("#btnCf");
+  const inRec = modal.querySelector("#inRec");
+  const panelTj = modal.querySelector("#pTj");
+  const panelEf = modal.querySelector("#pEf");
+
+  // Lógica Efectivo
+  modal.querySelector("#btnEf").onclick = () => { 
+      met = "Efectivo"; 
+      panelEf.style.display="block"; 
+      panelTj.style.display="none";
+      modal.querySelector("#btnEf").style.background="#10ad93";
+      modal.querySelector("#btnEf").style.color="white";
+      modal.querySelector("#btnTj").style.background="#eee";
+      modal.querySelector("#btnTj").style.color="black";
+      inRec.dispatchEvent(new Event('input')); // Re-validar cambio
+  };
+
+  // Lógica Tarjeta
+  modal.querySelector("#btnTj").onclick = () => { 
+      panelEf.style.display="none"; 
+      panelTj.style.display="block";
+      modal.querySelector("#btnTj").style.background="#10ad93";
+      modal.querySelector("#btnTj").style.color="white";
+      modal.querySelector("#btnEf").style.background="#eee";
+      modal.querySelector("#btnEf").style.color="black";
+      btnCf.disabled = true; // Forzar a elegir una sub-opción
+      btnCf.style.background = "#ccc";
+  };
+
+  // Lógica Sub-botones (QR, Transferencia, Terminal)
+  modal.querySelectorAll(".btn-subpago").forEach(btn => {
+    btn.onclick = () => {
+      met = btn.getAttribute("data-met");
+      modal.querySelectorAll(".btn-subpago").forEach(b => b.classList.remove("seleccionado"));
+      btn.classList.add("seleccionado");
+      btnCf.disabled = false;
+      btnCf.style.background = "#10ad93";
     };
-    modal.querySelector("#btnTj").onclick = () => { 
-        met = "Tarjeta"; 
-        modal.querySelector("#pEf").style.display="none"; 
-        modal.querySelector("#btnTj").style.background="#10ad93";
-        modal.querySelector("#btnTj").style.color="white";
-        modal.querySelector("#btnEf").style.background="#eee";
-        modal.querySelector("#btnEf").style.color="black";
-        btnCf.disabled=false; 
-        btnCf.style.background="#10ad93"; 
-    };
+  });
 
-    inRec.oninput = () => {
+  inRec.oninput = () => {
+    if(met === "Efectivo") {
       const cam = (parseFloat(inRec.value) || 0) - total;
       modal.querySelector("#valCam").textContent = `$${cam.toFixed(2)}`;
       if(cam >= 0) {
@@ -531,11 +557,14 @@ document.addEventListener("DOMContentLoaded", async () => {
           btnCf.disabled = true;
           btnCf.style.background = "#ccc";
       }
-    };
+    }
+  };
 
-    btnCf.onclick = async () => { await guardarOrden("Para Llevar", total, met); modal.close(); };
-  }
-
+  btnCf.onclick = async () => { 
+    await guardarOrden("Para Llevar", total, met); 
+    modal.close(); 
+  };
+}
   function generarTicket(total, metodo, mesa) {
     let modal = document.getElementById("modalTicketMenu") || document.createElement("dialog");
     modal.id = "modalTicketMenu";
