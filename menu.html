@@ -7,357 +7,220 @@
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@picocss/pico@1/css/pico.min.css" />
   <link rel="stylesheet" href="css/app.css" />
   <style>
-    /* --- ESTILOS GENERALES --- */
-    body { background-color: #f8fafc; padding-bottom: 80px; } /* Espacio para barra flotante */
-    
-    /* --- GRID DE PRODUCTOS --- */
-    .producto-grid { 
-        display: grid; 
-        grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); 
-        gap: 1rem; 
-    }
-    
+    /* Estilos base */
     .tarjeta-producto {
-      padding: 0; border: 1px solid #eee; border-radius: 12px;
-      background: white; overflow: hidden; display: flex; flex-direction: column;
-      transition: all 0.2s; position: relative;
+      padding: 0; /* Quitamos padding para que la imagen toque bordes */
+      border: 1px solid #eee;
+      border-radius: 12px;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      background: white;
+      display: flex;
+      flex-direction: column;
+      position: relative;
+      overflow: hidden; /* Importante para bordes redondeados */
     }
-    .tarjeta-producto:hover { transform: translateY(-3px); box-shadow: 0 5px 15px rgba(0,0,0,0.1); border-color: #10ad93; }
-    .tarjeta-producto img { width: 100%; height: 120px; object-fit: cover; }
-    .tarjeta-producto .info { padding: 10px; display: flex; flex-direction: column; flex-grow: 1; justify-content: space-between; }
+    .tarjeta-producto:hover {
+      box-shadow: 0 8px 16px rgba(0,0,0,0.1);
+      transform: translateY(-4px);
+      border-color: #10ad93;
+    }
+    .tarjeta-producto .info {
+        padding: 1rem;
+        display: flex;
+        flex-direction: column;
+        justify-content: space-between;
+        flex-grow: 1;
+    }
+    .edit-btn {
+      /* Estilos manejados en JS, pero esto es base */
+      z-index: 20;
+    }
+    .panel-orden {
+      background-color: #fff;
+      padding: 1.5rem;
+      border-radius: 16px;
+      border: 1px solid #eef0f2;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.05);
+      position: sticky;
+      top: 2rem;
+      transition: all 0.3s ease;
+    }
+    .panel-orden.llevar-activo {
+      background: #f4fffc;
+      border-color: #10ad93;
+      box-shadow: 0 0 15px rgba(16,173,147,0.3);
+    }
+    .btn-llevar {
+      background: #f4f4f4;
+      border: 1px solid #ccc;
+      padding: 6px 10px;
+      border-radius: 6px;
+      cursor: pointer;
+      color: #333;
+      font-weight: 500;
+    }
+    .btn-llevar.activo {
+      background: #10ad93;
+      color: white;
+      border-color: #10ad93;
+    }
+    .alerta-llevar {
+      background: #e0fdf5;
+      border: 1px solid #10ad93;
+      color: #0a6b5f;
+      padding: 8px;
+      text-align: center;
+      border-radius: 8px;
+      margin-bottom: 10px;
+      display: none;
+    }
+    .alerta-llevar.mostrar { display: block; }
     
-    /* --- PANEL DE ORDEN (UX MEJORADA) --- */
-    .layout-principal {
-        display: grid;
-        grid-template-columns: 1fr 350px;
-        gap: 20px;
-        align-items: start;
+    /* Botón flotante para móvil */
+    .fab-add {
+      position: fixed;
+      bottom: 20px;
+      right: 20px;
+      background: #10ad93;
+      color: white;
+      font-size: 2rem;
+      border: none;
+      border-radius: 50%;
+      width: 60px;
+      height: 60px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-shadow: 0 6px 12px rgba(0,0,0,0.2);
+      cursor: pointer;
+      z-index: 999;
     }
-
-    /* En escritorio es sticky (se queda pegado al bajar) */
-    .columna-orden {
-        position: sticky;
-        top: 20px;
-        background: white;
-        padding: 20px;
-        border-radius: 16px;
-        border: 1px solid #eef0f2;
-        box-shadow: 0 4px 20px rgba(0,0,0,0.05);
-        max-height: 90vh;
-        overflow-y: auto;
-    }
-
-    /* En móvil, la orden se oculta y aparece como panel inferior */
-    @media (max-width: 900px) {
-        .layout-principal { grid-template-columns: 1fr; }
-        .columna-orden {
-            position: fixed;
-            bottom: 0; left: 0; right: 0; top: auto;
-            max-height: 80vh;
-            border-radius: 20px 20px 0 0;
-            z-index: 1000;
-            transform: translateY(110%); /* Oculto inicialmente */
-            transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-            box-shadow: 0 -5px 25px rgba(0,0,0,0.2);
-        }
-        .columna-orden.abierta { transform: translateY(0); } /* Mostrar */
-        
-        /* Barra flotante inferior para abrir el carrito */
-        .barra-flotante {
-            position: fixed; bottom: 0; left: 0; right: 0;
-            background: #10ad93; color: white;
-            padding: 15px 20px;
-            display: flex; justify-content: space-between; align-items: center;
-            z-index: 999;
-            box-shadow: 0 -2px 10px rgba(0,0,0,0.1);
-            cursor: pointer;
-        }
-    }
-    
-    @media (min-width: 901px) { .barra-flotante { display: none; } }
-
-    /* --- ESTILOS MODAL PAGO DESPLEGABLE --- */
-    .grid-pagos { display: grid; gap: 10px; }
-    
-    .btn-pago-opcion {
-        padding: 15px; border-radius: 10px; border: 2px solid #eee;
-        background: white; color: #333; font-weight: bold;
-        text-align: left; cursor: pointer; transition: 0.2s;
-        display: flex; align-items: center; gap: 10px; width: 100%;
-    }
-    .btn-pago-opcion:hover { border-color: #10ad93; background: #f0fdfa; }
-    
-    /* Submenú oculto */
-    .sub-opciones { 
-        display: none; 
-        margin-left: 20px; 
-        margin-top: 5px; 
-        border-left: 3px solid #10ad93; 
-        padding-left: 10px; 
-    }
-    .sub-opciones.mostrar { 
-        display: grid; 
-        gap: 8px; 
-        animation: slideDown 0.3s ease; 
-    }
-    
-    @keyframes slideDown { from { opacity: 0; transform: translateY(-5px); } to { opacity: 1; transform: translateY(0); } }
-
-    /* --- UTILIDADES --- */
-    .item-carrito { display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px dashed #eee; align-items: center; }
-    .btn-remove { color: #e74c3c; background: none; border: none; font-size: 1.2rem; cursor: pointer; padding: 0 5px; }
-    .alerta-llevar { background: #e0fdf5; color: #0a6b5f; padding: 10px; border-radius: 8px; margin-bottom: 15px; display: none; text-align: center; font-weight: bold; border: 1px solid #10ad93; }
-    .fab-add { position: fixed; bottom: 80px; right: 20px; width: 50px; height: 50px; border-radius: 50%; background: #10ad93; color: white; border: none; font-size: 24px; box-shadow: 0 4px 10px rgba(0,0,0,0.3); z-index: 900; cursor: pointer; display: flex; align-items: center; justify-content: center; }
   </style>
 </head>
 <body>
-
- <nav class="container-fluid" style="background: white; box-shadow: 0 2px 5px rgba(0,0,0,0.05); padding: 10px 20px; margin-bottom: 20px;">
-  <ul style="display:flex; align-items:center; gap:10px;">
+ <nav class="container-fluid nav-inicio" style="background: white; box-shadow: 0 2px 5px rgba(0,0,0,0.05);">
+  <ul style="display:flex; align-items:center; gap:0.6rem;">
     <li><strong style="font-size: 1.3rem; color: #10ad93;">☕ OrdenLista</strong></li>
-    <li><a href="ajustes.html" style="color: #666; text-decoration: none;">⚙️ Ajustes</a></li>
+    <li style="color: #888;">| Pedidos</li>
+    <li>
+      <a href="ajustes.html" role="button" class="contrast"
+         style="border:1px solid #10ad93; border-radius:8px; padding:4px 10px; color:#10ad93; text-decoration:none;">
+        ⚙️ Ajustes
+      </a>
+    </li>
   </ul>
- </nav>
+  <ul id="menuNavegacion" class="nav-botones"></ul>
+</nav>
 
- <main class="container">
-    
-    <div class="layout-principal">
-        <section>
-            <div style="display:flex; gap:10px; margin-bottom: 20px; flex-wrap: wrap;">
-                <input type="search" id="buscarProducto" placeholder="🔍 Buscar platillo..." style="flex:1;">
-                <select id="filtroCategoria" style="width: auto;">
-                    <option value="Todos">Categorías</option>
-                    <option value="Platillo">Platillos</option>
-                    <option value="Bebidas">Bebidas</option>
-                    <option value="Postres">Postres</option>
-                </select>
-            </div>
+  <main class="container">
+    <header>
+      <h1>📜 Menú y Pedidos</h1>
+      <p>Selecciona los productos para generar una nueva orden.</p>
+    </header>
 
-            <div id="contenedorProductos" class="producto-grid">
-                <article aria-busy="true">Cargando menú...</article>
-            </div>
-        </section>
-
-        <aside id="panelOrden" class="columna-orden">
-            <header style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
-                <h3 style="margin:0;">🛒 Tu Orden</h3>
-                <button id="btnCerrarPanelMovil" style="background:none; border:none; color:#333; font-size:1.5rem; display:none;">&times;</button>
-            </header>
-
-            <button id="btnParaLlevar" style="width:100%; background:#f4f4f4; color:#333; border:1px solid #ccc; margin-bottom:10px; padding:8px;">🥡 Para Llevar</button>
-            <div id="alertaLlevar" class="alerta-llevar">📦 Modo "Para Llevar" Activado</div>
-
-            <div id="listaItemsOrden" style="min-height:100px; max-height:300px; overflow-y:auto; margin-bottom:10px;">
-                <small style="color:#999; display:block; text-align:center; padding:20px;">Carrito vacío</small>
-            </div>
-
-            <textarea id="comentarioPedido" rows="2" placeholder="📝 Notas generales (ej. Sin cubiertos)..." style="width:100%; font-size:0.9rem; margin-bottom:10px;"></textarea>
-
-            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px; font-weight:bold; font-size:1.2rem;">
-                <span>Total:</span>
-                <span id="ordenTotal" style="color:#10ad93;">$0.00</span>
-            </div>
-
-            <label>🪑 Destino:</label>
-            <select id="selectMesa" style="margin-bottom:15px;">
-                <option value="" disabled selected>Selecciona mesa...</option>
-            </select>
-
-            <button id="btnProcesarOrden" style="width:100%; background:#10ad93; border:none; padding:12px; font-weight:bold;" disabled>
-                🚀 Procesar Pedido
-            </button>
-        </aside>
+    <div class="buscador-container" style="display:flex; gap:10px; margin-bottom:20px;">
+      <input type="search" id="buscarProducto" placeholder="🔍 Buscar platillo..." style="flex:1;">
+      <select id="filtroCategoria" style="width:auto;">
+        <option value="Todos">Todas</option>
+        <option value="Platillo">Platillos</option>
+        <option value="Bebidas">Bebidas</option>
+        <option value="Postres">Postres</option>
+      </select>
     </div>
- </main>
 
- <div class="barra-flotante" onclick="togglePanelMovil()">
-    <span id="resumenBarra">0 items</span>
-    <strong>Ver Orden 🔼</strong>
-    <span id="totalBarra">$0.00</span>
- </div>
+    <div class="grid">
+      <section>
+        <div id="contenedorProductos" class="grid" style="grid-template-columns:repeat(auto-fill,minmax(160px,1fr)); gap:1rem;">
+          <article aria-busy="true">Cargando...</article>
+        </div>
+      </section>
 
- <button id="btnAgregarProducto" class="fab-add" style="display:none;" onclick="window.abrirEditor()">＋</button>
+      <section class="panel-orden" id="panelOrden">
+        <div class="orden-header" style="display:flex; justify-content:space-between; align-items:center; margin-bottom:0.5rem;">
+          <h3 style="margin:0;">🛒 Orden</h3>
+          <button id="btnParaLlevar" class="btn-llevar">🥡 Para Llevar</button>
+        </div>
 
- <dialog id="modalEditarMenu">
-    <article style="padding:20px;">
-        <h3 style="margin-top:0;">✏️ Editar Platillo</h3>
-        <form id="formProducto">
-            <input type="hidden" id="editId">
-            <div style="text-align:center; margin-bottom:10px;">
-                <img id="imgPreview" src="" style="width:100px; height:100px; object-fit:cover; border-radius:10px; border:2px dashed #ccc; cursor:pointer;">
-                <p style="font-size:11px; color:#888;">Toca para cambiar imagen</p>
-            </div>
-            <input type="hidden" id="editImg">
-            <input type="text" id="editNombre" placeholder="Nombre" required style="margin-bottom:10px;">
-            <div style="display:flex; gap:10px; margin-bottom:10px;">
-                <input type="number" id="editPrecio" placeholder="Precio" step="0.01" required>
-                <select id="editCategoria">
-                    <option value="Platillo">Platillo</option>
-                    <option value="Bebidas">Bebidas</option>
-                    <option value="Postres">Postres</option>
-                </select>
-            </div>
-            <div style="display:flex; gap:10px;">
-                <button type="button" class="secondary" onclick="document.getElementById('modalEditarMenu').close()">Cancelar</button>
-                <button type="submit">Guardar</button>
-            </div>
-            <button type="button" id="btnEliminarProd" style="background:none; color:red; border:none; width:100%; margin-top:10px; display:none;">🗑️ Eliminar</button>
+        <div id="alertaLlevar" class="alerta-llevar">📦 Modo "Para Llevar" activado</div>
+
+        <div id="listaItemsOrden" style="min-height:100px; margin-bottom:1rem; max-height:300px; overflow-y:auto;">
+          <small style="display:block; text-align:center; color:#999;">Carrito vacío</small>
+        </div>
+
+        <label for="comentarioPedido">📝 Nota General:</label>
+        <textarea id="comentarioPedido" placeholder="Ej: Sin cubiertos..." rows="1" style="resize:none;"></textarea>
+
+        <hr>
+        <div style="display:flex; justify-content:space-between; font-weight:bold; font-size:1.5rem; color:#10ad93; margin-bottom:1rem;">
+          <span>Total:</span><span id="ordenTotal">$0.00</span>
+        </div>
+
+        <label for="selectMesa">🪑 Mesa:</label>
+        <select id="selectMesa" required>
+          <option value="" disabled selected>Selecciona mesa...</option>
+        </select>
+
+        <button id="btnProcesarOrden" style="width:100%; background:#10ad93; border:none;" disabled>
+          🚀 Procesar Pedido
+        </button>
+      </section>
+    </div>
+  </main>
+
+  <button id="btnAgregarProducto" class="fab-add" title="Agregar producto" style="display:none;" onclick="window.abrirEditor()">＋</button>
+
+  <dialog id="modalEditarMenu" style="border:none; border-radius:15px; padding:0; width:90%; max-width:450px;">
+    <div style="padding:20px;">
+        <h3 style="margin-top:0;">✏️ Editar / Crear</h3>
+        
+        <form id="formProducto" style="display:flex; flex-direction:column; gap:12px;">
+        <input type="hidden" id="editId">
+        
+        <div style="text-align:center; position:relative;">
+            <img id="imgPreview" src="https://via.placeholder.com/150" 
+                style="width:120px; height:120px; object-fit:cover; border-radius:10px; border:2px dashed #ccc; cursor:pointer;"
+                title="Toca para subir imagen">
+            <p style="font-size:12px; color:#666; margin:5px 0;">📸 Toca la imagen para subir foto</p>
+        </div>
+        <input type="hidden" id="editImg"> 
+        
+        <label>
+            Nombre:
+            <input type="text" id="editNombre" required>
+        </label>
+        
+        <div style="display:flex; gap:10px;">
+            <label style="flex:1">
+            Precio:
+            <input type="number" id="editPrecio" step="0.01" required>
+            </label>
+            <label style="flex:1">
+            Categoría:
+            <select id="editCategoria">
+                <option value="Platillo">Platillo</option>
+                <option value="Bebidas">Bebidas</option>
+                <option value="Postres">Postres</option>
+                <option value="Otros">Otros</option>
+            </select>
+            </label>
+        </div>
+
+        <div style="display:flex; gap:10px; margin-top:10px;">
+            <button type="button" onclick="document.getElementById('modalEditarMenu').close()" style="flex:1; background:#ccc; border:none; color:black;">Cancelar</button>
+            <button type="submit" style="flex:1; background:#10ad93; border:none;">Guardar</button>
+        </div>
+        
+        <button type="button" id="btnEliminarProd" style="background:none; color:#e74c3c; border:1px solid #e74c3c; padding:8px; width:100%; margin-top:5px; display:none;">
+            🗑️ Eliminar Platillo
+        </button>
         </form>
-    </article>
- </dialog>
+    </div>
+  </dialog>
 
- <dialog id="modalCobro">
-    <article style="width:100%; max-width:400px;">
-        <header>
-            <h3 style="margin:0;">💳 Método de Pago</h3>
-            <p style="margin:0; color:#666;">Selecciona una opción</p>
-        </header>
-        
-        <div style="text-align:center; margin:15px 0;">
-            <span style="font-size:2.5rem; font-weight:bold; color:#10ad93;" id="montoTotalModal">$0.00</span>
-        </div>
-
-        <div class="grid-pagos">
-            <button class="btn-pago-opcion" onclick="procesarPago('Efectivo')">
-                <span>💵</span> Efectivo
-            </button>
-
-            <button class="btn-pago-opcion" onclick="toggleSubOpciones()">
-                <span>💳</span> Tarjeta / Digital ▼
-            </button>
-
-            <div id="subOpcionesPago" class="sub-opciones">
-                <button class="btn-pago-opcion" onclick="procesarPago('Terminal Bancaria')" style="font-size:0.9rem;">
-                    📟 Terminal Bancaria
-                </button>
-                <button class="btn-pago-opcion" onclick="procesarPago('Código QR / CoDi')" style="font-size:0.9rem;">
-                    📱 Código QR / CoDi
-                </button>
-                <button class="btn-pago-opcion" onclick="procesarPago('Transferencia')" style="font-size:0.9rem;">
-                    🏦 Transferencia
-                </button>
-            </div>
-        </div>
-
-        <footer style="margin-top:20px;">
-            <button class="secondary outline" style="width:100%;" onclick="document.getElementById('modalCobro').close()">Cancelar</button>
-        </footer>
-    </article>
- </dialog>
-
- <dialog id="modalTicket">
-    <article>
-        <header><h3>🧾 Ticket</h3></header>
-        <pre id="ticketContenido" style="background:#f9f9f9; padding:10px; border-radius:5px; font-size:0.85rem;"></pre>
-        <footer>
-            <button onclick="window.print()">🖨️ Imprimir</button>
-            <button class="secondary" onclick="document.getElementById('modalTicket').close()">Cerrar</button>
-        </footer>
-    </article>
- </dialog>
-
- <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
- <script src="js/supabase-client.js"></script>
- <script src="js/app.js"></script>
- <script src="js/menu.js"></script>
-
- <script>
-    // --- LÓGICA DE INTERFAZ (UI) ---
-    document.addEventListener("DOMContentLoaded", () => {
-        // 1. Detección de Admin
-        const sesion = JSON.parse(localStorage.getItem('sesion_activa') || "{}");
-        if(["dueño","administrador"].includes(sesion.rol)){
-            document.getElementById("btnAgregarProducto").style.display="flex";
-        }
-
-        // 2. Control Móvil del Panel
-        const panelOrden = document.getElementById("panelOrden");
-        const btnCerrarMovil = document.getElementById("btnCerrarPanelMovil");
-        
-        window.togglePanelMovil = () => {
-            panelOrden.classList.toggle("abierta");
-            // Mostrar botón cerrar solo en móvil cuando está abierto
-            if(window.innerWidth <= 900) {
-                btnCerrarMovil.style.display = panelOrden.classList.contains("abierta") ? "block" : "none";
-            }
-        };
-        
-        btnCerrarMovil.onclick = togglePanelMovil;
-
-        // 3. Lógica "Para Llevar"
-        const btnLlevar = document.getElementById("btnParaLlevar");
-        const alertaLlevar = document.getElementById("alertaLlevar");
-        const selectMesa = document.getElementById("selectMesa");
-        const btnProcesar = document.getElementById("btnProcesarOrden");
-
-        btnLlevar.addEventListener("click", () => {
-            const esActivo = btnLlevar.classList.toggle("activo");
-            // Estilos visuales
-            btnLlevar.style.background = esActivo ? "#10ad93" : "#f4f4f4";
-            btnLlevar.style.color = esActivo ? "white" : "#333";
-            
-            if(esActivo) {
-                alertaLlevar.style.display = "block";
-                selectMesa.value = "Para Llevar"; 
-                selectMesa.disabled = true;
-                // Forzar validación
-                const total = parseFloat(document.getElementById("ordenTotal").textContent.replace('$',''));
-                if(total > 0) btnProcesar.disabled = false;
-            } else {
-                alertaLlevar.style.display = "none";
-                selectMesa.value = "";
-                selectMesa.disabled = false;
-                if(selectMesa.value === "") btnProcesar.disabled = true;
-            }
-        });
-
-        // 4. Lógica de Cobro
-        const modalCobro = document.getElementById("modalCobro");
-        
-        btnProcesar.addEventListener("click", () => {
-            const esLlevar = btnLlevar.classList.contains("activo");
-            
-            if(esLlevar) {
-                // Si es para llevar -> ABRIR MODAL DE PAGO
-                const total = document.getElementById("ordenTotal").textContent;
-                document.getElementById("montoTotalModal").textContent = total;
-                
-                // Resetear sub-opciones (ocultarlas al abrir)
-                document.getElementById("subOpcionesPago").classList.remove("mostrar");
-                
-                modalCobro.showModal();
-            } else {
-                // Si es mesa -> PROCESAR DIRECTO (Llama a función en menu.js)
-                if(typeof guardarOrden === 'function') {
-                    guardarOrden(selectMesa.value, parseFloat(document.getElementById("ordenTotal").textContent.replace('$','')));
-                }
-            }
-        });
-
-        // 5. Despliegue de opciones de tarjeta
-        window.toggleSubOpciones = () => {
-            const sub = document.getElementById("subOpcionesPago");
-            sub.classList.toggle("mostrar");
-        };
-
-        // 6. Procesar Pago Final
-        window.procesarPago = (metodo) => {
-            const total = parseFloat(document.getElementById("ordenTotal").textContent.replace('$',''));
-            // Llamar a función de guardado en menu.js pasando el método
-            if(typeof guardarOrden === 'function') {
-                guardarOrden("Para Llevar", total, metodo);
-            }
-            alert(`✅ Pago registrado con: ${metodo}`);
-            modalCobro.close();
-        };
-
-        // Helper para habilitar botón
-        function checkBotonProcesar() {
-            const hayMesa = selectMesa.value !== "" || selectMesa.disabled;
-            // Validacion visual simple
-        }
-        selectMesa.addEventListener("change", checkBotonProcesar);
-    });
- </script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="js/supabase-client.js"></script>
+  <script src="js/app.js"></script>
+  <script src="js/menu.js"></script> 
 </body>
 </html>
