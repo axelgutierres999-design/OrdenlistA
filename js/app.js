@@ -44,10 +44,8 @@ const App = (function() {
                 }
 
                 // Verificar si hay que bloquear por falta de pago
-                const estaBloqueado = verificarBloqueo(dataResto, masterConfig);
-if (estaBloqueado) {
-    return; // ⛔ CORTAMOS TODO
-}
+                verificarBloqueo(dataResto, masterConfig);
+            }
 
             const { data: dataOrdenes } = await db.from('ordenes')
                 .select('*')
@@ -228,25 +226,27 @@ if (estaBloqueado) {
 
     // === FUNCIONES DE BLOQUEO (MOVIDAS AL LUGAR CORRECTO) ===
    const verificarBloqueo = (datosResto, masterConfig) => {
-    if (!datosResto) return false;
+    if (!datosResto) return;
 
     const hoy = new Date();
-    const vencimiento = datosResto.fecha_vencimiento
-        ? new Date(datosResto.fecha_vencimiento + "T23:59:59")
-        : new Date(0);
-
+    // Forzamos que la fecha sea comparable
+const vencimiento = datosResto.fecha_vencimiento
+  ? new Date(datosResto.fecha_vencimiento + "T23:59:59")
+  : new Date(0);    
+    // Normalizamos el estado a minúsculas para evitar errores de escritura
     const estado = (datosResto.estado_pago || '').toLowerCase();
 
     console.log(`[Seguridad] Estado: ${estado}, Vence: ${vencimiento.toLocaleDateString()}`);
 
-    if (estado === 'pendiente' || estado === 'vencido' || hoy > vencimiento) {
-        console.warn("⚠️ BLOQUEO ACTIVADO");
-        renderizarPantallaBloqueo(masterConfig);
-        return true; // 🔴 BLOQUEADO
-    }
-
-    return false; // 🟢 PERMITIDO
-};
+    // LOGICA DE BLOQUEO:
+    // 1. Si el estado es exactamente 'pendiente'
+    // 2. Si el estado es 'vencido'
+    // 3. Si la fecha actual es mayor a la de vencimiento
+   if (estado === 'pendiente' || estado === 'vencido' || hoy > vencimiento) {
+    console.warn("⚠️ BLOQUEO ACTIVADO: Suscripción no válida.");
+    renderizarPantallaBloqueo(masterConfig);
+    return; // ⛔ CORTAMOS EJECUCIÓN
+}
 
 console.log("✅ Acceso concedido.");
 };
