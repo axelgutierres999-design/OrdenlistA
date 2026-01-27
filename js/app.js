@@ -1,4 +1,4 @@
-// js/app.js - NÚCLEO CENTRALIZADO (V8.4 - Filtros por Rol y Seguridad)
+// js/app.js - NÚCLEO CENTRALIZADO (V8.5 - Con Bloqueo de Pagos)
 const App = (function() {
     let ordenes = [];
     let suministros = [];
@@ -25,11 +25,27 @@ const App = (function() {
         if (!restoId) return;
 
         try {
-            const { data: dataConfig } = await db.from('restaurantes')
-                .select('num_mesas, corte_actual')
+            // 1. Traer datos del restaurante y su suscripción
+            const { data: dataResto } = await db.from('restaurantes')
+                .select('num_mesas, corte_actual, estado_pago, fecha_vencimiento')
                 .eq('id', restoId)
                 .single();
-            if (dataConfig) config = { ...config, ...dataConfig };
+
+            // 2. Traer la configuración global (fondo y datos de pago del Master)
+            const { data: masterConfig } = await db.from('master_config').select('*').eq('id', 'global_config').single();
+
+            if (dataResto) {
+                config = { ...config, ...dataResto };
+                
+                // Aplicar fondo si existe en el Master
+                if (masterConfig?.fondo_url) {
+                    document.body.style.background = `url('${masterConfig.fondo_url}') no-repeat center center fixed`;
+                    document.body.style.backgroundSize = "cover";
+                }
+
+                // Verificar si hay que bloquear por falta de pago
+                verificarBloqueo(dataResto, masterConfig);
+            }
 
             const { data: dataOrdenes } = await db.from('ordenes')
                 .select('*')
@@ -52,7 +68,6 @@ const App = (function() {
     // === NOTIFICACIÓN UNIVERSAL ===
     const mostrarNotificacionNuevaOrden = (orden) => {
         const rol = getRol();
-        // Solo notificamos a roles operativos relevantes
         if (!["mesero", "encargado", "dueño", "administrador", "cocinero"].includes(rol)) return;
 
         try { sonidoNotificacion.play(); } catch(e){ console.warn("No se pudo reproducir sonido"); }
@@ -209,8 +224,53 @@ const App = (function() {
         modal.showModal();
     };
 
+    // === FUNCIONES DE BLOQUEO (MOVIDAS AL LUGAR CORRECTO) ===
+    const verificarBloqueo = (datosResto, masterConfig) => {
+        const hoy = new Date();
+        const vencimiento = new Date(datosResto.fecha_vencimiento);
+        
+        // Bloquea si el estado es 'pendiente' O si la fecha ya pasó
+        if (datosResto.estado_pago === 'pendiente' || hoy > vencimiento) {
+            renderizarPantallaBloqueo(masterConfig);
+        }
+    };
+
+    const renderizarPantallaBloqueo = (mConfig) => {
+        if (document.getElementById('modalBloqueoSaaS')) return;
+
+        const overlay = document.createElement('div');
+        overlay.id = 'modalBloqueoSaaS';
+        overlay.style = `position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.9); 
+                         backdrop-filter:blur(8px); z-index:100000; display:flex; justify-content:center; align-items:center; color:white; padding:20px;`;
+        
+        overlay.innerHTML = `
+            <div style="background:#111; padding:40px; border-radius:20px; border:1px solid #333; max-width:500px; text-align:center; box-shadow:0 0 50px rgba(0,0,0,0.8);">
+                <div style="font-size:50px; margin-bottom:20px;">🔒</div>
+                <h2 style="color:white; font-weight:600;">Acceso Restringido</h2>
+                <p style="color:#888;">Tu suscripción mensual ha expirado o se encuentra pendiente de pago.</p>
+                
+                <div style="background:rgba(255,255,255,0.05); padding:20px; border-radius:12px; margin:25px 0; border:1px solid #444; text-align:left;">
+                    <span style="color:#10ad93; font-size:0.7rem; font-weight:bold; text-transform:uppercase;">Instrucciones de Pago:</span>
+                    <pre style="background:transparent; border:none; color:#eee; font-family:inherit; margin-top:10px; white-space:pre-wrap; font-size:0.9rem;">${mConfig?.datos_pago || 'Cargando datos...'}</pre>
+                </div>
+
+                <p style="font-size:0.8rem; color:#666; margin-bottom:25px;">${mConfig?.mensaje_exito || 'Una vez realizado el pago, el sistema se reactivará automáticamente.'}</p>
+                
+                <a href="https://wa.me/TUNUMERO" target="_blank" style="background:#25d366; color:white; padding:12px 25px; border-radius:10px; text-decoration:none; font-weight:bold; display:inline-block;">
+                    Enviar Comprobante por WhatsApp
+                </a>
+            </div>
+        `;
+        document.body.appendChild(overlay);
+        // Deshabilitar scroll
+        document.body.style.overflow = "hidden";
+    };
+
     return {
-        init: async () => { await cargarDatosIniciales(); activarSuscripcionRealtime(); },
+        init: async () => { 
+            await cargarDatosIniciales(); 
+            activarSuscripcionRealtime(); 
+        },
         getRestoId, getRol,
         getOrdenes: () => ordenes,
         getSuministros: () => suministros,
@@ -237,6 +297,7 @@ const App = (function() {
             if (error) console.error("Error al eliminar:", error);
             else cargarDatosIniciales();
         },
+        mostrarModalPago, // Exponemos esto si se necesita desde fuera, o se usa internamente
         registerRender: (name, cb) => { renderCallbacks[name] = cb; cb(); },
         notifyUpdate: () => { Object.values(renderCallbacks).forEach(cb => { if(typeof cb === 'function') cb(); }); }
     };
@@ -285,16 +346,11 @@ function renderizarMenuSeguro() {
         }
     }
 
-    // 2. SEGURIDAD DE NAVEGACIÓN (Redirección si intentan entrar donde no deben)
-    // Lista de páginas públicas que no requieren filtro de rol
+    // 2. SEGURIDAD DE NAVEGACIÓN
     const paginasPublicas = ["index.html", "login.html", ""]; 
-    
-    // Verificamos si la página actual está en su menú permitido
     const accesoPermitido = menuItems.some(item => item.h === rutaActual) || paginasPublicas.includes(rutaActual);
 
-    // Si estás en una página que no te corresponde, te sacamos
     if (!accesoPermitido && rutaActual !== 'index.html') {
-        // Redirigir a su primera opción disponible
         window.location.href = menuItems[0].h;
         return;
     }
@@ -316,7 +372,6 @@ function renderizarMenuSeguro() {
 
 async function cerrarSesionApp() {
     if (confirm("¿Cerrar sesión?")) {
-        // Usamos la función global de logout.js si existe, sino lo hacemos manual
         if(window.cerrarSesion) {
              await window.cerrarSesion();
         } else {
@@ -329,4 +384,4 @@ async function cerrarSesionApp() {
 document.addEventListener('DOMContentLoaded', () => {
     renderizarMenuSeguro();
     App.init();
-});     
+});
