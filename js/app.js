@@ -225,16 +225,29 @@ const App = (function() {
     };
 
     // === FUNCIONES DE BLOQUEO (MOVIDAS AL LUGAR CORRECTO) ===
-    const verificarBloqueo = (datosResto, masterConfig) => {
-        const hoy = new Date();
-        const vencimiento = new Date(datosResto.fecha_vencimiento);
-        
-        // Bloquea si el estado es 'pendiente' O si la fecha ya pasó
-        if (datosResto.estado_pago === 'pendiente' || hoy > vencimiento) {
-            renderizarPantallaBloqueo(masterConfig);
-        }
-    };
+   const verificarBloqueo = (datosResto, masterConfig) => {
+    if (!datosResto) return;
 
+    const hoy = new Date();
+    // Forzamos que la fecha sea comparable
+    const vencimiento = datosResto.fecha_vencimiento ? new Date(datosResto.fecha_vencimiento) : new Date(0);
+    
+    // Normalizamos el estado a minúsculas para evitar errores de escritura
+    const estado = (datosResto.estado_pago || '').toLowerCase();
+
+    console.log(`[Seguridad] Estado: ${estado}, Vence: ${vencimiento.toLocaleDateString()}`);
+
+    // LOGICA DE BLOQUEO:
+    // 1. Si el estado es exactamente 'pendiente'
+    // 2. Si el estado es 'vencido'
+    // 3. Si la fecha actual es mayor a la de vencimiento
+    if (estado === 'pendiente' || estado === 'vencido' || hoy > vencimiento) {
+        console.warn("⚠️ BLOQUEO ACTIVADO: Suscripción no válida.");
+        renderizarPantallaBloqueo(masterConfig);
+    } else {
+        console.log("✅ Acceso concedido.");
+    }
+};
     const renderizarPantallaBloqueo = (mConfig) => {
         if (document.getElementById('modalBloqueoSaaS')) return;
 
