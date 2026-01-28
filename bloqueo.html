@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Acceso Restringido - OrdenLista</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    
+    <style>
+        body {
+            background-color: #f3f4f6;
+            transition: background-image 0.5s ease-in-out;
+        }
+        .glass-effect {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+        }
+    </style>
+</head>
+<body class="flex items-center justify-center min-h-screen p-4">
+
+    <div class="glass-effect p-8 rounded-2xl shadow-2xl max-w-md w-full text-center border-t-4 border-red-500">
+        
+        <div class="mb-6">
+            <div class="bg-red-100 text-red-500 rounded-full w-20 h-20 flex items-center justify-center mx-auto animate-pulse">
+                <i class="fa-solid fa-lock text-3xl"></i>
+            </div>
+        </div>
+
+        <h1 class="text-2xl font-bold text-gray-800 mb-2">Servicio Suspendido</h1>
+        <p class="text-gray-600 mb-6">
+            La suscripción de <span id="nombreRestaurante" class="font-bold text-gray-800">este negocio</span> ha vencido o requiere renovación.
+        </p>
+
+        <div class="bg-gray-50 rounded-lg p-4 border border-gray-200 text-left mb-6">
+            <h3 class="text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">Datos para Transferencia:</h3>
+            <p id="datosPagoTexto" class="text-sm text-gray-700 whitespace-pre-wrap font-mono select-all">
+                Cargando datos bancarios...
+            </p>
+        </div>
+
+        <div class="space-y-3">
+            <button id="btnWhatsapp" class="w-full bg-green-500 hover:bg-green-600 text-white font-semibold py-3 px-6 rounded-xl transition flex items-center justify-center gap-2 shadow-lg">
+                <i class="fa-brands fa-whatsapp text-xl"></i>
+                Enviar Comprobante
+            </button>
+
+            <button onclick="location.reload()" class="w-full bg-white hover:bg-gray-50 text-gray-700 font-semibold py-3 px-6 rounded-xl border border-gray-300 transition">
+                <i class="fa-solid fa-rotate-right mr-2"></i>
+                Ya pagué, reintentar
+            </button>
+            
+            <a href="index.html" class="block text-sm text-gray-400 hover:text-gray-600 mt-4">
+                Volver al inicio
+            </a>
+        </div>
+    </div>
+
+    <script src="js/supabase-client.js"></script> 
+
+    <script>
+        // CONFIGURACIÓN: Tu número de WhatsApp para recibir comprobantes (código país + número)
+        const MI_WHATSAPP = "5215512345678"; // <--- ¡CAMBIA ESTO POR TU NÚMERO!
+
+        document.addEventListener('DOMContentLoaded', async () => {
+            const configRest = JSON.parse(localStorage.getItem('config_restaurante'));
+            const nombreRestElem = document.getElementById('nombreRestaurante');
+            const datosPagoElem = document.getElementById('datosPagoTexto');
+            const btnWhatsapp = document.getElementById('btnWhatsapp');
+
+            // 1. Mostrar nombre del restaurante
+            if (configRest && configRest.nombre) {
+                nombreRestElem.textContent = configRest.nombre;
+            }
+
+            // 2. Cargar Configuración Global desde Supabase (Tu tabla master_config)
+            if (window.db) {
+                try {
+                    const { data, error } = await window.db
+                        .from('master_config')
+                        .select('datos_pago, fondo_url') // Solo necesitamos esto aquí
+                        .eq('id', 'global_config')
+                        .single();
+
+                    if (data) {
+                        // Insertar datos de pago (respetando saltos de línea)
+                        if (data.datos_pago) {
+                            datosPagoElem.textContent = data.datos_pago;
+                        } else {
+                            datosPagoElem.textContent = "Contacta al administrador para datos de pago.";
+                        }
+
+                        // Aplicar fondo si existe
+                        if (data.fondo_url) {
+                            document.body.style.backgroundImage = `url('${data.fondo_url}')`;
+                            document.body.style.backgroundSize = "cover";
+                            document.body.style.backgroundPosition = "center";
+                            document.body.style.backgroundAttachment = "fixed";
+                        }
+                    }
+                } catch (err) {
+                    console.error("Error cargando config global:", err);
+                    datosPagoElem.textContent = "Error de conexión. Por favor contacta a soporte.";
+                }
+            }
+
+            // 3. Configurar Botón de WhatsApp
+            btnWhatsapp.onclick = () => {
+                const nombreNegocio = configRest ? configRest.nombre : "Mi Negocio";
+                const mensaje = `Hola, envío mi comprobante de pago para renovar el servicio de: *${nombreNegocio}*.`;
+                const url = `https://wa.me/${MI_WHATSAPP}?text=${encodeURIComponent(mensaje)}`;
+                window.open(url, '_blank');
+            };
+        });
+    </script>
+</body>
+</html>
