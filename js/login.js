@@ -114,6 +114,41 @@ document.addEventListener('DOMContentLoaded', async () => {
                     alert("⛔ PIN incorrecto");
                     userPinInput.value = "";
                 } else {
+                    // 🔒 VERIFICAR SUSCRIPCIÓN ANTES DE CREAR SESIÓN
+const { data: resto, error: errPago } = await window.db
+  .from('restaurantes')
+  .select('estado_pago, fecha_vencimiento')
+  .eq('id', configRest.id)
+  .single();
+
+if (errPago || !resto) {
+  alert("Error al verificar la suscripción del restaurante");
+  return;
+}
+
+const hoy = new Date();
+const vencimiento = resto.fecha_vencimiento
+  ? new Date(resto.fecha_vencimiento + "T23:59:59")
+  : new Date(0);
+
+const estado = (resto.estado_pago || '').toLowerCase();
+
+// 🚫 SI NO ESTÁ PAGADO → BLOQUEO TOTAL
+if (estado !== 'pagado' || hoy > vencimiento) {
+  localStorage.removeItem('sesion_activa');
+
+  localStorage.setItem('bloqueo_pago', JSON.stringify({
+    restaurante_id: configRest.id,
+    estado
+  }));
+
+  btnEntrar.disabled = false;
+  btnEntrar.innerText = "Registrar Entrada";
+
+  window.location.href = 'bloqueado.html';
+  return;
+}
+}
                     const sesion = {
                         id: usuario.id,
                         nombre: usuario.nombre,
