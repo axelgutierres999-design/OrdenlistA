@@ -64,21 +64,38 @@ async function inicializar() {
   // =====================================================
   // 1️⃣ INICIALIZACIÓN
   // =====================================================
-  async function inicializar() {
+  // === CORRECCIÓN: UNIFICAR INICIALIZACIÓN Y AGREGAR CLICK AL BOTÓN ===
+async function inicializar() {
     if (!restoIdActivo) return;
-    
-    // Mostrar botón flotante si es admin
-    if (["dueño", "administrador"].includes(sesion.rol) && btnAgregarFloating) {
-        btnAgregarFloating.style.display = "flex";
-    }
 
-    await cargarMesas();
-    await cargarDatosMenu();
-    configurarFiltros();
-    configurarBotonLlevar();
-    configurarSubidaImagen(); 
-    configurarEventosEditor();
-  }
+    try {
+        // 1. Cargar info del restaurante (QR y Banco) - Antes se perdía por la duplicidad
+        const { data: info } = await db.from("restaurantes")
+            .select("qr_pago_url, datos_bancarios")
+            .eq("id", restoIdActivo)
+            .single();
+        if (info) datosRestaurante = info;
+
+        // 2. Mostrar y configurar botón flotante si es admin
+        if (["dueño", "administrador"].includes(sesion.rol) && btnAgregarFloating) {
+            btnAgregarFloating.style.display = "flex";
+            
+            // ESTA ES LA LÍNEA QUE FALTABA:
+            btnAgregarFloating.onclick = () => window.abrirEditor(); 
+        }
+
+        // 3. Cargar el resto de la interfaz
+        await cargarMesas();
+        await cargarDatosMenu();
+        configurarFiltros();
+        configurarBotonLlevar();
+        configurarSubidaImagen(); 
+        configurarEventosEditor();
+
+    } catch (error) {
+        console.error("Error en inicialización:", error);
+    }
+}
 
   // =====================================================
   // 2️⃣ CARGA DE DATOS
