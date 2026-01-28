@@ -1,4 +1,4 @@
-// js/login.js - VERSIÓN FINAL INTEGRADA
+// js/login.js - VERSIÓN FINAL CORREGIDA
 document.addEventListener('DOMContentLoaded', async () => {
     const btnEntrar = document.getElementById('btnEntrar');
     const userPinInput = document.getElementById('userPin');
@@ -103,6 +103,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             btnEntrar.innerText = "Verificando...";
 
             try {
+                // A. Validar Usuario y PIN
                 const { data: usuario, error } = await window.db
                     .from('perfiles')
                     .select('*')
@@ -114,41 +115,44 @@ document.addEventListener('DOMContentLoaded', async () => {
                     alert("⛔ PIN incorrecto");
                     userPinInput.value = "";
                 } else {
-                    // 🔒 VERIFICAR SUSCRIPCIÓN ANTES DE CREAR SESIÓN
-const { data: resto, error: errPago } = await window.db
-  .from('restaurantes')
-  .select('estado_pago, fecha_vencimiento')
-  .eq('id', configRest.id)
-  .single();
+                    // B. 🔒 VERIFICAR SUSCRIPCIÓN ANTES DE CREAR SESIÓN
+                    // Consultamos el estado actual del restaurante
+                    const { data: resto, error: errPago } = await window.db
+                        .from('restaurantes')
+                        .select('estado_pago, fecha_vencimiento')
+                        .eq('id', configRest.id)
+                        .single();
 
-if (errPago || !resto) {
-  alert("Error al verificar la suscripción del restaurante");
-  return;
-}
+                    if (errPago || !resto) {
+                        alert("Error al verificar la suscripción del restaurante");
+                        return;
+                    }
 
-const hoy = new Date();
-const vencimiento = resto.fecha_vencimiento
-  ? new Date(resto.fecha_vencimiento + "T23:59:59")
-  : new Date(0);
+                    const hoy = new Date();
+                    // Normalizamos la fecha de vencimiento para incluir el final del día (23:59:59)
+                    const vencimiento = resto.fecha_vencimiento 
+                        ? new Date(resto.fecha_vencimiento + "T23:59:59") 
+                        : new Date(0); // Si es null, fecha antigua para forzar bloqueo
 
-const estado = (resto.estado_pago || '').toLowerCase();
+                    const estado = (resto.estado_pago || '').toLowerCase();
 
-// 🚫 SI NO ESTÁ PAGADO → BLOQUEO TOTAL
-if (estado !== 'pagado' || hoy > vencimiento) {
-  localStorage.removeItem('sesion_activa');
+                    // C. 🚫 LÓGICA DE BLOQUEO
+                    // Se bloquea si NO está pagado NI en mes gratuito, O si la fecha ya pasó
+                    if ((estado !== 'pagado' && estado !== 'mes_gratuito') || hoy > vencimiento) {
+                        localStorage.removeItem('sesion_activa');
 
-  localStorage.setItem('bloqueo_pago', JSON.stringify({
-    restaurante_id: configRest.id,
-    estado
-  }));
+                        // Guardamos info del bloqueo para usarla en bloqueado.html si quisieras
+                        localStorage.setItem('bloqueo_pago', JSON.stringify({
+                            restaurante_id: configRest.id,
+                            estado: estado
+                        }));
 
-  btnEntrar.disabled = false;
-  btnEntrar.innerText = "Registrar Entrada";
+                        alert("⚠️ Acceso bloqueado: Suscripción vencida o pago pendiente.");
+                        window.location.href = 'bloqueado.html';
+                        return; // Detenemos ejecución aquí
+                    }
 
-  window.location.href = 'bloqueado.html';
-  return;
-}
-}
+                    // D. ✅ Éxito: Crear Sesión y Registrar Asistencia
                     const sesion = {
                         id: usuario.id,
                         nombre: usuario.nombre,
@@ -158,7 +162,7 @@ if (estado !== 'pagado' || hoy > vencimiento) {
                     };
                     localStorage.setItem('sesion_activa', JSON.stringify(sesion));
 
-                    // Registro de Asistencia
+                    // Registro de Asistencia en Supabase
                     await window.db.from('asistencia').insert([{
                         empleado_id: usuario.id,
                         nombre_empleado: usuario.nombre,
@@ -169,6 +173,7 @@ if (estado !== 'pagado' || hoy > vencimiento) {
                     redirigirUsuario(sesion.rol);
                 }
             } catch (err) {
+                console.error(err);
                 alert("Error de sistema: " + err.message);
             } finally {
                 btnEntrar.disabled = false;
