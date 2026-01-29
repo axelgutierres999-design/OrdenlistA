@@ -38,9 +38,16 @@
       border-radius: 16px;
       border: 1px solid #eef0f2;
       box-shadow: 0 4px 20px rgba(0,0,0,0.05);
+      
+      /* --- ESTO ES LO QUE YA TIENES --- */
       position: sticky;
       top: 2rem;
       transition: all 0.3s ease;
+
+      /* --- AGREGA ESTO PARA ARREGLARLO --- */
+      align-self: start;  /* Evita que se estire con la Grid */
+      height: fit-content; /* Asegura que el panel mida solo lo necesario */
+      z-index: 100; /* Asegura que quede por encima de las fotos al hacer scroll */
     }
     .panel-orden.llevar-activo {
       background: #f4fffc;
