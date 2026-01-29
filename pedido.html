@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Pedido | OrdenLista</title>
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@picocss/pico@1/css/pico.min.css">
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
   <style>
     body { background: #f6f8f9; font-family: "Inter", system-ui, sans-serif; padding-bottom: 120px; }
     
@@ -29,7 +30,7 @@
         align-items: center;
         justify-content: center;
         position: relative;
-        height: 75vh; /* Un poco más alto para mejor vista */
+        height: 75vh;
         background: black;
         border-radius: 8px;
         overflow: hidden;
@@ -172,14 +173,6 @@
       </article>
   </dialog>
 
-  <dialog id="modalConfirm">
-    <article style="text-align:center;">
-      <h3>✅ ¡Pedido Enviado!</h3>
-      <p>Estamos preparando tu orden.<br>Puedes ver el estado con el mesero.</p>
-      <footer><button onclick="location.reload()">Aceptar</button></footer>
-    </article>
-  </dialog>
-
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="js/supabase-client.js"></script>
   <script>
@@ -196,7 +189,6 @@
     let indiceFoto = 0;
 
     // --- CERRAR MODALES AL TOCAR FUERA ---
-    // Esta lógica hace que si tocas el fondo oscuro (fuera del cuadro blanco), el modal se cierre.
     document.querySelectorAll('dialog').forEach(modal => {
         modal.addEventListener('click', (e) => {
             if (e.target === modal) modal.close();
@@ -208,7 +200,6 @@
 
       const { data: resto } = await db.from("restaurantes").select("galeria_menu, menu_digital_url").eq("id", ridParam).single();
       if (resto) {
-          // Cargamos la galería si existe, sino usamos la imagen única
           if (resto.galeria_menu && Array.isArray(resto.galeria_menu) && resto.galeria_menu.length > 0) {
               fotosMenu = resto.galeria_menu;
           } else if (resto.menu_digital_url) {
@@ -309,6 +300,9 @@
     window.quitarDelCarrito = (tempId) => { carrito = carrito.filter(i => i.tempId !== tempId); renderizarCarrito(); };
     window.actualizarComentario = (tempId, texto) => { const item = carrito.find(i => i.tempId === tempId); if (item) item.comentario = texto; };
 
+    // ============================================
+    // MODIFICACIÓN PRINCIPAL AQUÍ (ENVIO DE PEDIDO)
+    // ============================================
     document.getElementById("btnEnviarPedido").onclick = async () => {
       const btn = document.getElementById("btnEnviarPedido");
       btn.disabled = true; btn.textContent = "Enviando...";
@@ -323,11 +317,78 @@
           total, comentarios: comentarioGeneral, estado: "por_confirmar"
         }]);
         if (error) throw error;
-        document.getElementById("modalConfirm").showModal();
-      } catch (err) { alert("Error: " + err.message); btn.disabled = false; btn.textContent = "Reintentar"; }
+        
+        // --- ÉXITO: REEMPLAZAR PANTALLA ---
+        document.body.innerHTML = `
+            <div style="
+                min-height: 100vh;
+                display: flex;
+                flex-direction: column;
+                justify-content: center;
+                align-items: center;
+                padding: 20px;
+                text-align: center;
+                background: #f6f8f9;
+                font-family: 'Inter', sans-serif;
+            ">
+                <div style="
+                    background: white; 
+                    padding: 40px 30px; 
+                    border-radius: 20px; 
+                    box-shadow: 0 10px 25px rgba(0,0,0,0.1); 
+                    max-width: 400px; 
+                    width: 100%;
+                ">
+                    <div style="background:#dcfce7; color:#166534; width:80px; height:80px; border-radius:50%; display:flex; align-items:center; justify-content:center; margin:0 auto 20px auto; font-size:40px;">
+                        <i class="fa-solid fa-check"></i>
+                    </div>
+                    
+                    <h2 style="color: #333; margin: 0 0 10px 0; font-size: 1.8rem;">¡Pedido Enviado!</h2>
+                    <p style="color: #666; margin-bottom: 20px;">Estamos preparando tus alimentos.</p>
+                    
+                    <hr style="border: 0; border-top: 1px solid #eee; margin: 20px 0;">
+                    
+                    <p style="font-weight: 600; font-size: 1.1rem; color: #10ad93; margin-bottom: 20px; line-height: 1.5;">
+                        Agréganos a tus favoritos para seguir disfrutando de la experiencia
+                    </p>
+                    
+                    <a href="https://aplicacionordenlista.vercel.app/" target="_blank" style="text-decoration: none;">
+                        <button style="
+                            background: linear-gradient(135deg, #10ad93 0%, #0d9488 100%); 
+                            color: white; 
+                            border: none; 
+                            padding: 16px 20px; 
+                            border-radius: 12px; 
+                            font-size: 1rem; 
+                            font-weight: bold; 
+                            cursor: pointer;
+                            display: flex; 
+                            align-items: center; 
+                            justify-content: center; 
+                            gap: 10px;
+                            width: 100%;
+                            box-shadow: 0 4px 12px rgba(16, 173, 147, 0.3);
+                            transition: transform 0.2s;
+                        " onmouseover="this.style.transform='scale(1.02)'" onmouseout="this.style.transform='scale(1)'">
+                            <i class="fa-solid fa-star"></i> Ir a OrdenLista
+                        </button>
+                    </a>
+                </div>
+                
+                <p style="margin-top: 30px; color: #999; font-size: 0.9rem;">
+                    Ya puedes cerrar esta pestaña si lo deseas.
+                </p>
+            </div>
+        `;
+
+      } catch (err) { 
+          alert("Error: " + err.message); 
+          btn.disabled = false; 
+          btn.textContent = "Reintentar"; 
+      }
     };
 
-    // --- LÓGICA CARRUSEL MEJORADA ---
+    // --- LÓGICA CARRUSEL ---
     window.abrirMenuDigital = () => { 
         if(fotosMenu.length === 0) return;
         indiceFoto = 0; 
