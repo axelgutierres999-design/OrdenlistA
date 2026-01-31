@@ -122,6 +122,72 @@
       background: #5d6d7e;
       border: none;
     }
+    /* --- NAVEGACIÓN UNIFICADA --- */
+    .nav-inicio {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        justify-content: space-between;
+        padding: 0.5rem 1rem;
+        position: sticky;
+        top: 0;
+        z-index: 1000;
+        background: white !important;
+        border-bottom: 1px solid #e0e6e4;
+    }
+
+    .brand-group {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+    }
+
+    .hamburger {
+        display: none;
+        background: none;
+        border: none;
+        font-size: 1.5rem;
+        color: #333;
+        cursor: pointer;
+        padding: 0;
+    }
+
+    #menuNavegacion {
+        display: flex;
+        list-style: none;
+        margin: 0;
+        padding: 0;
+        gap: 1rem;
+    }
+
+    .btn-ajustes-manual {
+        border: 1px solid #10ad93 !important;
+        color: #10ad93 !important;
+        padding: 5px 12px !important;
+        font-size: 0.85rem !important;
+        border-radius: 8px;
+        text-decoration: none;
+    }
+
+    /* REGLAS MÓVILES */
+    @media (max-width: 768px) {
+        .hamburger { display: block; }
+        .hide-mobile { display: none; }
+        #menuNavegacion {
+            display: none;
+            width: 100%;
+            flex-direction: column;
+            order: 3;
+            border-top: 1px solid #eee;
+            padding: 10px 0;
+            margin-top: 10px;
+        }
+        #menuNavegacion.show { display: flex; }
+        #menuNavegacion li { width: 100%; text-align: center; }
+        
+        /* Evita que la tabla de stock deforme el layout */
+        table { display: block; overflow-x: auto; }
+    }
   </style>
 </head>
 <body>
