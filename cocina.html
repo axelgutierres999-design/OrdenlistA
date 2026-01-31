@@ -30,20 +30,77 @@
           color: white;
       }
       h3 { font-size: 1.1rem; text-transform: uppercase; letter-spacing: 1px; }
+      /* --- AJUSTES PARA NAVEGACIÓN MÓVIL --- */
+    .nav-inicio {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        justify-content: space-between;
+        padding: 0.5rem 1rem;
+    }
+
+    .brand-group {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+    }
+
+    .hamburger {
+        display: none; /* Oculto en PC */
+        background: none;
+        border: none;
+        font-size: 1.5rem;
+        color: #333;
+        cursor: pointer;
+    }
+
+    #menuNavegacion {
+        display: flex;
+        list-style: none;
+        margin: 0;
+        padding: 0;
+        gap: 1rem;
+    }
+
+    .btn-ajustes-manual {
+        border: 1px solid #10ad93 !important;
+        color: #10ad93 !important;
+        padding: 5px 12px !important;
+        font-size: 0.85rem !important;
+        border-radius: 8px;
+        text-decoration: none;
+    }
+
+    @media (max-width: 768px) {
+        .hamburger { display: block; }
+        .hide-mobile { display: none; }
+        #menuNavegacion {
+            display: none;
+            width: 100%;
+            flex-direction: column;
+            order: 3;
+            border-top: 1px solid #eee;
+            padding-top: 10px;
+        }
+        #menuNavegacion.show { display: flex; }
+        #menuNavegacion li { width: 100%; text-align: center; }
+    }
   </style>
 </head>
 <body>
-<nav class="container-fluid nav-inicio" style="background: white; box-shadow: 0 2px 5px rgba(0,0,0,0.05);">
-  <ul style="display:flex; align-items:center; gap:0.6rem;">
-    <li><strong style="font-size: 1.3rem; color: #10ad93;">☕ OrdenLista</strong></li>
-    <li style="color: #888;">| Monitor de cocina</li>
-    <li>
-      <a href="ajustes.html" role="button" class="contrast"
-         style="border:1px solid #10ad93; border-radius:8px; padding:4px 10px; color:#10ad93;">
-        ⚙️ Ajustes
-      </a>
-    </li>
-  </ul>
+<nav class="nav-inicio">
+  <div class="brand-group">
+    <strong style="font-size: 1.3rem; color: #10ad93;">☕ OrdenLista</strong>
+    <span class="hide-mobile" style="color: #888;">| Monitor de cocina</span>
+  </div>
+
+  <div style="display: flex; align-items: center; gap: 10px;">
+    <a href="ajustes.html" role="button" class="contrast outline btn-ajustes-manual">
+      ⚙️ <span class="hide-mobile">Ajustes</span>
+    </a>
+    <button class="hamburger" onclick="toggleNav()">☰</button>
+  </div>
+
   <ul id="menuNavegacion" class="nav-botones"></ul>
 </nav>
 
@@ -70,6 +127,13 @@
           </div>
       </div>
   </main>
+  
+  <script>
+  function toggleNav() {
+      const menu = document.getElementById('menuNavegacion');
+      menu.classList.toggle('show');
+  }
+</script>
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="js/supabase-client.js"></script>
