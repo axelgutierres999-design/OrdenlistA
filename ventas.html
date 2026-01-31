@@ -2,117 +2,192 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Analíticas | OrdenLista</title>
+    
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@picocss/pico@1/css/pico.min.css">
     <link rel="stylesheet" href="css/app.css">
+    
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    
     <style>
-        /* Estilos específicos para analíticas */
+        /* --- ESTILOS GENERALES --- */
+        body { padding-bottom: 80px; } /* Espacio para scroll en móviles */
+
+        /* --- TARJETAS DE ESTADÍSTICAS --- */
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); /* Magia responsive */
+            gap: 1rem;
+            margin-bottom: 1rem;
+        }
+
         .card-stat { 
             background: white; 
-            border-radius: 12px; 
+            border-radius: 16px; 
             padding: 1.2rem; 
             text-align: center;
             border-bottom: 4px solid #10ad93;
-            box-shadow: 0 4px 10px rgba(0,0,0,0.05);
+            box-shadow: 0 4px 15px rgba(0,0,0,0.08);
+            transition: transform 0.2s;
         }
+        
+        .card-stat:active { transform: scale(0.98); } /* Efecto al tocar en móvil */
+
+        .card-stat h2 { font-size: 1.8rem; margin-bottom: 0; }
+        .card-stat small { font-size: 0.8rem; display: block; margin-bottom: 5px; }
+
+        /* --- PANELES BLANCOS --- */
         .panel-blanco { 
             background: white; 
             padding: 1.5rem; 
-            border-radius: 12px; 
-            margin-top: 2rem; 
+            border-radius: 16px; 
+            margin-top: 1rem; 
             border: 1px solid #eef0f2;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.03);
         }
+
         .chart-container { 
             position: relative; 
             height: 300px; 
             width: 100%; 
             margin-top: 1rem;
         }
+
+        /* --- NAVEGACIÓN --- */
+        .nav-inicio {
+            background: white; 
+            box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            padding: 0.5rem 1rem;
+        }
+        
+        .nav-content {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .brand-group {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        /* --- BOTONES DE ACCIÓN --- */
+        .action-buttons {
+            display: flex;
+            gap: 1rem;
+            justify-content: flex-end;
+            margin-top: 2rem;
+            margin-bottom: 3rem;
+        }
+
+        /* --- RESPONSIVE (MÓVIL) --- */
+        @media (max-width: 768px) {
+            /* Ocultar textos secundarios en nav */
+            .hide-mobile { display: none; }
+            
+            /* Ajustar grid principal a 1 columna */
+            .main-grid { grid-template-columns: 1fr !important; }
+            
+            /* Botones grandes y apilados */
+            .action-buttons {
+                flex-direction: column;
+                gap: 0.8rem;
+            }
+            .action-buttons button {
+                width: 100%;
+                padding: 1rem;
+                font-size: 1.1rem;
+            }
+
+            h1 { font-size: 1.5rem; margin-bottom: 0.5rem; }
+            p { font-size: 0.9rem; margin-bottom: 1.5rem; }
+            
+            .card-stat { padding: 1rem; }
+            .card-stat h2 { font-size: 1.5rem; }
+        }
+
+        /* Ajustes de impresión */
         @media print { 
             .nav-inicio, button, .chart-container, .outline { display: none !important; } 
-            .panel-blanco { border: none; padding: 0; }
-            h1 { font-size: 1.5rem; text-align: center; }
+            .panel-blanco { border: none; padding: 0; box-shadow: none; }
         }
     </style>
 </head>
-<body>
- <nav class="container-fluid nav-inicio" style="background: white; box-shadow: 0 2px 5px rgba(0,0,0,0.05);">
-  <ul style="display:flex; align-items:center; gap:0.6rem;">
-    <li><strong style="font-size: 1.3rem; color: #10ad93;">☕ OrdenLista</strong></li>
-    <li style="color: #888;">| Monitor de ventas</li>
-    <li>
-      <a href="ajustes.html" role="button" class="contrast"
-         style="border:1px solid #10ad93; border-radius:8px; padding:4px 10px; color:#10ad93;">
-        ⚙️ Ajustes
-      </a>
-    </li>
-  </ul>
-  <ul id="menuNavegacion" class="nav-botones"></ul>
-</nav>
+<body style="background-color: #f9fbfd;">
 
+    <nav class="container-fluid nav-inicio">
+        <div class="nav-content">
+            <div class="brand-group">
+                <strong style="font-size: 1.3rem; color: #10ad93;">☕ OrdenLista</strong>
+                <span class="hide-mobile" style="color: #888;">| Monitor de ventas</span>
+            </div>
+            <div>
+                <a href="ajustes.html" role="button" class="contrast outline"
+                   style="border-color: #10ad93; color: #10ad93; padding: 5px 15px; font-size: 0.9rem;">
+                   ⚙️ <span class="hide-mobile">Ajustes</span>
+                </a>
+            </div>
+        </div>
+    </nav>
 
-    <main class="container">
+    <main class="container" style="margin-top: 20px;">
         <header>
-            <h1>📊 Corte de Caja y Ventas</h1>
-            <p>Resumen financiero y métricas del día actual.</p>
+            <h1>📊 Corte de Caja</h1>
+            <p style="color: #666;">Resumen de movimientos del día.</p>
         </header>
 
-        <!-- Tarjetas de totales -->
-        <section class="grid">
+        <section class="stats-grid">
             <div class="card-stat">
-                <small style="color: #888;">Total General (Hoy)</small>
-                <h2 id="totalDia" style="color: #10ad93; margin: 0;">$0.00</h2>
+                <small style="color: #888;">TOTAL HOY</small>
+                <h2 id="totalDia" style="color: #10ad93;">$0.00</h2>
             </div>
-            <div class="card-stat" style="border-bottom-color: #10ad93;">
-                <small style="color: #888;">💵 Efectivo</small>
-                <h2 id="totalEfectivo" style="margin: 0; color: #2ecc71;">$0.00</h2>
+            <div class="card-stat" style="border-bottom-color: #2ecc71;">
+                <small style="color: #888;">EFECTIVO</small>
+                <h2 id="totalEfectivo" style="color: #2ecc71;">$0.00</h2>
             </div>
             <div class="card-stat" style="border-bottom-color: #3498db;">
-                <small style="color: #888;">💳 Tarjeta</small>
-                <h2 id="totalTarjeta" style="margin: 0; color: #3498db;">$0.00</h2>
+                <small style="color: #888;">TARJETA</small>
+                <h2 id="totalTarjeta" style="color: #3498db;">$0.00</h2>
             </div>
-        </section>
-
-        <!-- Métricas adicionales -->
-        <section class="grid" style="margin-top: 1rem;">
             <div class="card-stat" style="border-bottom-color: #9b59b6;">
-                <small style="color: #888;">Nº de Ventas</small>
-                <h2 id="numVentasDia" style="margin: 0;">0</h2>
+                <small style="color: #888;"># VENTAS</small>
+                <h2 id="numVentasDia" style="color: #333;">0</h2>
             </div>
-            <div class="card-stat" style="border-bottom-color: #f39c12;">
-                <small style="color: #888;">Ticket Promedio</small>
-                <h2 id="ticketPromedio" style="margin: 0;">$0.00</h2>
+             <div class="card-stat" style="border-bottom-color: #f39c12;">
+                <small style="color: #888;">TICKET PROM.</small>
+                <h2 id="ticketPromedio" style="color: #f39c12;">$0.00</h2>
             </div>
         </section>
 
-        <!-- Gráfica y registro -->
-        <div class="grid">
+        <div class="grid main-grid">
             <div class="panel-blanco">
-                <h3 style="text-align:center; margin-bottom: 0;">📈 Top 5 Productos</h3>
+                <h4 style="text-align:center; margin-bottom: 0;">📈 Top Productos</h4>
                 <div class="chart-container">
                     <canvas id="graficoCategorias"></canvas>
                 </div>
             </div>
 
             <div class="panel-blanco">
-                <h3>📋 Registro de Ventas</h3>
-                <figure>
+                <h4>📋 Últimas Ventas</h4>
+                <figure style="max-height: 400px; overflow: auto;">
                     <table role="grid">
-                        <thead>
+                        <thead style="position: sticky; top: 0; background: white; z-index: 1;">
                             <tr>
-                                <th>Folio</th>
+                                <th>#</th>
                                 <th>Mesa</th>
                                 <th>Total</th>
-                                <th>Método</th>
-                                <th>Hora</th>
+                                <th>Pago</th>
                             </tr>
                         </thead>
                         <tbody id="listaUltimasVentas">
                             <tr>
-                                <td colspan="5" style="text-align:center; color: #888; padding: 2rem;">
-                                    Cargando transacciones...
+                                <td colspan="4" style="text-align:center; color: #888; padding: 2rem;">
+                                    Cargando...
                                 </td>
                             </tr>
                         </tbody>
@@ -121,18 +196,17 @@
             </div>
         </div>
 
-        <!-- Botones de acción -->
-        <div style="display: flex; gap: 1rem; justify-content: flex-end; margin-top: 2rem; margin-bottom: 3rem;">
-            <button class="outline secondary" onclick="location.reload()">🔄 Actualizar Datos</button>
+        <div class="action-buttons">
+            <button class="outline secondary" onclick="location.reload()">
+                🔄 Actualizar
+            </button>
             
-            <!-- Nuevo botón de corte real -->
             <button class="contrast" onclick="realizarCorteCaja()" style="background-color: #10ad93; border: none;">
                 💰 Realizar Corte de Caja
             </button>
         </div>
     </main>
 
-    <!-- Librerías -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="js/supabase-client.js"></script>
     <script src="js/app.js"></script>
