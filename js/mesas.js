@@ -355,31 +355,45 @@ document.addEventListener('DOMContentLoaded', async () => {
   // =====================================================
   // 7️⃣ CONFIGURACIÓN DE MESAS Y QR MÓVIL
   // =====================================================
-  window.guardarConfiguracionMesas = async () => {
-    const sesion = JSON.parse(localStorage.getItem('sesion_activa')) || {};
+ window.guardarConfiguracionMesas = async () => {
+    // 1. Obtener sesión y validar
+    const sesionRaw = localStorage.getItem('sesion_activa');
+    if (!sesionRaw) return alert("❌ No hay sesión activa. Reingresa al sistema.");
+    
+    const sesion = JSON.parse(sesionRaw);
+    const restauranteId = sesion.restaurante_id;
+
+    if (!restauranteId) {
+        console.error("Sesión detectada pero sin ID de restaurante:", sesion);
+        return alert("❌ Error de configuración: ID de restaurante no encontrado.");
+    }
+
+    // 2. Validar Input
     const input = document.getElementById('inputNumMesas');
     const n = parseInt(input.value);
 
-    if (isNaN(n) || n <= 0) return alert("Ingresa un número válido.");
+    if (isNaN(n) || n <= 0 || n > 100) {
+        return alert("⚠️ Por favor, ingresa un número de mesas válido (1-100).");
+    }
 
     try {
-        const { error } = await db.from('restaurantes')
+        // 3. Ejecutar Update en Supabase/PostgreSQL
+        const { data, error } = await db.from('restaurantes')
             .update({ num_mesas: n })
-            .eq('id', sesion.restaurante_id);
+            .eq('id', restauranteId)
+            .select(); // El .select() ayuda a confirmar que se cambió
 
         if (error) throw error;
 
-        // 🔥 CRUCIAL: Actualizar el objeto global ANTES de renderizar
+        // 4. Actualizar estado local y UI
         configRestaurante.num_mesas = n; 
+        alert(`✅ ¡Configuración guardada! Ahora tienes ${n} mesas.`);
         
-        alert("✅ Configuración guardada correctamente.");
-        
-        // Volver a dibujar las mesas con el nuevo número
         await renderizarMesas(); 
 
     } catch (err) { 
-        console.error(err); 
-        alert("Error al guardar en la base de datos."); 
+        console.error("Error completo:", err); 
+        alert("❌ Error al guardar en la base de datos: " + err.message); 
     }
 };
 
