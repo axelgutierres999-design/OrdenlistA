@@ -12,16 +12,22 @@ document.addEventListener('DOMContentLoaded', async () => {
   // 1️⃣ INICIALIZACIÓN Y CARGA DE CONFIG
   // =====================================================
   async function esperarAppYRenderizar() {
-    if (typeof App !== 'undefined' && App.getOrdenes && App.getConfig) {
-      // Cargamos la config del restaurante (QR, Banco, etc)
-      await cargarConfigRestaurante();
-      
-      App.registerRender('mesas', renderizarMesas);
-      await renderizarMesas();
+    if (typeof App !== 'undefined' && App.getOrdenes) {
+        // Esperamos a que la config llegue de la DB
+        await cargarConfigRestaurante();
+        
+        // Si el input existe en el HTML, ponemos el valor actual ahí también
+        const inputMesas = document.getElementById('inputNumMesas');
+        if(inputMesas && configRestaurante.num_mesas) {
+            inputMesas.value = configRestaurante.num_mesas;
+        }
+
+        App.registerRender('mesas', renderizarMesas);
+        await renderizarMesas();
     } else {
-      setTimeout(esperarAppYRenderizar, 300);
+        setTimeout(esperarAppYRenderizar, 300);
     }
-  }
+}
 
   async function cargarConfigRestaurante() {
     const sesion = JSON.parse(localStorage.getItem('sesion_activa'));
@@ -351,16 +357,31 @@ document.addEventListener('DOMContentLoaded', async () => {
   // =====================================================
   window.guardarConfiguracionMesas = async () => {
     const sesion = JSON.parse(localStorage.getItem('sesion_activa')) || {};
-    const n = parseInt(document.getElementById('inputNumMesas').value);
+    const input = document.getElementById('inputNumMesas');
+    const n = parseInt(input.value);
+
     if (isNaN(n) || n <= 0) return alert("Ingresa un número válido.");
+
     try {
-      await db.from('restaurantes').update({ num_mesas: n }).eq('id', sesion.restaurante_id);
-      alert("✅ Configuración guardada.");
-      // Actualizamos localmente para ver el cambio rápido
-      configRestaurante.num_mesas = n; 
-      renderizarMesas();
-    } catch (err) { console.error(err); alert("Error al guardar."); }
-  };
+        const { error } = await db.from('restaurantes')
+            .update({ num_mesas: n })
+            .eq('id', sesion.restaurante_id);
+
+        if (error) throw error;
+
+        // 🔥 CRUCIAL: Actualizar el objeto global ANTES de renderizar
+        configRestaurante.num_mesas = n; 
+        
+        alert("✅ Configuración guardada correctamente.");
+        
+        // Volver a dibujar las mesas con el nuevo número
+        await renderizarMesas(); 
+
+    } catch (err) { 
+        console.error(err); 
+        alert("Error al guardar en la base de datos."); 
+    }
+};
 
   window.agregarPedido = (numMesa) => {
     window.location.href = `menu.html?mesa=Mesa ${numMesa}`;
