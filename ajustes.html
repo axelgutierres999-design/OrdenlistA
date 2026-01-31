@@ -7,35 +7,71 @@
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@picocss/pico@1/css/pico.min.css">
   <style>
     /* --- ESTILO BARRA DE NAVEGACIÓN --- */
+   /* --- NAVEGACIÓN UNIFICADA --- */
     nav {
-      background-color: #000;
-      color: #fff;
-      padding: 10px 20px;
-      border-bottom: 3px solid #10ad93;
-      display: flex;
+      background: #000;
+      box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+      position: sticky;
+      top: 0;
+      z-index: 1000;
+      padding: 0.5rem 1rem;
+      display: flex; 
+      flex-wrap: wrap; 
+      align-items: center;
       justify-content: space-between;
-      align-items: center;
+      border-bottom: 3px solid #10ad93;
     }
-    nav ul {
+
+    .brand-group {
       display: flex;
       align-items: center;
+      gap: 10px;
+    }
+
+    .hamburger {
+      display: none; /* Oculto en PC */
+      background: none;
+      border: none;
+      font-size: 1.5rem;
+      color: #fff;
+      cursor: pointer;
+      padding: 0;
+    }
+
+    #menuNavegacion {
+      display: flex;
       list-style: none;
       margin: 0;
       padding: 0;
       gap: 1rem;
-    }
-    nav a, nav strong {
-      color: #fff !important;
-      text-decoration: none;
-      font-weight: 500;
-    }
-    nav a:hover {
-      color: #10ad93 !important;
-    }
-    .logo-section {
-      display: flex;
       align-items: center;
-      gap: 0.6rem;
+    }
+
+    /* Estilo botón ajustes manual */
+    .btn-ajustes-manual {
+      border: 1px solid #10ad93 !important;
+      color: #10ad93 !important;
+      padding: 5px 12px !important;
+      font-size: 0.85rem !important;
+      border-radius: 8px;
+      text-decoration: none;
+    }
+
+    /* REGLAS MÓVILES */
+    @media (max-width: 768px) {
+      .hamburger { display: block; }
+      #menuNavegacion {
+        display: none; 
+        width: 100%;
+        flex-direction: column;
+        padding-top: 1rem;
+        margin-top: 10px;
+        border-top: 1px solid #333;
+      }
+      #menuNavegacion.show { display: flex; }
+      #menuNavegacion li { width: 100%; text-align: center; }
+      #menuNavegacion a { display: block; padding: 10px; }
+      .hide-mobile { display: none; }
     }
 
     /* Estilos de bloques */
@@ -89,15 +125,21 @@
 <body>
 
   <nav>
-    <ul class="logo-section">
-      <li><a href="index.html">☕ <strong>OrdenLista</strong></a></li>
-      <li>
-        <a href="ajustes.html" role="button" class="contrast" style="border:1px solid white; border-radius:8px; padding:4px 10px;">
-          ⚙️ Ajustes
-        </a>
-      </li>
-    </ul>
-    <ul>
+    <div class="brand-group">
+      <a href="index.html" style="text-decoration: none;">
+        <strong style="font-size: 1.3rem; color: #10ad93;">☕ OrdenLista</strong>
+      </a>
+      <span class="hide-mobile" style="color: #888;">| Ajustes</span>
+    </div>
+
+    <div style="display: flex; align-items: center; gap: 10px;">
+      <a href="ajustes.html" role="button" class="btn-ajustes-manual">
+        ⚙️ <span class="hide-mobile">Ajustes</span>
+      </a>
+      <button class="hamburger" onclick="toggleNav()">☰</button>
+    </div>
+
+    <ul id="menuNavegacion">
       <li><a href="mesas.html">🪑 Mesas</a></li>
       <li><a href="menu.html">📋 Menú</a></li>
       <li><a href="estadisticas.html">📈 Ventas</a></li>
@@ -174,6 +216,14 @@
     <button id="btnGuardarTodo">
       💾 Guardar Cambios del Establecimiento
     </button>
+
+    <script>
+    function toggleNav() {
+        const menu = document.getElementById('menuNavegacion');
+        menu.classList.toggle('show');
+    }
+  </script>
+  
   </main>
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
