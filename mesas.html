@@ -39,23 +39,88 @@
         #modalTicket article { position: absolute; left: 0; top: 0; width: 100%; box-shadow: none; }
         .no-print { display: none !important; }
       }
+      /* --- NAVEGACIÓN UNIFICADA --- */
+    .nav-inicio {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        justify-content: space-between;
+        padding: 0.5rem 1rem;
+        position: sticky;
+        top: 0;
+        z-index: 1000; /* Asegura que esté sobre las mesas */
+        background: white !important;
+    }
+
+    .brand-group {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+    }
+
+    .hamburger {
+        display: none;
+        background: none;
+        border: none;
+        font-size: 1.5rem;
+        color: #333;
+        cursor: pointer;
+        padding: 0;
+    }
+
+    #menuNavegacion {
+        display: flex;
+        list-style: none;
+        margin: 0;
+        padding: 0;
+        gap: 1rem;
+    }
+
+    .btn-ajustes-manual {
+        border: 1px solid #10ad93 !important;
+        color: #10ad93 !important;
+        padding: 5px 12px !important;
+        font-size: 0.85rem !important;
+        border-radius: 8px;
+        text-decoration: none;
+    }
+
+    /* REGLAS MÓVILES */
+    @media (max-width: 768px) {
+        .hamburger { display: block; }
+        .hide-mobile { display: none; }
+        #menuNavegacion {
+            display: none;
+            width: 100%;
+            flex-direction: column;
+            order: 3;
+            border-top: 1px solid #eee;
+            padding: 10px 0;
+            margin-top: 10px;
+        }
+        #menuNavegacion.show { display: flex; }
+        #menuNavegacion li { width: 100%; text-align: center; }
+    }
     </style>
 </head>
 <body>
- <nav class="container-fluid nav-inicio" style="background: white; box-shadow: 0 2px 5px rgba(0,0,0,0.05);">
-  <ul style="display:flex; align-items:center; gap:0.6rem;">
-    <li><strong style="font-size: 1.3rem; color: #10ad93;">☕ OrdenLista</strong></li>
-    <li style="color: #888;">| Monitor de mesas</li>
-    <li>
-      <a href="ajustes.html" role="button" class="contrast"
-         style="border:1px solid #10ad93; border-radius:8px; padding:4px 10px; color:#10ad93;">
-        ⚙️ Ajustes
-      </a>
-    </li>
-  </ul>
+ <nav class="nav-inicio">
+  <div class="brand-group">
+    <a href="index.html" style="text-decoration: none;">
+      <strong style="font-size: 1.3rem; color: #10ad93;">☕ OrdenLista</strong>
+    </a>
+    <span class="hide-mobile" style="color: #888;">| Monitor de mesas</span>
+  </div>
+
+  <div style="display: flex; align-items: center; gap: 10px;">
+    <a href="ajustes.html" role="button" class="btn-ajustes-manual">
+      ⚙️ <span class="hide-mobile">Ajustes</span>
+    </a>
+    <button class="hamburger" onclick="toggleNav()">☰</button>
+  </div>
+
   <ul id="menuNavegacion" class="nav-botones"></ul>
 </nav>
-
 
     <main class="container">
       <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem;">
@@ -120,6 +185,13 @@
         </footer>
       </article>
     </dialog>
+    
+    <script>
+  function toggleNav() {
+      const menu = document.getElementById('menuNavegacion');
+      menu.classList.toggle('show');
+  }
+</script>
 
     <!-- ✅ LIBRERÍAS Y JS PRINCIPALES -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
