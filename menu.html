@@ -125,17 +125,21 @@
   </style>
 </head>
 <body>
- <nav class="container-fluid nav-inicio" style="background: white; box-shadow: 0 2px 5px rgba(0,0,0,0.05);">
-  <ul style="display:flex; align-items:center; gap:0.6rem;">
-    <li><strong style="font-size: 1.3rem; color: #10ad93;">☕ OrdenLista</strong></li>
-    <li style="color: #888;">| Pedidos</li>
-    <li>
-      <a href="ajustes.html" role="button" class="contrast"
-         style="border:1px solid #10ad93; border-radius:8px; padding:4px 10px; color:#10ad93; text-decoration:none;">
-        ⚙️ Ajustes
-      </a>
-    </li>
-  </ul>
+ <nav class="nav-inicio">
+  <div class="brand-group">
+    <a href="index.html" style="text-decoration: none;">
+      <strong style="font-size: 1.3rem; color: #10ad93;">☕ OrdenLista</strong>
+    </a>
+    <span class="hide-mobile" style="color: #888;">| Monitor de stock</span>
+  </div>
+
+  <div style="display: flex; align-items: center; gap: 10px;">
+    <a href="ajustes.html" role="button" class="btn-ajustes-manual">
+      ⚙️ <span class="hide-mobile">Ajustes</span>
+    </a>
+    <button class="hamburger" onclick="toggleNav()">☰</button>
+  </div>
+
   <ul id="menuNavegacion" class="nav-botones"></ul>
 </nav>
 
@@ -277,6 +281,13 @@
       cerrarModalCobro();
     }
   </script>
+
+  <script>
+  function toggleNav() {
+      const menu = document.getElementById('menuNavegacion');
+      menu.classList.toggle('show');
+  }
+</script>
   
   <button id="btnAgregarProducto" class="fab-add" style="display:none;">+</button>
 
