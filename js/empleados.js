@@ -1,4 +1,4 @@
-// js/empleados.js - GESTIÓN EN LA NUBE + REGISTRO DE ASISTENCIA (VERSIÓN MULTINEGOCIO V9.3)
+// js/empleados.js - CORREGIDO (Refresco Automático + Realtime)
 document.addEventListener('DOMContentLoaded', async () => {
     // Validar conexión
     if (typeof db === 'undefined') {
@@ -13,6 +13,9 @@ document.addEventListener('DOMContentLoaded', async () => {
     const miRol = document.getElementById('miRol');
     const miEntrada = document.getElementById('miEntrada');
     const miAvatar = document.getElementById('miAvatar');
+
+    // Variable para controlar si el usuario puede ver la tabla
+    const esAdmin = sesion && (sesion.rol === 'dueño' || sesion.rol === 'admin');
 
     // --- 1️⃣ RENDERIZAR PERFIL ACTUAL ---
     if (sesion) {
@@ -32,8 +35,8 @@ document.addEventListener('DOMContentLoaded', async () => {
 
         if (miAvatar) miAvatar.src = (usuarioFresco && usuarioFresco.foto) ? usuarioFresco.foto : sesion.foto;
 
-        // Mostrar panel de dueño
-        if (sesion.rol === 'dueño' || sesion.rol === 'admin') {
+        // Mostrar panel de dueño SI corresponde
+        if (esAdmin) {
             cargarPanelDueño(restoId);
         }
     }
@@ -61,9 +64,11 @@ document.addEventListener('DOMContentLoaded', async () => {
                 .eq('restaurante_id', restoId)
                 .maybeSingle();
 
+            let exito = false;
+
             if (!registroExistente && tipo === 'entrada') {
                 // Nuevo registro de entrada
-                await db.from('asistencia').insert([{
+                const { error } = await db.from('asistencia').insert([{
                     restaurante_id: restoId,
                     empleado_id: sesion.id,
                     nombre_empleado: sesion.nombre,
@@ -71,17 +76,25 @@ document.addEventListener('DOMContentLoaded', async () => {
                     hora_entrada: horaActual,
                     hora_salida: null
                 }]);
+
+                if (error) throw error;
+                
                 alert(`✅ Entrada registrada: ${horaActual}`);
                 localStorage.setItem('horaEntrada', horaActual);
                 if (miEntrada) miEntrada.innerText = horaActual;
+                exito = true;
 
             } else if (registroExistente && tipo === 'salida' && !registroExistente.hora_salida) {
                 // Actualizar salida
-                await db.from('asistencia')
+                const { error } = await db.from('asistencia')
                     .update({ hora_salida: horaActual })
                     .eq('id', registroExistente.id)
                     .eq('restaurante_id', restoId);
+                
+                if (error) throw error;
+
                 alert(`👋 Salida registrada: ${horaActual}`);
+                exito = true;
 
             } else if (registroExistente && tipo === 'entrada') {
                 alert("⚠️ Ya marcaste tu entrada hoy.");
@@ -91,9 +104,15 @@ document.addEventListener('DOMContentLoaded', async () => {
                 alert("⚠️ No se puede registrar asistencia. Revisa los datos.");
             }
 
+            // 🔥 AQUÍ ESTÁ LA SOLUCIÓN: SI HUBO ÉXITO, RECARGAMOS LA TABLA
+            if (exito && esAdmin) {
+                console.log("Recargando tabla...");
+                cargarPanelDueño(restoId);
+            }
+
         } catch (err) {
             console.error(err);
-            alert("❌ Error registrando asistencia.");
+            alert("❌ Error registrando asistencia: " + err.message);
         }
     };
 
@@ -118,7 +137,8 @@ document.addEventListener('DOMContentLoaded', async () => {
             .from('asistencia')
             .select('*')
             .eq('fecha', hoyISO)
-            .eq('restaurante_id', restoId);
+            .eq('restaurante_id', restoId)
+            .order('hora_entrada', { ascending: false }); // Ordenar por más reciente
 
         renderizarDueño(empleados || [], asistenciaHoy || []);
     }
@@ -144,17 +164,17 @@ document.addEventListener('DOMContentLoaded', async () => {
 
         // 2️⃣ Tabla de asistencia
         if (tabla) {
-            tabla.innerHTML = asistencia.map(a => `
-                <tr>
-                    <td><strong>${a.nombre_empleado}</strong></td>
-                    <td>${a.hora_entrada || '--:--'}</td>
-                    <td>${a.hora_salida || '--:--'}</td>
-                    <td>${a.hora_salida ? '<span style="color:grey;">Finalizado</span>' : '<span style="color:#2ecc71;">● En turno</span>'}</td>
-                </tr>
-            `).join('');
-
             if (asistencia.length === 0) {
-                tabla.innerHTML = '<tr><td colspan="4" style="text-align:center">Nadie ha marcado entrada hoy aún.</td></tr>';
+                tabla.innerHTML = '<tr><td colspan="4" style="text-align:center; padding: 15px;">Nadie ha marcado entrada hoy aún.</td></tr>';
+            } else {
+                tabla.innerHTML = asistencia.map(a => `
+                    <tr>
+                        <td><strong>${a.nombre_empleado}</strong></td>
+                        <td>${a.hora_entrada || '--:--'}</td>
+                        <td>${a.hora_salida || '--:--'}</td>
+                        <td>${a.hora_salida ? '<span style="color:grey;">Finalizado</span>' : '<span style="color:#2ecc71;">● En turno</span>'}</td>
+                    </tr>
+                `).join('');
             }
         }
     }
@@ -186,7 +206,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                 alert(`✅ ${nombre} contratado exitosamente.`);
                 form.reset();
                 cerrarModalEmpleado();
-                cargarPanelDueño(restoId);
+                cargarPanelDueño(restoId); // Recargar lista empleados
             } else {
                 alert("Error creando empleado: " + error.message);
             }
@@ -206,10 +226,28 @@ document.addEventListener('DOMContentLoaded', async () => {
                 .eq('restaurante_id', restoId);
 
             if (!error) {
-                cargarPanelDueño(restoId);
+                cargarPanelDueño(restoId); // Recargar lista empleados
             } else {
                 alert("Error al borrar: " + error.message);
             }
         }
     };
+
+    // =====================================================
+    // 6️⃣ ESCUCHA EN TIEMPO REAL (REALTIME)
+    // =====================================================
+    // Esto hace que si un empleado marca entrada, aparezca 
+    // en la pantalla del dueño INSTANTÁNEAMENTE
+    if (db.channel && esAdmin) {
+        const restoId = sesion.restaurante_id;
+        db.channel('asistencia-realtime')
+          .on('postgres_changes', 
+              { event: '*', schema: 'public', table: 'asistencia', filter: `restaurante_id=eq.${restoId}` }, 
+              (payload) => {
+                  console.log("Cambio en asistencia detectado:", payload);
+                  cargarPanelDueño(restoId);
+              }
+          )
+          .subscribe();
+    }
 });

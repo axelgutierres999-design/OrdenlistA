@@ -1,4 +1,4 @@
-// js/estadisticas.js - CORREGIDO (Prioridad Base de Datos)
+// js/estadisticas.js - VERSION CORREGIDA PARA MÓVIL (V9.5)
 document.addEventListener('DOMContentLoaded', async () => {
     const sesion = JSON.parse(localStorage.getItem('sesion_activa'));
     if (!sesion || typeof db === 'undefined') {
@@ -17,10 +17,9 @@ document.addEventListener('DOMContentLoaded', async () => {
     let ventasHoy = [];
     let ultimaHoraCorte = null;
 
-    // 🔹 1. OBTENER CORTE (CORREGIDO: Prioriza DB sobre LocalStorage)
+    // 🔹 1. OBTENER CORTE
     async function obtenerUltimoCorte() {
         try {
-            // Consultamos SIEMPRE a la base de datos primero para tener la verdad absoluta
             const { data, error } = await db
                 .from('restaurantes')
                 .select('corte_actual')
@@ -29,21 +28,18 @@ document.addEventListener('DOMContentLoaded', async () => {
 
             if (!error && data?.corte_actual) {
                 ultimaHoraCorte = new Date(data.corte_actual);
-                // Actualizamos el local por si acaso, pero confiamos en la DB
                 localStorage.setItem(`ultimo_corte_${sesion.restaurante_id}`, data.corte_actual);
             } else {
-                // Si no hay corte en DB, intentamos ver si hay algo local (fallback) o iniciamos el día
                 const local = localStorage.getItem(`ultimo_corte_${sesion.restaurante_id}`);
                 if (local) {
                     ultimaHoraCorte = new Date(local);
                 } else {
                     ultimaHoraCorte = new Date();
-                    ultimaHoraCorte.setHours(0, 0, 0, 0); // Inicio del día por defecto
+                    ultimaHoraCorte.setHours(0, 0, 0, 0);
                 }
             }
         } catch (e) {
             console.error("Error obteniendo corte:", e);
-            // Fallback de emergencia
             ultimaHoraCorte = new Date();
             ultimaHoraCorte.setHours(0, 0, 0, 0);
         }
@@ -51,9 +47,8 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     // 🔹 2. CARGAR VENTAS
     async function cargarEstadisticas() {
-        await obtenerUltimoCorte(); // Esperamos a saber la hora exacta
+        await obtenerUltimoCorte();
 
-        // Si falló todo, usar inicio del día
         const desde = ultimaHoraCorte ? ultimaHoraCorte : new Date();
         if (!ultimaHoraCorte) desde.setHours(0, 0, 0, 0);
 
@@ -63,7 +58,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             .from('ventas')
             .select('*')
             .eq('restaurante_id', sesion.restaurante_id)
-            .gte('created_at', desde.toISOString()) // Trae solo lo creado DESPUÉS del corte
+            .gte('created_at', desde.toISOString())
             .order('created_at', { ascending: false });
 
         if (error) {
@@ -84,7 +79,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             const monto = parseFloat(v.total) || 0;
             total += monto;
             const metodo = (v.metodo_pago || '').toLowerCase();
-            if (metodo.includes('tarjeta') || metodo.includes('transferencia')) {
+            if (metodo.includes('tarjeta') || metodo.includes('transferencia') || metodo.includes('qr')) {
                 tarjeta += monto;
             } else {
                 efectivo += monto;
@@ -106,7 +101,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     function renderizarTabla() {
         if (!listaVentas) return;
         if (ventasHoy.length === 0) {
-            listaVentas.innerHTML = `<tr><td colspan="5" style="text-align:center; padding: 20px;">No hay ventas registradas desde el último corte (${ultimaHoraCorte.toLocaleTimeString()}).</td></tr>`;
+            listaVentas.innerHTML = `<tr><td colspan="5" style="text-align:center; padding: 20px;">No hay ventas registradas desde el último corte.</td></tr>`;
             return;
         }
         listaVentas.innerHTML = ventasHoy.map(v => `
@@ -130,7 +125,6 @@ document.addEventListener('DOMContentLoaded', async () => {
         ventasHoy.forEach(v => {
             if (!v.productos) return;
             v.productos.split(',').forEach(p => {
-                // Parsea: "2x Coca Cola"
                 const match = p.trim().match(/^(\d+)x\s+(.+)$/);
                 const cantidad = match ? parseInt(match[1]) : 1;
                 const nombre = match ? match[2] : p.trim();
@@ -138,7 +132,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             });
         });
 
-        const labels = Object.keys(resumen).slice(0, 5); // Top 5
+        const labels = Object.keys(resumen).slice(0, 5);
         const data = labels.map(l => resumen[l]);
         
         chartInstancia = new Chart(canvas, {
@@ -148,50 +142,65 @@ document.addEventListener('DOMContentLoaded', async () => {
         });
     }
 
-    // 🔹 6. IMPRIMIR CORTE (Pop-up)
+    // 🔹 6. IMPRIMIR CORTE (CORREGIDO PARA MÓVIL)
     window.imprimirCorteCaja = () => {
-        if (ventasHoy.length === 0) return alert("No hay ventas que imprimir.");
+        if (ventasHoy.length === 0) return; // No alertar aquí para no interrumpir flujo
+
         const fecha = new Date().toLocaleDateString();
         const hora = new Date().toLocaleTimeString();
         
-        // Calcular totales actuales para el ticket
         const total = spanTotalDia ? spanTotalDia.textContent : "$0.00";
         const efectivo = spanEfectivo ? spanEfectivo.textContent : "$0.00";
         const tarjeta = spanTarjeta ? spanTarjeta.textContent : "$0.00";
 
+        // INTENTO DE ABRIR VENTANA
         const ventana = window.open("", "_blank", "width=300,height=600");
-        ventana.document.write(`
-            <html>
-                <head>
-                    <title>Corte de Caja</title>
-                    <style>
-                        body { font-family: 'Courier New', monospace; text-align: center; margin: 0; padding: 10px; }
-                        hr { border: 1px dashed #000; }
-                        .fila { display: flex; justify-content: space-between; }
-                    </style>
-                </head>
-                <body>
-                    <h2>CORTE DE CAJA</h2>
-                    <p>${fecha} - ${hora}</p>
-                    <hr>
-                    <div class="fila"><b>TOTAL:</b> <span>${total}</span></div>
-                    <div class="fila">Efectivo: <span>${efectivo}</span></div>
-                    <div class="fila">Tarjeta: <span>${tarjeta}</span></div>
-                    <div class="fila">Ventas: <span>${ventasHoy.length}</span></div>
-                    <hr>
-                    <p>Firma Cajero:</p>
-                    <br><br>
-                    <p>__________________</p>
-                    <script>
-                        window.print();
-                        setTimeout(() => window.close(), 500);
-                    </script>
-                </body>
-            </html>
-        `);
+
+        // ✅ VALIDACIÓN CRÍTICA: Si el móvil bloquea la ventana, 'ventana' es null
+        if (!ventana) {
+            console.warn("Bloqueo de pop-up detectado. No se puede imprimir ticket automáticamente.");
+            alert("⚠️ El corte se realizó correctamente, pero el navegador bloqueó la impresión del ticket.\n\nPara la próxima, habilita 'Ventanas Emergentes'.");
+            return;
+        }
+
+        try {
+            ventana.document.write(`
+                <html>
+                    <head>
+                        <title>Corte de Caja</title>
+                        <style>
+                            body { font-family: 'Courier New', monospace; text-align: center; margin: 0; padding: 10px; }
+                            hr { border: 1px dashed #000; }
+                            .fila { display: flex; justify-content: space-between; }
+                        </style>
+                    </head>
+                    <body>
+                        <h2>CORTE DE CAJA</h2>
+                        <p>${fecha} - ${hora}</p>
+                        <hr>
+                        <div class="fila"><b>TOTAL:</b> <span>${total}</span></div>
+                        <div class="fila">Efectivo: <span>${efectivo}</span></div>
+                        <div class="fila">Tarjeta: <span>${tarjeta}</span></div>
+                        <div class="fila">Ventas: <span>${ventasHoy.length}</span></div>
+                        <hr>
+                        <p>Firma Cajero:</p>
+                        <br><br>
+                        <p>__________________</p>
+                        <script>
+                            window.print();
+                            // Damos tiempo al móvil antes de cerrar
+                            setTimeout(() => window.close(), 1000); 
+                        </script>
+                    </body>
+                </html>
+            `);
+            ventana.document.close(); // Importante para terminar la carga
+        } catch (e) {
+            console.error("Error al generar ticket:", e);
+        }
     };
 
-    // 🔹 7. REALIZAR CORTE (Función Principal)
+    // 🔹 7. REALIZAR CORTE (Función Principal BLINDADA)
     window.realizarCorteCaja = async () => {
         if (ventasHoy.length === 0) return alert("No hay ventas nuevas para cortar.");
         if (!confirm("¿Seguro que deseas realizar el CORTE DE CAJA?\nEsto reiniciará los contadores a $0.")) return;
@@ -200,15 +209,15 @@ document.addEventListener('DOMContentLoaded', async () => {
             // 1. Calcular totales matemáticos
             const total = ventasHoy.reduce((a, v) => a + parseFloat(v.total || 0), 0);
             const efectivo = ventasHoy
-                .filter(v => !(v.metodo_pago || '').toLowerCase().includes('tarjeta'))
+                .filter(v => !(v.metodo_pago || '').toLowerCase().includes('tarjeta') && !(v.metodo_pago || '').toLowerCase().includes('qr') && !(v.metodo_pago || '').toLowerCase().includes('transferencia'))
                 .reduce((a, v) => a + parseFloat(v.total || 0), 0);
-            const tarjeta = ventasHoy
-                .filter(v => (v.metodo_pago || '').toLowerCase().includes('tarjeta'))
-                .reduce((a, v) => a + parseFloat(v.total || 0), 0);
+            
+            // Tarjeta incluye QR y Transferencia para contabilidad simple
+            const tarjeta = total - efectivo; 
 
             const fechaCorte = new Date().toISOString();
 
-            // 2. Insertar historial en 'cortes_caja'
+            // 2. Insertar historial
             const { error: errorHistorial } = await db.from('cortes_caja').insert({
                 restaurante_id: sesion.restaurante_id,
                 fecha_corte: fechaCorte,
@@ -221,18 +230,22 @@ document.addEventListener('DOMContentLoaded', async () => {
 
             if (errorHistorial) throw new Error("Error guardando historial: " + errorHistorial.message);
 
-            // 3. Actualizar la marca de tiempo en 'restaurantes' (ESTO ES LO QUE HACE EL CORTE REAL)
+            // 3. Actualizar restaurante (EL CORTE REAL)
             const { error: errorUpdate } = await db.from('restaurantes')
                 .update({ corte_actual: fechaCorte })
                 .eq('id', sesion.restaurante_id);
 
             if (errorUpdate) throw new Error("Error actualizando restaurante: " + errorUpdate.message);
 
-            // 4. Éxito
+            // 4. Éxito en Base de Datos
             localStorage.setItem(`ultimo_corte_${sesion.restaurante_id}`, fechaCorte);
             
-            // Imprimir antes de limpiar
-            window.imprimirCorteCaja();
+            // 5. INTENTO DE IMPRESIÓN (Separado para que si falla no muestre error de corte)
+            try {
+                window.imprimirCorteCaja();
+            } catch (printErr) {
+                console.warn("Error interno de impresión:", printErr);
+            }
 
             alert("✅ Corte realizado exitosamente.");
             
@@ -245,11 +258,10 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
     };
 
-    // 🔹 8. Escucha Realtime (Solo recarga si hay nuevas ventas)
+    // 🔹 8. Escucha Realtime
     if (db.channel) {
         db.channel('ventas-realtime')
           .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'ventas' }, () => {
-              console.log("Nueva venta detectada, actualizando...");
               cargarEstadisticas();
           })
           .subscribe();
