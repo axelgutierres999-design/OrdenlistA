@@ -293,11 +293,9 @@ window.filtrarVentas = () => {
 });
 // 🔹 NUEVO: IMPRIMIR TICKET INDIVIDUAL
 window.imprimirTicketIndividual = (idVenta) => {
-    // Buscar la venta en el array cargado
     const venta = ventasHoy.find(v => v.id == idVenta);
     if (!venta) return alert("Error: No se encontró la información de la venta.");
 
-    // Formatear productos para el ticket
     let productosHtml = "";
     if (venta.productos) {
         venta.productos.split(',').forEach(p => {
@@ -305,7 +303,8 @@ window.imprimirTicketIndividual = (idVenta) => {
         });
     }
 
-    const ventana = window.open("", "_blank", "width=300,height=600");
+    // Aumentamos el tamaño de la ventana para asegurar visibilidad
+    const ventana = window.open("", "_blank", "width=350,height=600");
     if (!ventana) return alert("Habilita las ventanas emergentes para imprimir.");
 
     try {
@@ -319,6 +318,12 @@ window.imprimirTicketIndividual = (idVenta) => {
                         hr { border: 1px dashed #000; }
                         .fila { display: flex; justify-content: space-between; }
                         .total { font-size: 14px; font-weight: bold; margin-top: 10px; }
+                        /* Ocultar botón de impresión al imprimir */
+                        @media print { .no-print { display: none; } }
+                        .btn-imprimir { 
+                            width: 100%; padding: 10px; background: black; color: white; 
+                            border: none; margin-top: 10px; cursor: pointer; border-radius: 5px;
+                        }
                     </style>
                 </head>
                 <body>
@@ -333,9 +338,15 @@ window.imprimirTicketIndividual = (idVenta) => {
                     <div class="fila"><span>Pago:</span> <span>${(venta.metodo_pago || 'EFECTIVO').toUpperCase()}</span></div>
                     <br>
                     <p style="font-size: 10px;">¡Gracias por su preferencia!</p>
+                    
+                    <button class="no-print btn-imprimir" onclick="window.print()">🖨️ Imprimir</button>
+
                     <script>
-                        window.print();
-                        setTimeout(() => window.close(), 1000);
+                        // Intentar imprimir automáticamente
+                        setTimeout(() => {
+                            window.print();
+                            // NO cerramos automáticamente para dar tiempo al usuario
+                        }, 500);
                     </script>
                 </body>
             </html>
