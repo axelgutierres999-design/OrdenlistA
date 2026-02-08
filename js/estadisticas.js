@@ -97,24 +97,45 @@ document.addEventListener('DOMContentLoaded', async () => {
         if(spanTicketPromedio) spanTicketPromedio.textContent = fmt.format(promedio);
     }
 
-    // 🔹 4. RENDERIZAR TABLA
-    function renderizarTabla() {
-        if (!listaVentas) return;
-        if (ventasHoy.length === 0) {
-            listaVentas.innerHTML = `<tr><td colspan="5" style="text-align:center; padding: 20px;">No hay ventas registradas desde el último corte.</td></tr>`;
-            return;
-        }
-        listaVentas.innerHTML = ventasHoy.map(v => `
-            <tr>
-                <td>#${v.id.toString().slice(-5).toUpperCase()}</td>
-                <td>${v.mesa || 'LLEVAR'}</td>
-                <td><strong>$${parseFloat(v.total).toFixed(2)}</strong></td>
-                <td>${(v.metodo_pago || 'EFECTIVO').toUpperCase()}</td>
-                <td>${new Date(v.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</td>
-            </tr>
-        `).join('');
+    // 🔹 4. RENDERIZAR TABLA (ACTUALIZADA)
+function renderizarTabla(listaDatos = ventasHoy) { // Ahora acepta un argumento
+    if (!listaVentas) return;
+    
+    if (listaDatos.length === 0) {
+        listaVentas.innerHTML = `<tr><td colspan="6" style="text-align:center; padding: 20px;">No se encontraron ventas.</td></tr>`;
+        return;
     }
 
+    listaVentas.innerHTML = listaDatos.map(v => `
+        <tr>
+            <td>#${v.id.toString().slice(-5).toUpperCase()}</td>
+            <td>${v.mesa || 'LLEVAR'}</td>
+            <td><strong>$${parseFloat(v.total).toFixed(2)}</strong></td>
+            <td>${(v.metodo_pago || 'EFECTIVO').toUpperCase()}</td>
+            <td>${new Date(v.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</td>
+            <td>
+                <button class="outline secondary" 
+                        style="padding: 5px 10px; font-size: 0.8rem; border-radius: 8px;"
+                        onclick="imprimirTicketIndividual('${v.id}')">
+                    📄 Ver
+                </button>
+            </td>
+        </tr>
+    `).join('');
+}
+// 🔹 NUEVO: FUNCIÓN BUSCADOR
+window.filtrarVentas = () => {
+    const texto = document.getElementById('buscadorVentas').value.toLowerCase();
+    
+    const filtradas = ventasHoy.filter(v => {
+        const folio = v.id.toString().slice(-5).toLowerCase();
+        const mesa = (v.mesa || '').toLowerCase();
+        // Busca coincidencias en Folio O Mesa
+        return folio.includes(texto) || mesa.includes(texto);
+    });
+
+    renderizarTabla(filtradas);
+};
     // 🔹 5. GRÁFICO
     function dibujarGrafico() {
         const canvas = document.getElementById('graficoCategorias');
@@ -270,3 +291,57 @@ document.addEventListener('DOMContentLoaded', async () => {
     // Inicio
     cargarEstadisticas();
 });
+// 🔹 NUEVO: IMPRIMIR TICKET INDIVIDUAL
+window.imprimirTicketIndividual = (idVenta) => {
+    // Buscar la venta en el array cargado
+    const venta = ventasHoy.find(v => v.id == idVenta);
+    if (!venta) return alert("Error: No se encontró la información de la venta.");
+
+    // Formatear productos para el ticket
+    let productosHtml = "";
+    if (venta.productos) {
+        venta.productos.split(',').forEach(p => {
+            productosHtml += `<div class="fila" style="justify-content: flex-start;"><span>• ${p.trim()}</span></div>`;
+        });
+    }
+
+    const ventana = window.open("", "_blank", "width=300,height=600");
+    if (!ventana) return alert("Habilita las ventanas emergentes para imprimir.");
+
+    try {
+        ventana.document.write(`
+            <html>
+                <head>
+                    <title>Ticket #${venta.id.toString().slice(-5)}</title>
+                    <style>
+                        body { font-family: 'Courier New', monospace; margin: 0; padding: 10px; font-size: 12px; }
+                        h3, p { text-align: center; margin: 5px 0; }
+                        hr { border: 1px dashed #000; }
+                        .fila { display: flex; justify-content: space-between; }
+                        .total { font-size: 14px; font-weight: bold; margin-top: 10px; }
+                    </style>
+                </head>
+                <body>
+                    <h3>ORDEN LISTA</h3>
+                    <p>Folio: #${venta.id.toString().slice(-5).toUpperCase()}</p>
+                    <p>${new Date(venta.created_at).toLocaleString()}</p>
+                    <p>Mesa: ${venta.mesa || 'Llevar'}</p>
+                    <hr>
+                    ${productosHtml}
+                    <hr>
+                    <div class="fila total"><span>TOTAL:</span> <span>$${parseFloat(venta.total).toFixed(2)}</span></div>
+                    <div class="fila"><span>Pago:</span> <span>${(venta.metodo_pago || 'EFECTIVO').toUpperCase()}</span></div>
+                    <br>
+                    <p style="font-size: 10px;">¡Gracias por su preferencia!</p>
+                    <script>
+                        window.print();
+                        setTimeout(() => window.close(), 1000);
+                    </script>
+                </body>
+            </html>
+        `);
+        ventana.document.close();
+    } catch (e) {
+        console.error(e);
+    }
+};

@@ -197,28 +197,34 @@
             </div>
 
             <div class="panel-blanco">
-                <h4>📋 Últimas Ventas</h4>
-                <figure style="max-height: 400px; overflow: auto;">
-                    <table role="grid">
-                        <thead style="position: sticky; top: 0; background: white; z-index: 1;">
-                            <tr>
-                                <th>#</th>
-                                <th>Mesa</th>
-                                <th>Total</th>
-                                <th>Pago</th>
-                            </tr>
-                        </thead>
-                        <tbody id="listaUltimasVentas">
-                            <tr>
-                                <td colspan="4" style="text-align:center; color: #888; padding: 2rem;">
-                                    Cargando...
-                                </td>
-                            </tr>
-                        </tbody>
-                    </table>
-                </figure>
-            </div>
-        </div>
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+        <h4 style="margin:0;">📋 Últimas Ventas</h4>
+    </div>
+
+    <input type="search" id="buscadorVentas" placeholder="🔍 Buscar por Folio o Mesa..." 
+           onkeyup="filtrarVentas()" 
+           style="margin-bottom: 1rem; border-radius: 20px;">
+
+    <figure style="max-height: 400px; overflow: auto;">
+        <table role="grid">
+            <thead style="position: sticky; top: 0; background: white; z-index: 1;">
+                <tr>
+                    <th>#</th>
+                    <th>Mesa</th>
+                    <th>Total</th>
+                    <th>Pago</th>
+                    <th>Hora</th> <th>Ticket</th> </tr>
+            </thead>
+            <tbody id="listaUltimasVentas">
+                <tr>
+                    <td colspan="6" style="text-align:center; color: #888; padding: 2rem;">
+                        Cargando...
+                    </td>
+                </tr>
+            </tbody>
+        </table>
+    </figure>
+</div>
 
         <div class="action-buttons" style="display: flex; gap: 1rem; justify-content: flex-end; margin-top: 2rem; margin-bottom: 3rem;">
             <button class="outline secondary" onclick="location.reload()">
