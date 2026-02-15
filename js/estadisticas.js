@@ -290,7 +290,7 @@ window.filtrarVentas = () => {
 
     // Inicio
     cargarEstadisticas();
-});
+
 // 🔹 NUEVO: IMPRIMIR TICKET INDIVIDUAL
 window.imprimirTicketIndividual = (idVenta) => {
     const venta = ventasHoy.find(v => v.id == idVenta);
@@ -356,3 +356,4 @@ window.imprimirTicketIndividual = (idVenta) => {
         console.error(e);
     }
 };
+});
