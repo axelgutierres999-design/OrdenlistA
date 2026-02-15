@@ -185,12 +185,45 @@ document.addEventListener('DOMContentLoaded', () => {
   // =====================================================
   // 4️⃣ EVENTOS
   // =====================================================
-  if (inputBusqueda) inputBusqueda.oninput = () => renderizarOrdenes();
+ if (inputBusqueda) inputBusqueda.oninput = () => renderizarOrdenes();
   if (filtroEstado) filtroEstado.onchange = () => renderizarOrdenes();
 
+  // Reloj de segundos
   setInterval(actualizarTiempos, 1000);
 
   if (typeof App !== 'undefined') {
     App.registerRender('ordenes', renderizarOrdenes);
+
+    // --- CONFIGURACIÓN TIEMPO REAL ---
+    const sesion = JSON.parse(localStorage.getItem('sesion_activa'));
+    
+    if (sesion && db) {
+      console.log("🛰️ Conectando Monitor en Tiempo Real...");
+
+      db.channel('monitor-ordenes')
+        .on(
+          'postgres_changes', 
+          { 
+            event: '*', // Escucha INSERTS, UPDATES y DELETES
+            schema: 'public', 
+            table: 'ordenes',
+            filter: `restaurante_id=eq.${sesion.restaurante_id}` 
+          }, 
+          async (payload) => {
+            console.log('🔔 Cambio en órdenes detectado:', payload.eventType);
+            
+            // 1. Forzamos a App.js a traer los datos frescos de la DB
+            if (App.cargarDatos) {
+                await App.cargarDatos(); 
+            }
+            
+            // 2. Renderizar automáticamente (App.cargarDatos suele disparar los renders registrados)
+            renderizarOrdenes();
+          }
+        )
+        .subscribe((status) => {
+           console.log("Estado de suscripción:", status);
+        });
+    }
   }
 });
