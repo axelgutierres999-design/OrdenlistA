@@ -7,16 +7,14 @@ document.addEventListener('DOMContentLoaded', async () => {
   let totalActualCobro = 0;
   let ordenesIdsCobro = [];
   let configRestaurante = {}; // Guardará datos bancarios y URL del QR
-
+  let planoActual = null;
   // =====================================================
   // 1️⃣ INICIALIZACIÓN Y CARGA DE CONFIG
   // =====================================================
   async function esperarAppYRenderizar() {
     if (typeof App !== 'undefined' && App.getOrdenes) {
-        // Esperamos a que la config llegue de la DB
-        await cargarConfigRestaurante();
+        await cargarConfigRestaurante(); // Ahora esta función carga TODO
         
-        // Si el input existe en el HTML, ponemos el valor actual ahí también
         const inputMesas = document.getElementById('inputNumMesas');
         if(inputMesas && configRestaurante.num_mesas) {
             inputMesas.value = configRestaurante.num_mesas;
@@ -27,36 +25,61 @@ document.addEventListener('DOMContentLoaded', async () => {
     } else {
         setTimeout(esperarAppYRenderizar, 300);
     }
-}
+  }
 
   async function cargarConfigRestaurante() {
     const sesion = JSON.parse(localStorage.getItem('sesion_activa'));
     if(!sesion) return;
+
     try {
-      const { data } = await db.from('restaurantes').select('*').eq('id', sesion.restaurante_id).single();
-      if(data) configRestaurante = data;
-    } catch(e) { console.error("Error cargando config pagos:", e); }
+      // 1. Cargar Configuración General
+      const { data: configData } = await db.from('restaurantes').select('*').eq('id', sesion.restaurante_id).single();
+      if(configData) configRestaurante = configData;
+
+      // 2. Cargar el Plano (JSONB)
+      const { data: planoData, error } = await db
+        .from('planos')
+        .select('*')
+        .eq('restaurante_id', sesion.restaurante_id)
+        .limit(1)
+        .single();
+        
+      if(error) console.log("Aún no hay plano configurado o error:", error);
+
+      // OJO: Tu tabla SQL dice 'datos', no 'estructura'. Usamos 'datos'.
+      if(planoData && planoData.datos) {
+        planoActual = planoData.datos; 
+      }
+    } catch(e) { console.error("Error cargando DB:", e); }
   }
 
   esperarAppYRenderizar();
-
-  // =====================================================
-  // 2️⃣ RENDERIZAR MESAS
+ // =====================================================
+  // 2️⃣ RENDERIZAR MESAS EN EL PLANO
   // =====================================================
   async function renderizarMesas() {
     if (!gridMesas || typeof App === 'undefined') return;
 
-    // Usar config cargada o valor por defecto
-    const numMesas = configRestaurante.num_mesas || 10;
     const ordenes = App.getOrdenes();
-
     gridMesas.innerHTML = '';
-    gridMesas.style.display = 'grid';
-    gridMesas.style.gridTemplateColumns = `repeat(auto-fill, minmax(160px, 1fr))`;
-    gridMesas.style.gap = '15px';
 
-    for (let i = 1; i <= numMesas; i++) {
-      const nombreMesa = `Mesa ${i}`;
+    // Si NO hay plano configurado en la DB, hacemos un fallback al modo normal
+    if (!planoActual || !planoActual.mesas) {
+      gridMesas.innerHTML = '<article>⚠️ No hay plano configurado en la base de datos.</article>';
+      return;
+    }
+
+    // Opcional: Si guardaste la URL de la imagen en el JSON, se la ponemos al contenedor padre
+    const contenedorPlano = document.getElementById('contenedorPlano');
+    if (contenedorPlano && planoActual.imagen_fondo) {
+        const img = contenedorPlano.querySelector('img');
+        if (img) img.src = planoActual.imagen_fondo;
+    }
+
+    // Recorremos el JSON de las mesas
+    planoActual.mesas.forEach((mesaData) => {
+      const nombreMesa = mesaData.nombre; // Ej: "Mesa 1", "Barra", etc.
+      
       const ordenesMesa = ordenes.filter(o =>
         o.mesa === nombreMesa && !['pagado', 'cancelado', 'entregado'].includes(o.estado)
       );
@@ -80,53 +103,53 @@ document.addEventListener('DOMContentLoaded', async () => {
 
       const div = document.createElement('div');
       div.className = `tarjeta-mesa ${estadoClase}`;
+      
+      // ESTILOS ABSOLUTOS LEYENDO DEL JSON
       div.style = `
+        position: absolute;
+        top: ${mesaData.top};
+        left: ${mesaData.left};
+        transform: translate(-50%, -50%);
+        width: 140px; 
         border: 2px solid ${ocupada ? '#10ad93' : '#ccc'};
-        padding: 15px;
+        padding: 10px;
         border-radius: 12px;
-        background: ${ocupada ? '#f0fff4' : 'white'};
+        background: ${ocupada ? 'rgba(240, 255, 244, 0.95)' : 'rgba(255, 255, 255, 0.95)'};
         text-align: center;
         transition: all 0.2s ease;
+        box-shadow: 0 4px 6px rgba(0,0,0,0.3);
       `;
 
+      // Se usa un atributo de data-id por si lo ocupas después (es buena práctica)
+      div.setAttribute('data-id', mesaData.nombre);
+
+      // (El innerHTML se queda exactamente igual que lo tenías)
       div.innerHTML = `
         <div class="mesa-header" style="margin-bottom: 10px;">
-          <h3 style="margin:0;">${nombreMesa}</h3>
-          <span class="badge-mesa badge-${estadoClase}">
-            ${estadoTexto}
-          </span>
+          <h3 style="margin:0; font-size:1rem;">${nombreMesa}</h3>
+          <span class="badge-mesa badge-${estadoClase}">${estadoTexto}</span>
         </div>
         <div class="mesa-actions" style="display: flex; flex-direction: column; gap: 5px;">
-          ${
-            ocupada
-              ? `
+          ${ ocupada ? `
             <button onclick="abrirModalCobro('${nombreMesa}', ${totalMesa})"
-              style="background:#10ad93; color:white; border:none;
-              padding:8px; border-radius:5px; cursor:pointer; font-weight:bold;">
+              style="background:#10ad93; color:white; border:none; padding:5px; border-radius:5px; cursor:pointer; font-weight:bold; font-size:0.8rem;">
               💰 Cobrar
             </button>
             <div style="display:grid; grid-template-columns: 1fr 1fr; gap:5px;">
-              <button onclick="verTicketMesa('${nombreMesa}')"
-                class="secondary outline" style="padding:5px; font-size:0.8rem;">🧾 Ticket</button>
-              <button onclick="agregarPedido('${i}')"
-                class="contrast outline" style="padding:5px; font-size:0.8rem;">+ Pedir</button>
+              <button onclick="verTicketMesa('${nombreMesa}')" class="secondary outline" style="padding:5px; font-size:0.7rem;">🧾 Ticket</button>
+              <button onclick="agregarPedido('${nombreMesa}')" class="contrast outline" style="padding:5px; font-size:0.7rem;">+ Pedir</button>
             </div>
-          `
-              : `
-            <button onclick="agregarPedido('${i}')"
-              style="background:white; color:#10ad93; border:1px solid #10ad93;
-              padding:8px; border-radius:5px; cursor:pointer;">
+          ` : `
+            <button onclick="agregarPedido('${nombreMesa}')"
+              style="background:white; color:#10ad93; border:1px solid #10ad93; padding:5px; border-radius:5px; cursor:pointer; font-size:0.8rem;">
               📝 Nueva Orden
             </button>
-          `
-          }
-          <button onclick="generarQR('${nombreMesa}')"
-            class="outline secondary"
-            style="margin-top:5px; font-size:0.8rem;">📱 QR Pedido</button>
+          `}
         </div>
       `;
+      
       gridMesas.appendChild(div);
-    }
+    });
   }
 
   // =====================================================
