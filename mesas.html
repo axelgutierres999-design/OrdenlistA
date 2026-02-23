@@ -122,15 +122,17 @@
   <ul id="menuNavegacion" class="nav-botones"></ul>
 </nav>
 
-    <main class="container">
-      <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem;">
-        <h1>🗺️ Mapa de Mesas</h1>
-        <div style="display: flex; gap: 10px; align-items: center; background: #f4f4f4; padding: 10px; border-radius: 8px;">
-          <small>Total de Mesas:</small>
-          <input type="number" id="inputNumMesas" value="10" style="width: 70px; margin: 0; height: 35px;">
-          <button onclick="guardarConfiguracionMesas()" class="outline" style="margin: 0; padding: 5px 15px; height: 35px;">💾 Guardar</button>
-        </div>
-      </div>
+<main class="container">
+  <h1>🗺️ Mapa de Mesas</h1>
+  
+  <div id="contenedorPlanoVisual" style="background: white; border: 1px solid #ccc; border-radius: 10px; overflow: hidden; position: relative;">
+      <div id="canvasMesas"></div>
+  </div>
+
+  <div class="grid-mesas" id="gridMesas" style="display:none;"></div>
+</main>
+
+<script src="https://unpkg.com/konva@9/konva.min.js"></script>
 
       <div class="grid-mesas" id="gridMesas">
           <article aria-busy="true" style="text-align: center;">Cargando mesas...</article>

@@ -8,6 +8,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   let ordenesIdsCobro = [];
   let configRestaurante = {}; // Guardará datos bancarios y URL del QR
   let planoActual = null;
+  let stageMonitor = null;
   // =====================================================
   // 1️⃣ INICIALIZACIÓN Y CARGA DE CONFIG
   // =====================================================
@@ -27,131 +28,96 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
   }
 
-  async function cargarConfigRestaurante() {
+async function cargarConfigRestaurante() {
     const sesion = JSON.parse(localStorage.getItem('sesion_activa'));
     if(!sesion) return;
 
     try {
-      // 1. Cargar Configuración General
-      const { data: configData } = await db.from('restaurantes').select('*').eq('id', sesion.restaurante_id).single();
-      if(configData) configRestaurante = configData;
+        const { data: configData } = await db.from('restaurantes').select('*').eq('id', sesion.restaurante_id).single();
+        if(configData) configRestaurante = configData;
 
-      // 2. Cargar el Plano (JSONB)
-      const { data: planoData, error } = await db
-        .from('planos')
-        .select('*')
-        .eq('restaurante_id', sesion.restaurante_id)
-        .limit(1)
-        .single();
+        const { data: planoData, error } = await db
+            .from('planos')
+            .select('*')
+            .eq('restaurante_id', sesion.restaurante_id)
+            .single();
         
-      if(error) console.log("Aún no hay plano configurado o error:", error);
-
-      // OJO: Tu tabla SQL dice 'datos', no 'estructura'. Usamos 'datos'.
-      if(planoData && planoData.datos) {
-        planoActual = planoData.datos; 
-      }
+        if (planoData && planoData.datos) {
+            planoActual = planoData.datos;
+            
+            // --- NUEVO: Inicializar el plano visual de Konva ---
+            // 'canvasMesas' es el ID del div en tu HTML
+            stageMonitor = Konva.Node.create(planoActual, 'canvasMesas');
+            
+            // Bloquear movimiento para que los meseros no muevan las mesas
+            stageMonitor.find('.item').forEach(shape => shape.draggable(false));
+            
+            // Dibujar por primera vez
+            stageMonitor.draw();
+        }
     } catch(e) { console.error("Error cargando DB:", e); }
-  }
+}
 
   esperarAppYRenderizar();
  // =====================================================
   // 2️⃣ RENDERIZAR MESAS EN EL PLANO
   // =====================================================
   async function renderizarMesas() {
-    if (!gridMesas || typeof App === 'undefined') return;
+    if (!stageMonitor || typeof App === 'undefined') return;
 
     const ordenes = App.getOrdenes();
-    gridMesas.innerHTML = '';
 
-    // Si NO hay plano configurado en la DB, hacemos un fallback al modo normal
-    if (!planoActual || !planoActual.mesas) {
-      gridMesas.innerHTML = '<article>⚠️ No hay plano configurado en la base de datos.</article>';
-      return;
-    }
+    // 1. Buscamos todos los grupos que tengan el nombre 'mesa-interactiva'
+    // Nota: Asegúrate que en tu planos.js, al crear mesas, les pusiste: name: 'mesa-interactiva'
+    const mesasShapes = stageMonitor.find('.mesa-interactiva');
 
-    // Opcional: Si guardaste la URL de la imagen en el JSON, se la ponemos al contenedor padre
-    const contenedorPlano = document.getElementById('contenedorPlano');
-    if (contenedorPlano && planoActual.imagen_fondo) {
-        const img = contenedorPlano.querySelector('img');
-        if (img) img.src = planoActual.imagen_fondo;
-    }
+    mesasShapes.forEach(mesaGroup => {
+        const nombreMesa = mesaGroup.id(); // El número o nombre de la mesa (Ej: "1")
+        
+        // 2. Filtrar órdenes de esta mesa específica
+        const ordenesMesa = ordenes.filter(o =>
+            o.mesa === `Mesa ${nombreMesa}` && !['pagado', 'cancelado'].includes(o.estado)
+        );
 
-    // Recorremos el JSON de las mesas
-    planoActual.mesas.forEach((mesaData) => {
-      const nombreMesa = mesaData.nombre; // Ej: "Mesa 1", "Barra", etc.
-      
-      const ordenesMesa = ordenes.filter(o =>
-        o.mesa === nombreMesa && !['pagado', 'cancelado', 'entregado'].includes(o.estado)
-      );
-
-      const ocupada = ordenesMesa.length > 0;
-      const totalMesa = ordenesMesa.reduce((acc, orden) => acc + parseFloat(orden.total), 0);
-
-      let estadoClase = 'libre';
-      let estadoTexto = 'Libre';
-      
-      if (ocupada) {
+        const ocupada = ordenesMesa.length > 0;
+        const totalMesa = ordenesMesa.reduce((acc, orden) => acc + parseFloat(orden.total), 0);
         const hayListas = ordenesMesa.some(o => o.estado === 'terminado');
-        if (hayListas) {
-          estadoClase = 'listo';
-          estadoTexto = '🍽️ Sirviendo';
-        } else {
-          estadoClase = 'ocupada';
-          estadoTexto = `Ocupada ($${totalMesa.toFixed(2)})`;
+
+        // 3. Actualizar color visual en el plano
+        // Buscamos el rectángulo o círculo que representa la mesa dentro del grupo
+        const shape = mesaGroup.findOne('Rect') || mesaGroup.findOne('Circle');
+        
+        if (shape) {
+            if (hayListas) {
+                shape.fill('#e74c3c'); // Rojo intenso (Comida lista)
+            } else if (ocupada) {
+                shape.fill('#f1c40f'); // Amarillo (Ocupada)
+            } else {
+                shape.fill('#ffffff'); // Blanco (Libre)
+            }
+            shape.stroke('#10ad93');
+            shape.strokeWidth(2);
         }
-      }
 
-      const div = document.createElement('div');
-      div.className = `tarjeta-mesa ${estadoClase}`;
-      
-      // ESTILOS ABSOLUTOS LEYENDO DEL JSON
-      div.style = `
-        position: absolute;
-        top: ${mesaData.top};
-        left: ${mesaData.left};
-        transform: translate(-50%, -50%);
-        width: 140px; 
-        border: 2px solid ${ocupada ? '#10ad93' : '#ccc'};
-        padding: 10px;
-        border-radius: 12px;
-        background: ${ocupada ? 'rgba(240, 255, 244, 0.95)' : 'rgba(255, 255, 255, 0.95)'};
-        text-align: center;
-        transition: all 0.2s ease;
-        box-shadow: 0 4px 6px rgba(0,0,0,0.3);
-      `;
+        // 4. Configurar eventos de clic
+        mesaGroup.off('click tap'); // Limpiar eventos anteriores para no duplicar
+        mesaGroup.on('click tap', () => {
+            if (ocupada) {
+                // Si está ocupada, abrimos el modal de cobro que ya tienes
+                window.abrirModalCobro(`Mesa ${nombreMesa}`, totalMesa);
+            } else {
+                // Si está libre, vamos a la pantalla de pedido
+                window.agregarPedido(nombreMesa);
+            }
+        });
 
-      // Se usa un atributo de data-id por si lo ocupas después (es buena práctica)
-      div.setAttribute('data-id', mesaData.nombre);
-
-      // (El innerHTML se queda exactamente igual que lo tenías)
-      div.innerHTML = `
-        <div class="mesa-header" style="margin-bottom: 10px;">
-          <h3 style="margin:0; font-size:1rem;">${nombreMesa}</h3>
-          <span class="badge-mesa badge-${estadoClase}">${estadoTexto}</span>
-        </div>
-        <div class="mesa-actions" style="display: flex; flex-direction: column; gap: 5px;">
-          ${ ocupada ? `
-            <button onclick="abrirModalCobro('${nombreMesa}', ${totalMesa})"
-              style="background:#10ad93; color:white; border:none; padding:5px; border-radius:5px; cursor:pointer; font-weight:bold; font-size:0.8rem;">
-              💰 Cobrar
-            </button>
-            <div style="display:grid; grid-template-columns: 1fr 1fr; gap:5px;">
-              <button onclick="verTicketMesa('${nombreMesa}')" class="secondary outline" style="padding:5px; font-size:0.7rem;">🧾 Ticket</button>
-              <button onclick="agregarPedido('${nombreMesa}')" class="contrast outline" style="padding:5px; font-size:0.7rem;">+ Pedir</button>
-            </div>
-          ` : `
-            <button onclick="agregarPedido('${nombreMesa}')"
-              style="background:white; color:#10ad93; border:1px solid #10ad93; padding:5px; border-radius:5px; cursor:pointer; font-size:0.8rem;">
-              📝 Nueva Orden
-            </button>
-          `}
-        </div>
-      `;
-      
-      gridMesas.appendChild(div);
+        // Feedback visual del mouse
+        mesaGroup.on('mouseenter', () => stageMonitor.container().style.cursor = 'pointer');
+        mesaGroup.on('mouseleave', () => stageMonitor.container().style.cursor = 'default');
     });
-  }
 
+    stageMonitor.draw();
+}
   // =====================================================
   // 3️⃣ LÓGICA DE COBRO (ACTUALIZADA V9.0)
   // =====================================================
