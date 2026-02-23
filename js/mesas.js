@@ -33,89 +33,118 @@ async function cargarConfigRestaurante() {
     if(!sesion) return;
 
     try {
+        // 1. Cargar Configuración General
         const { data: configData } = await db.from('restaurantes').select('*').eq('id', sesion.restaurante_id).single();
         if(configData) configRestaurante = configData;
 
+        // 2. Cargar el Plano del Restaurante
         const { data: planoData, error } = await db
             .from('planos')
-            .select('*')
+            .select('estructura') // ⬅️ Pedimos específicamente la estructura
             .eq('restaurante_id', sesion.restaurante_id)
-            .single();
+            .single(); // Trae solo el plano asignado a este restaurante
         
-        if (planoData && planoData.datos) {
-            planoActual = planoData.datos;
+        // 3. Si hay plano, lo dibujamos
+        if (planoData && planoData.estructura) { // ⬅️ CORRECCIÓN: usamos .estructura
+            planoActual = planoData.estructura;
             
-            // --- NUEVO: Inicializar el plano visual de Konva ---
-            // 'canvasMesas' es el ID del div en tu HTML
+            // Si ya existía un stage, lo destruimos para no duplicar
+            if (stageMonitor) {
+                stageMonitor.destroy();
+            }
+
+            // Inicializar el plano visual de Konva
             stageMonitor = Konva.Node.create(planoActual, 'canvasMesas');
             
-            // Bloquear movimiento para que los meseros no muevan las mesas
-            stageMonitor.find('.item').forEach(shape => shape.draggable(false));
+            // Bloquear el movimiento para que los meseros NO puedan desordenar las mesas
+            stageMonitor.find('.item').forEach(shape => {
+                shape.draggable(false);
+            });
             
-            // Dibujar por primera vez
+            // Dibujamos
             stageMonitor.draw();
+        } else {
+            document.getElementById('canvasMesas').innerHTML = "<h3 style='padding:20px; text-align:center;'>No hay un plano asignado a este restaurante.</h3>";
         }
-    } catch(e) { console.error("Error cargando DB:", e); }
+    } catch(e) { 
+        console.error("Error cargando configuración o plano:", e); 
+    }
 }
 
   esperarAppYRenderizar();
  // =====================================================
   // 2️⃣ RENDERIZAR MESAS EN EL PLANO
   // =====================================================
-  async function renderizarMesas() {
+async function renderizarMesas() {
+    // Si Konva no ha cargado el mapa, no hacemos nada
     if (!stageMonitor || typeof App === 'undefined') return;
 
     const ordenes = App.getOrdenes();
 
-    // 1. Buscamos todos los grupos que tengan el nombre 'mesa-interactiva'
-    // Nota: Asegúrate que en tu planos.js, al crear mesas, les pusiste: name: 'mesa-interactiva'
+    // Buscamos todas las figuras que el diseñador marcó como mesas
     const mesasShapes = stageMonitor.find('.mesa-interactiva');
 
     mesasShapes.forEach(mesaGroup => {
-        const nombreMesa = mesaGroup.id(); // El número o nombre de la mesa (Ej: "1")
+        const idMesa = mesaGroup.id(); // Ej: "1", "2", "Barra"
+        // Para que coincida con tu formato de ticket que dice "Mesa 1"
+        const nombreMesaCompleto = `Mesa ${idMesa}`; 
         
-        // 2. Filtrar órdenes de esta mesa específica
+        // Filtrar órdenes de esta mesa
         const ordenesMesa = ordenes.filter(o =>
-            o.mesa === `Mesa ${nombreMesa}` && !['pagado', 'cancelado'].includes(o.estado)
+            o.mesa === nombreMesaCompleto && !['pagado', 'cancelado', 'entregado'].includes(o.estado)
         );
 
         const ocupada = ordenesMesa.length > 0;
         const totalMesa = ordenesMesa.reduce((acc, orden) => acc + parseFloat(orden.total), 0);
         const hayListas = ordenesMesa.some(o => o.estado === 'terminado');
 
-        // 3. Actualizar color visual en el plano
-        // Buscamos el rectángulo o círculo que representa la mesa dentro del grupo
-        const shape = mesaGroup.findOne('Rect') || mesaGroup.findOne('Circle');
+        // Buscar el rectángulo o círculo principal dentro del grupo para cambiarle el color
+        const shapeBase = mesaGroup.findOne('Rect') || mesaGroup.findOne('Circle');
         
-        if (shape) {
+        if (shapeBase) {
+            // Lógica de colores (Semáforo)
             if (hayListas) {
-                shape.fill('#e74c3c'); // Rojo intenso (Comida lista)
+                shapeBase.fill('#e74c3c'); // 🔴 ROJO: Comida lista para entregar
             } else if (ocupada) {
-                shape.fill('#f1c40f'); // Amarillo (Ocupada)
+                shapeBase.fill('#f1c40f'); // 🟡 AMARILLO: Ocupada (Comiendo/Esperando)
             } else {
-                shape.fill('#ffffff'); // Blanco (Libre)
+                shapeBase.fill('#ffffff'); // ⚪ BLANCO: Libre
             }
-            shape.stroke('#10ad93');
-            shape.strokeWidth(2);
+            
+            // Borde verde para resaltar que es interactiva
+            shapeBase.stroke('#10ad93');
+            shapeBase.strokeWidth(3);
         }
 
-        // 4. Configurar eventos de clic
-        mesaGroup.off('click tap'); // Limpiar eventos anteriores para no duplicar
+        // --- EVENTOS DE CLIC ---
+        mesaGroup.off('click tap'); // Limpiar eventos previos
+        
         mesaGroup.on('click tap', () => {
             if (ocupada) {
-                // Si está ocupada, abrimos el modal de cobro que ya tienes
-                window.abrirModalCobro(`Mesa ${nombreMesa}`, totalMesa);
+                // Abre tu modal de cobro (que ya está programado abajo en tu código)
+                window.abrirModalCobro(nombreMesaCompleto, totalMesa);
             } else {
-                // Si está libre, vamos a la pantalla de pedido
-                window.agregarPedido(nombreMesa);
+                // Redirige al menú para tomar un pedido nuevo
+                window.agregarPedido(idMesa); 
             }
         });
 
-        // Feedback visual del mouse
-        mesaGroup.on('mouseenter', () => stageMonitor.container().style.cursor = 'pointer');
-        mesaGroup.on('mouseleave', () => stageMonitor.container().style.cursor = 'default');
+        // Cambiar el cursor a una manita para indicar que se puede hacer clic
+        mesaGroup.on('mouseenter', () => {
+            stageMonitor.container().style.cursor = 'pointer';
+            // Efecto hover (opcional): hacerla crecer un poquito
+            mesaGroup.scale({ x: 1.05, y: 1.05 });
+            stageMonitor.draw();
+        });
+        mesaGroup.on('mouseleave', () => {
+            stageMonitor.container().style.cursor = 'default';
+            // Quitar efecto hover
+            mesaGroup.scale({ x: 1, y: 1 });
+            stageMonitor.draw();
+        });
     });
 
+    // Refrescar el lienzo para aplicar los colores
     stageMonitor.draw();
 }
   // =====================================================
