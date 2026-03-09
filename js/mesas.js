@@ -40,56 +40,67 @@ async function cargarConfigRestaurante() {
         // 2. Cargar el Plano del Restaurante
         const { data: planoData, error } = await db
             .from('planos')
-            .select('estructura') // ⬅️ Pedimos específicamente la estructura
+            .select('estructura')
             .eq('restaurante_id', sesion.restaurante_id)
-            .single(); // Trae solo el plano asignado a este restaurante
+            .single();
         
-        // 3. Si hay plano, lo dibujamos
-        if (planoData && planoData.estructura) { // ⬅️ CORRECCIÓN: usamos .estructura
+        if (planoData && planoData.estructura) {
             planoActual = planoData.estructura;
             
-            // Si ya existía un stage, lo destruimos para no duplicar
             if (stageMonitor) {
                 stageMonitor.destroy();
             }
 
-            // Inicializar el plano visual de Konva
+            // --- INICIALIZACIÓN ---
             stageMonitor = Konva.Node.create(planoActual, 'canvasMesas');
+
+            // 🌟 AQUÍ EMPIEZA LO NUEVO (Reemplazamos adaptarCanvas por esto) 🌟
             
-            // 🌟 NUEVO: Ocultar el grid viejo de "Cargando mesas..."
+            // 1. Ajuste de Escala Automática
+            const container = document.getElementById('contenedorPrincipal');
+            const stageWidth = stageMonitor.width();
+            const stageHeight = stageMonitor.height();
+
+            // Calculamos la escala basándonos en el ancho del contenedor
+            const escala = container.offsetWidth / stageWidth;
+
+            stageMonitor.width(stageWidth * escala);
+            stageMonitor.height(stageHeight * escala);
+            stageMonitor.scale({ x: escala, y: escala });
+
+            // 2. Hacer que las mesas respondan (Interactividad)
+            stageMonitor.find('.mesa-interactiva').forEach(mesaGroup => {
+                mesaGroup.listening(true); // Habilitar que escuche eventos
+                
+                // Cursor de manita al pasar sobre la mesa
+                mesaGroup.on('mouseenter', () => {
+                    stageMonitor.container().style.cursor = 'pointer';
+                    mesaGroup.opacity(0.8); // Efecto visual opcional
+                    stageMonitor.draw();
+                });
+                mesaGroup.on('mouseleave', () => {
+                    stageMonitor.container().style.cursor = 'default';
+                    mesaGroup.opacity(1);
+                    stageMonitor.draw();
+                });
+            });
+
+            // 3. Ocultar elementos viejos si existen
             const gridAntiguo = document.getElementById('gridMesas');
             if(gridAntiguo) gridAntiguo.style.display = 'none';
 
-            // 🌟 NUEVO: Hacer que el canvas se adapte al tamaño de la pantalla
-            function adaptarCanvas() {
-                const contenedor = document.getElementById('canvasMesas');
-                // Tomamos el ancho disponible (le restamos un poco de margen si quieres)
-                const anchoDisponible = contenedor.offsetWidth || window.innerWidth; 
-                
-                // Calculamos la escala para que quepa perfecto
-                const escala = anchoDisponible / stageMonitor.width();
-                
-                // Aplicamos la escala al plano
-                stageMonitor.width(stageMonitor.width() * escala);
-                stageMonitor.height(stageMonitor.height() * escala);
-                stageMonitor.scale({ x: escala, y: escala });
-            }
-            
-            // Ejecutamos la adaptación
-            adaptarCanvas();
-
-            // Si giran el celular o cambian el tamaño de la ventana, se reajusta
-            window.addEventListener('resize', adaptarCanvas);
-
-            // Bloquear el movimiento para que los meseros NO puedan desordenar las mesas
+            // Bloquear arrastre
             stageMonitor.find('.item').forEach(shape => {
                 shape.draggable(false);
             });
-            
-            // Dibujamos
+
+            // Dibujo final
             stageMonitor.draw();
+            
+            // 🌟 AQUÍ TERMINA LO NUEVO 🌟
+
         } else {
-            document.getElementById('canvasMesas').innerHTML = "<h3 style='padding:20px; text-align:center;'>No hay un plano asignado a este restaurante.</h3>";
+            document.getElementById('canvasMesas').innerHTML = "<h3 style='padding:20px; text-align:center;'>No hay un plano asignado.</h3>";
         }
     } catch(e) { 
         console.error("Error cargando configuración o plano:", e); 
