@@ -56,6 +56,31 @@ async function cargarConfigRestaurante() {
             // Inicializar el plano visual de Konva
             stageMonitor = Konva.Node.create(planoActual, 'canvasMesas');
             
+            // 🌟 NUEVO: Ocultar el grid viejo de "Cargando mesas..."
+            const gridAntiguo = document.getElementById('gridMesas');
+            if(gridAntiguo) gridAntiguo.style.display = 'none';
+
+            // 🌟 NUEVO: Hacer que el canvas se adapte al tamaño de la pantalla
+            function adaptarCanvas() {
+                const contenedor = document.getElementById('canvasMesas');
+                // Tomamos el ancho disponible (le restamos un poco de margen si quieres)
+                const anchoDisponible = contenedor.offsetWidth || window.innerWidth; 
+                
+                // Calculamos la escala para que quepa perfecto
+                const escala = anchoDisponible / stageMonitor.width();
+                
+                // Aplicamos la escala al plano
+                stageMonitor.width(stageMonitor.width() * escala);
+                stageMonitor.height(stageMonitor.height() * escala);
+                stageMonitor.scale({ x: escala, y: escala });
+            }
+            
+            // Ejecutamos la adaptación
+            adaptarCanvas();
+
+            // Si giran el celular o cambian el tamaño de la ventana, se reajusta
+            window.addEventListener('resize', adaptarCanvas);
+
             // Bloquear el movimiento para que los meseros NO puedan desordenar las mesas
             stageMonitor.find('.item').forEach(shape => {
                 shape.draggable(false);
