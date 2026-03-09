@@ -125,8 +125,20 @@
 <main class="container">
   <h1>🗺️ Mapa de Mesas</h1>
   
-  <div id="contenedorPlanoVisual" style="background: white; border: 1px solid #ccc; border-radius: 10px; overflow: hidden; position: relative;">
-      <div id="canvasMesas"></div>
+  <div id="contenedorPlanoVisual" style="
+background:white;
+border-radius:12px;
+box-shadow:0 4px 12px rgba(0,0,0,0.1);
+padding:10px;
+overflow:auto;
+display:flex;
+justify-content:center;
+">
+
+<div id="canvasMesas" style="width:750px;height:650px;"></div>
+
+</div>
+
   </div>
 
   <div style="width: 100%; overflow-x: auto; background: #fff; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); margin-top: 1rem;">
