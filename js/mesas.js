@@ -45,14 +45,19 @@ async function cargarConfigRestaurante() {
             .single();
         
         if (planoData && planoData.estructura) {
-            planoActual = planoData.estructura;
+    planoActual = planoData.estructura;
+
+    if (!planoActual.visual) {
+        console.warn("Plano sin estructura visual");
+        return;
+    }
             
             if (stageMonitor) {
                 stageMonitor.destroy();
             }
 
             // --- INICIALIZACIÓN ---
-            stageMonitor = Konva.Node.create(planoActual, 'canvasMesas');
+            stageMonitor = Konva.Node.create(planoActual.visual, 'canvasMesas');
 
             // 🌟 AQUÍ EMPIEZA LO NUEVO (Reemplazamos adaptarCanvas por esto) 🌟
             
@@ -118,7 +123,7 @@ async function renderizarMesas() {
     const ordenes = App.getOrdenes();
 
     // Buscamos todas las figuras que el diseñador marcó como mesas
-    const mesasShapes = stageMonitor.find('.mesa-interactiva');
+    const mesasShapes = stageMonitor.find(node => node.name() === 'mesa-interactiva');
 
     mesasShapes.forEach(mesaGroup => {
         const idMesa = mesaGroup.id(); // Ej: "1", "2", "Barra"
@@ -135,7 +140,10 @@ async function renderizarMesas() {
         const hayListas = ordenesMesa.some(o => o.estado === 'terminado');
 
         // Buscar el rectángulo o círculo principal dentro del grupo para cambiarle el color
-        const shapeBase = mesaGroup.findOne('Rect') || mesaGroup.findOne('Circle');
+        const shapeBase =
+    mesaGroup.findOne('Rect') ||
+    mesaGroup.findOne('Circle') ||
+    mesaGroup.findOne('Line');
         
         if (shapeBase) {
             // Lógica de colores (Semáforo)
@@ -169,7 +177,11 @@ async function renderizarMesas() {
         mesaGroup.on('mouseenter', () => {
             stageMonitor.container().style.cursor = 'pointer';
             // Efecto hover (opcional): hacerla crecer un poquito
-            mesaGroup.scale({ x: 1.05, y: 1.05 });
+            mesaGroup.to({
+    scaleX: 1.03,
+    scaleY: 1.03,
+    duration: 0.1
+});
             stageMonitor.draw();
         });
         mesaGroup.on('mouseleave', () => {
