@@ -209,3 +209,10 @@ nav.nav-inicio {
 border-radius:10px;
 background:white;
 }
+.mapa-wrapper {
+    width: 100%;
+    height: calc(100vh - 120px);
+    background: #e8e8e8;
+    position: relative; /* Importante */
+    overflow: hidden;
+}

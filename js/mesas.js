@@ -68,69 +68,65 @@ setTimeout(() => {
     const container = document.getElementById('contenedorPlanoVisual');
     if (!container || !stageMonitor) return;
 
-    // 1. Cálculo de Escala Robusto
+    // 1. Ajustar el escenario al tamaño REAL del contenedor gris
     const rect = container.getBoundingClientRect();
-    const originalWidth = stageMonitor.width() || 750; // El ancho que pusiste en el editor
-    const originalHeight = stageMonitor.height() || 650; // El alto que pusiste en el editor
+    stageMonitor.width(rect.width);
+    stageMonitor.height(rect.height);
 
-    // Evitamos división por cero si el contenedor no se ve
-    if (rect.width === 0 || rect.height === 0) {
-        console.error("El contenedor no tiene dimensiones. Revisa el CSS.");
-        return;
-    }
+    // 2. Calcular el área que ocupan los objetos (mesas, paredes, etc.)
+    // .getClientRect({ skipTransform: true }) nos dice dónde empieza y termina el dibujo real
+    const dataBox = stageMonitor.getClientRect({ skipTransform: true });
 
-    const scaleX = rect.width / originalWidth;
-    const scaleY = rect.height / originalHeight;
-    const escala = Math.min(scaleX, scaleY) * 0.98;
+    // Valores de respaldo por si el plano está vacío
+    const contentW = dataBox.width || 800;
+    const contentH = dataBox.height || 600;
+    const contentX = dataBox.x || 0;
+    const contentY = dataBox.y || 0;
 
-    stageMonitor.width(originalWidth * escala);
-    stageMonitor.height(originalHeight * escala);
+    // 3. Calcular escala para que el CONTENIDO quepa (con un margen de 40px)
+    const padding = 40; 
+    const scaleX = (rect.width - padding) / contentW;
+    const scaleY = (rect.height - padding) / contentH;
+    
+    // Usamos la escala más pequeña para que nada se corte
+    const escala = Math.min(scaleX, scaleY);
+
     stageMonitor.scale({ x: escala, y: escala });
 
-    // Centrar
-    stageMonitor.x((rect.width - (originalWidth * escala)) / 2);
-    stageMonitor.y((rect.height - (originalHeight * escala)) / 2);
+    // 4. CENTRADO PERFECTO
+    // Calculamos cuánto espacio sobra para repartirlo a los lados
+    // Restamos contentX/Y * escala para compensar si el dibujo no empezó en 0,0
+    const xCentrado = (rect.width - contentW * escala) / 2 - (contentX * escala);
+    const yCentrado = (rect.height - contentH * escala) / 2 - (contentY * escala);
 
-    // 2. Rescate e Interactividad de Mesas
-    // Buscamos las mesas. Si por alguna razón el nombre se perdió en el JSON, 
-    // buscamos cualquier Grupo que tenga un ID (que es el número de mesa).
+    stageMonitor.position({ x: xCentrado, y: yCentrado });
+
+    // 5. REACTIVAR INTERACCIÓN (Tu lógica de rescate)
     let mesasDetectadas = stageMonitor.find('.mesa-interactiva');
-
     if (mesasDetectadas.length === 0) {
-        console.warn("Re-escaneando grupos para encontrar mesas por ID...");
         stageMonitor.find('Group').forEach(g => {
-            if (g.id()) {
-                g.name('mesa-interactiva');
-            }
+            if (g.id()) g.name('mesa-interactiva');
         });
         mesasDetectadas = stageMonitor.find('.mesa-interactiva');
     }
 
-    // Activamos los eventos manualmente
     mesasDetectadas.forEach(mesaGroup => {
         mesaGroup.listening(true);
         mesaGroup.setAttr('cursor', 'pointer');
-        
-        // Bloqueamos el arrastre para que no muevan las mesas en el monitor
         mesaGroup.draggable(false);
-
-        // Forzamos a que todos los elementos internos (rectángulos, círculos) escuchen clics
         mesaGroup.getChildren().forEach(child => {
             child.listening(true);
             child.draggable(false);
         });
     });
 
-    // Ocultar el grid viejo de botones si existe
     const gridAntiguo = document.getElementById('gridMesas');
     if(gridAntiguo) gridAntiguo.style.display = 'none';
 
     stageMonitor.batchDraw();
-    
-    // Una vez el plano está listo y escalado, pintamos los colores (rojo/amarillo/blanco)
     renderizarMesas();
 
-    console.log(`✅ Plano renderizado con ${mesasDetectadas.length} mesas encontradas.`);
+    console.log(`🚀 Plano ajustado. Escala: ${escala.toFixed(2)} | Mesas: ${mesasDetectadas.length}`);
 
 }, 150); // El delay es la clave del éxito aquí
 
