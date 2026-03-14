@@ -62,12 +62,17 @@ async function cargarConfigRestaurante() {
             // 🌟 AQUÍ EMPIEZA LO NUEVO (Reemplazamos adaptarCanvas por esto) 🌟
             
             // 1. Ajuste de Escala Automática
-            const container = document.getElementById('contenedorPrincipal');
-            const stageWidth = stageMonitor.width();
-            const stageHeight = stageMonitor.height();
+            const container = document.getElementById('contenedorPlanoVisual');
 
-            // Calculamos la escala basándonos en el ancho del contenedor
-            const escala = container.offsetWidth / stageWidth;
+            if (!container) {
+                console.error("No existe contenedorPlanoVisual");
+               return;
+           }
+
+           const stageWidth = stageMonitor.width();
+           const stageHeight = stageMonitor.height();
+
+           const escala = container.offsetWidth / stageWidth;
 
             stageMonitor.width(stageWidth * escala);
             stageMonitor.height(stageHeight * escala);
