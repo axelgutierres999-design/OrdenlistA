@@ -56,65 +56,83 @@ async function cargarConfigRestaurante() {
                 stageMonitor.destroy();
             }
 
-            // --- INICIALIZACIÓN ---
-            stageMonitor = Konva.Node.create(planoActual.visual, 'canvasMesas');
+            // ... (líneas anteriores iguales)
+// --- INICIALIZACIÓN ---
+stageMonitor = Konva.Node.create(planoActual.visual, 'canvasMesas');
 
-          // 🌟 AQUÍ EMPIEZA LO NUEVO (Reemplazamos adaptarCanvas por esto) 🌟
+// 🌟 REEMPLAZA DESDE AQUÍ HASTA EL FINAL DE LA FUNCIÓN CON ESTO 🌟
 
-// 1. Ajuste de Escala Automática (SIN recortes)
-const container = document.getElementById('contenedorPlanoVisual');
+// Usamos setTimeout de 100ms para que el navegador termine de renderizar el CSS
+// y nos dé las medidas reales del contenedor.
+setTimeout(() => {
+    const container = document.getElementById('contenedorPlanoVisual');
+    if (!container || !stageMonitor) return;
 
-if (!container) {
-    console.error("No existe contenedorPlanoVisual");
-    return;
-}
+    // 1. Cálculo de Escala Robusto
+    const rect = container.getBoundingClientRect();
+    const originalWidth = stageMonitor.width() || 750; // El ancho que pusiste en el editor
+    const originalHeight = stageMonitor.height() || 650; // El alto que pusiste en el editor
 
-const originalWidth = stageMonitor.width() || 1000;
-const originalHeight = stageMonitor.height() || 800;
+    // Evitamos división por cero si el contenedor no se ve
+    if (rect.width === 0 || rect.height === 0) {
+        console.error("El contenedor no tiene dimensiones. Revisa el CSS.");
+        return;
+    }
 
-// Calculamos la escala considerando TANTO el ancho COMO el alto
-const scaleX = container.offsetWidth / originalWidth;
-const scaleY = container.offsetHeight / originalHeight;
+    const scaleX = rect.width / originalWidth;
+    const scaleY = rect.height / originalHeight;
+    const escala = Math.min(scaleX, scaleY) * 0.98;
 
-// Elegimos la escala más pequeña para que quepa todo sin cortarse (0.95 da un pequeño margen)
-const escala = Math.min(scaleX, scaleY) * 0.95;
+    stageMonitor.width(originalWidth * escala);
+    stageMonitor.height(originalHeight * escala);
+    stageMonitor.scale({ x: escala, y: escala });
 
-stageMonitor.width(originalWidth * escala);
-stageMonitor.height(originalHeight * escala);
-stageMonitor.scale({ x: escala, y: escala });
+    // Centrar
+    stageMonitor.x((rect.width - (originalWidth * escala)) / 2);
+    stageMonitor.y((rect.height - (originalHeight * escala)) / 2);
 
-// Centrar el plano en el contenedor si sobra espacio
-stageMonitor.x((container.offsetWidth - (originalWidth * escala)) / 2);
-stageMonitor.y((container.offsetHeight - (originalHeight * escala)) / 2);
+    // 2. Rescate e Interactividad de Mesas
+    // Buscamos las mesas. Si por alguna razón el nombre se perdió en el JSON, 
+    // buscamos cualquier Grupo que tenga un ID (que es el número de mesa).
+    let mesasDetectadas = stageMonitor.find('.mesa-interactiva');
 
+    if (mesasDetectadas.length === 0) {
+        console.warn("Re-escaneando grupos para encontrar mesas por ID...");
+        stageMonitor.find('Group').forEach(g => {
+            if (g.id()) {
+                g.name('mesa-interactiva');
+            }
+        });
+        mesasDetectadas = stageMonitor.find('.mesa-interactiva');
+    }
 
-// 2. Hacer que las mesas respondan (Interactividad Forzada)
-const todasLasMesas = stageMonitor.find('.mesa-interactiva');
+    // Activamos los eventos manualmente
+    mesasDetectadas.forEach(mesaGroup => {
+        mesaGroup.listening(true);
+        mesaGroup.setAttr('cursor', 'pointer');
+        
+        // Bloqueamos el arrastre para que no muevan las mesas en el monitor
+        mesaGroup.draggable(false);
 
-if (todasLasMesas.length === 0) {
-    console.warn("⚠️ No se encontraron mesas. Revisa que en el creador de planos tengan el nombre 'mesa-interactiva'.");
-}
-
-todasLasMesas.forEach(mesaGroup => {
-    mesaGroup.listening(true); // Habilitar que escuche eventos el grupo
-    
-    // CRUCIAL: Asegurar que las formas dentro de la mesa (rectángulos, textos) también escuchen
-    mesaGroup.getChildren().forEach(child => {
-        child.listening(true);
+        // Forzamos a que todos los elementos internos (rectángulos, círculos) escuchen clics
+        mesaGroup.getChildren().forEach(child => {
+            child.listening(true);
+            child.draggable(false);
+        });
     });
-});
 
-// 3. Ocultar elementos viejos si existen
-const gridAntiguo = document.getElementById('gridMesas');
-if(gridAntiguo) gridAntiguo.style.display = 'none';
+    // Ocultar el grid viejo de botones si existe
+    const gridAntiguo = document.getElementById('gridMesas');
+    if(gridAntiguo) gridAntiguo.style.display = 'none';
 
-// Bloquear arrastre
-stageMonitor.find('.item').forEach(shape => {
-    shape.draggable(false);
-});
+    stageMonitor.batchDraw();
+    
+    // Una vez el plano está listo y escalado, pintamos los colores (rojo/amarillo/blanco)
+    renderizarMesas();
 
-// Dibujo final
-stageMonitor.draw();
+    console.log(`✅ Plano renderizado con ${mesasDetectadas.length} mesas encontradas.`);
+
+}, 150); // El delay es la clave del éxito aquí
 
 // 🌟 AQUÍ TERMINA LO NUEVO 🌟
 
