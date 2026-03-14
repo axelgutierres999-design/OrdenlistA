@@ -59,55 +59,64 @@ async function cargarConfigRestaurante() {
             // --- INICIALIZACIÓN ---
             stageMonitor = Konva.Node.create(planoActual.visual, 'canvasMesas');
 
-            // 🌟 AQUÍ EMPIEZA LO NUEVO (Reemplazamos adaptarCanvas por esto) 🌟
-            
-            // 1. Ajuste de Escala Automática
-            const container = document.getElementById('contenedorPlanoVisual');
+          // 🌟 AQUÍ EMPIEZA LO NUEVO (Reemplazamos adaptarCanvas por esto) 🌟
 
-            if (!container) {
-                console.error("No existe contenedorPlanoVisual");
-               return;
-           }
+// 1. Ajuste de Escala Automática (SIN recortes)
+const container = document.getElementById('contenedorPlanoVisual');
 
-           const stageWidth = stageMonitor.width();
-           const stageHeight = stageMonitor.height();
+if (!container) {
+    console.error("No existe contenedorPlanoVisual");
+    return;
+}
 
-           const escala = container.offsetWidth / stageWidth;
+const originalWidth = stageMonitor.width() || 1000;
+const originalHeight = stageMonitor.height() || 800;
 
-            stageMonitor.width(stageWidth * escala);
-            stageMonitor.height(stageHeight * escala);
-            stageMonitor.scale({ x: escala, y: escala });
+// Calculamos la escala considerando TANTO el ancho COMO el alto
+const scaleX = container.offsetWidth / originalWidth;
+const scaleY = container.offsetHeight / originalHeight;
 
-            // 2. Hacer que las mesas respondan (Interactividad)
-            stageMonitor.find('.mesa-interactiva').forEach(mesaGroup => {
-                mesaGroup.listening(true); // Habilitar que escuche eventos
-                
-                // Cursor de manita al pasar sobre la mesa
-                mesaGroup.on('mouseenter', () => {
-                    stageMonitor.container().style.cursor = 'pointer';
-                    mesaGroup.opacity(0.8); // Efecto visual opcional
-                    stageMonitor.draw();
-                });
-                mesaGroup.on('mouseleave', () => {
-                    stageMonitor.container().style.cursor = 'default';
-                    mesaGroup.opacity(1);
-                    stageMonitor.draw();
-                });
-            });
+// Elegimos la escala más pequeña para que quepa todo sin cortarse (0.95 da un pequeño margen)
+const escala = Math.min(scaleX, scaleY) * 0.95;
 
-            // 3. Ocultar elementos viejos si existen
-            const gridAntiguo = document.getElementById('gridMesas');
-            if(gridAntiguo) gridAntiguo.style.display = 'none';
+stageMonitor.width(originalWidth * escala);
+stageMonitor.height(originalHeight * escala);
+stageMonitor.scale({ x: escala, y: escala });
 
-            // Bloquear arrastre
-            stageMonitor.find('.item').forEach(shape => {
-                shape.draggable(false);
-            });
+// Centrar el plano en el contenedor si sobra espacio
+stageMonitor.x((container.offsetWidth - (originalWidth * escala)) / 2);
+stageMonitor.y((container.offsetHeight - (originalHeight * escala)) / 2);
 
-            // Dibujo final
-            stageMonitor.draw();
-            
-            // 🌟 AQUÍ TERMINA LO NUEVO 🌟
+
+// 2. Hacer que las mesas respondan (Interactividad Forzada)
+const todasLasMesas = stageMonitor.find('.mesa-interactiva');
+
+if (todasLasMesas.length === 0) {
+    console.warn("⚠️ No se encontraron mesas. Revisa que en el creador de planos tengan el nombre 'mesa-interactiva'.");
+}
+
+todasLasMesas.forEach(mesaGroup => {
+    mesaGroup.listening(true); // Habilitar que escuche eventos el grupo
+    
+    // CRUCIAL: Asegurar que las formas dentro de la mesa (rectángulos, textos) también escuchen
+    mesaGroup.getChildren().forEach(child => {
+        child.listening(true);
+    });
+});
+
+// 3. Ocultar elementos viejos si existen
+const gridAntiguo = document.getElementById('gridMesas');
+if(gridAntiguo) gridAntiguo.style.display = 'none';
+
+// Bloquear arrastre
+stageMonitor.find('.item').forEach(shape => {
+    shape.draggable(false);
+});
+
+// Dibujo final
+stageMonitor.draw();
+
+// 🌟 AQUÍ TERMINA LO NUEVO 🌟
 
         } else {
             document.getElementById('canvasMesas').innerHTML = "<h3 style='padding:20px; text-align:center;'>No hay un plano asignado.</h3>";
@@ -167,26 +176,43 @@ async function renderizarMesas() {
 
         // --- EVENTOS DE CLIC ---
         mesaGroup.off('click tap'); // Limpiar eventos previos
-        
-        mesaGroup.on('click tap', () => {
-            if (ocupada) {
-                // Abre tu modal de cobro (que ya está programado abajo en tu código)
-                window.abrirModalCobro(nombreMesaCompleto, totalMesa);
-            } else {
-                // Redirige al menú para tomar un pedido nuevo
-                window.agregarPedido(idMesa); 
-            }
-        });
 
-        // Cambiar el cursor a una manita para indicar que se puede hacer clic
-        mesaGroup.on('mouseenter', () => {
-            stageMonitor.container().style.cursor = 'pointer';
-            // Efecto hover (opcional): hacerla crecer un poquito
-            mesaGroup.to({
-    scaleX: 1.03,
-    scaleY: 1.03,
-    duration: 0.1
+mesaGroup.on('click tap', (e) => {
+    // ESTO ES CLAVE: Evita que el clic se propague al fondo y se anule
+    e.cancelBubble = true; 
+    
+    console.log("Clic detectado en:", nombreMesaCompleto); // Para que veas en consola si funciona
+
+    if (ocupada) {
+        // Abre tu modal de cobro
+        window.abrirModalCobro(nombreMesaCompleto, totalMesa);
+    } else {
+        // Redirige al menú para tomar un pedido nuevo
+        window.agregarPedido(idMesa); 
+    }
 });
+
+// Cambiar el cursor a una manita para indicar que se puede hacer clic
+mesaGroup.on('mouseenter', () => {
+    document.body.style.cursor = 'pointer'; // Usamos document.body en lugar de stage container
+    
+    // Efecto hover: hacerla crecer un poquito
+    mesaGroup.to({
+        scaleX: 1.05,
+        scaleY: 1.05,
+        duration: 0.1
+    });
+});
+
+mesaGroup.on('mouseleave', () => {
+    document.body.style.cursor = 'default';
+    
+    // Quitar efecto hover
+    mesaGroup.to({
+        scaleX: 1,
+        scaleY: 1,
+        duration: 0.1
+    });
             stageMonitor.draw();
         });
         mesaGroup.on('mouseleave', () => {
