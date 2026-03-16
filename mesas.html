@@ -95,7 +95,20 @@
     <div class="mapa-wrapper" id="contenedorPlanoVisual">
         <div id="canvasMesas"></div>
     </div>
-  </main>
+    
+    <div id="panelAccionesMesa" style="display: none; margin-top: 15px; padding: 15px; background: white; border-radius: 8px; border: 2px solid #10ad93; flex-wrap: wrap; gap: 15px; align-items: center; justify-content: space-between; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
+        <div>
+            <h4 id="panelTituloMesa" style="margin: 0; color: #10ad93; font-weight: bold;">Mesa Seleccionada</h4>
+            <span id="panelTotalMesa" style="font-weight: bold; font-size: 1.2em; color: #333;"></span>
+        </div>
+        <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+            <button id="btnPanelAgregar" class="outline" style="padding: 10px; font-size: 0.9em;">➕ Pedido</button>
+            <button id="btnPanelQR" class="outline" style="padding: 10px; font-size: 0.9em;">📱 QR</button>
+            <button id="btnPanelMover" class="outline" style="padding: 10px; font-size: 0.9em;">🔄 Mover</button>
+            <button id="btnPanelCobrar" style="padding: 10px; font-size: 0.9em; background: #10ad93; border: none; color: white;">💸 Cobrar</button>
+        </div>
+    </div>
+    </main>
 
   <dialog id="modalCobro">
     <article style="max-width: 400px;">

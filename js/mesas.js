@@ -189,21 +189,17 @@ async function renderizarMesas() {
         }
 
         // --- EVENTOS DE CLIC ---
-        mesaGroup.off('click tap'); // Limpiar eventos previos
+mesaGroup.off('click tap'); // Limpiar eventos previos
 
 mesaGroup.on('click tap', (e) => {
-    // ESTO ES CLAVE: Evita que el clic se propague al fondo y se anule
     e.cancelBubble = true; 
     
-    console.log("Clic detectado en:", nombreMesaCompleto); // Para que veas en consola si funciona
-
-    if (ocupada) {
-        // Abre tu modal de cobro
-        window.abrirModalCobro(nombreMesaCompleto, totalMesa);
-    } else {
-        // Redirige al menú para tomar un pedido nuevo
-        window.agregarPedido(idMesa); 
-    }
+    // Llamamos a la nueva función que muestra las herramientas abajo
+    window.mostrarPanelMesa(idMesa, nombreMesaCompleto, ocupada, totalMesa);
+    
+    // Opcional: Un pequeño efecto visual para saber qué mesa tocaste
+    mesasShapes.forEach(m => m.scale({x:1, y:1})); // Reinicia todas
+    mesaGroup.to({ scaleX: 1.08, scaleY: 1.08, duration: 0.2 }); // Agranda la seleccionada
 });
 
 // Cambiar el cursor a una manita para indicar que se puede hacer clic
@@ -538,5 +534,69 @@ mesaGroup.on('mouseleave', () => {
     } else {
       new QRCode(document.getElementById("qrCanvas"), { text: urlMesa, width: 200, height: 200 });
     }
+  };
+  // =====================================================
+  // 8️⃣ PANEL DE CONTROL INFERIOR Y MOVER MESA
+  // =====================================================
+  
+  window.mostrarPanelMesa = (idMesa, nombreMesaCompleto, ocupada, totalMesa) => {
+      const panel = document.getElementById('panelAccionesMesa');
+      document.getElementById('panelTituloMesa').textContent = nombreMesaCompleto;
+
+      const btnAgregar = document.getElementById('btnPanelAgregar');
+      const btnCobrar = document.getElementById('btnPanelCobrar');
+      const btnMover = document.getElementById('btnPanelMover');
+      const btnTotal = document.getElementById('panelTotalMesa');
+
+      if (ocupada) {
+          btnTotal.textContent = `Cuenta: $${totalMesa.toFixed(2)}`;
+          btnAgregar.textContent = "➕ Agregar más";
+          btnCobrar.style.display = "inline-block";
+          btnMover.style.display = "inline-block"; // Solo puedes mover mesas ocupadas
+      } else {
+          btnTotal.textContent = "Mesa Libre";
+          btnAgregar.textContent = "📝 Iniciar Pedido";
+          btnCobrar.style.display = "none";
+          btnMover.style.display = "none";
+      }
+
+      // Mostrar el panel (usamos flex para que se vea bien)
+      panel.style.display = "flex";
+
+      // Asignar funciones a los botones
+      btnAgregar.onclick = () => window.agregarPedido(idMesa);
+      btnCobrar.onclick = () => window.abrirModalCobro(nombreMesaCompleto, totalMesa);
+      document.getElementById('btnPanelQR').onclick = () => window.generarQR(nombreMesaCompleto);
+      btnMover.onclick = () => window.cambiarMesa(nombreMesaCompleto);
+  };
+
+  // Función para transferir la orden a otra mesa
+  window.cambiarMesa = async (mesaActual) => {
+      const nuevaMesa = prompt(`Vas a mover la orden de ${mesaActual}.\nEscribe el número de la nueva mesa (Ej: 5):`);
+      
+      if (!nuevaMesa || nuevaMesa.trim() === "") return;
+
+      // Asegurarnos de que tenga el formato "Mesa X"
+      const nombreNuevaMesa = nuevaMesa.toLowerCase().includes('mesa') ? nuevaMesa : `Mesa ${nuevaMesa}`;
+
+      try {
+          // Buscamos todas las órdenes activas de la mesa vieja y les cambiamos el nombre a la mesa nueva
+          const { error } = await db.from('ordenes')
+              .update({ mesa: nombreNuevaMesa })
+              .eq('mesa', mesaActual)
+              .not('estado', 'in', '("pagado","cancelado")'); // Solo movemos lo que no está pagado
+
+          if (error) throw error;
+
+          alert(`✅ Orden transferida con éxito a ${nombreNuevaMesa}`);
+          document.getElementById('panelAccionesMesa').style.display = 'none'; // Ocultamos el panel
+          
+          // Recargamos la página para que el mapa y los datos se refresquen
+          window.location.reload(); 
+          
+      } catch (err) {
+          console.error("Error al mover mesa:", err);
+          alert("❌ Hubo un error al intentar cambiar la mesa.");
+      }
   };
 });
