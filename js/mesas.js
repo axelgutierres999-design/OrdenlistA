@@ -130,6 +130,19 @@ setTimeout(() => {
 
 }, 150); // El delay es la clave del éxito aquí
 
+// 🌟 NUEVO: Ocultar panel al tocar el fondo del mapa 🌟
+stageMonitor.on('click tap', (e) => {
+    // Si el clic fue directamente en el lienzo (fondo) y no en una mesa
+    if (e.target === stageMonitor) {
+        document.getElementById('panelAccionesMesa').style.display = 'none';
+        
+        // Quitar el efecto de zoom a todas las mesas
+        stageMonitor.find('.mesa-interactiva').forEach(m => {
+            m.to({ scaleX: 1, scaleY: 1, duration: 0.2 });
+        });
+    }
+});
+
 // 🌟 AQUÍ TERMINA LO NUEVO 🌟
 
         } else {
@@ -139,6 +152,7 @@ setTimeout(() => {
         console.error("Error cargando configuración o plano:", e); 
     }
 }
+
 
   esperarAppYRenderizar();
  // =====================================================
@@ -540,35 +554,54 @@ mesaGroup.on('mouseleave', () => {
   // =====================================================
   
   window.mostrarPanelMesa = (idMesa, nombreMesaCompleto, ocupada, totalMesa) => {
-      const panel = document.getElementById('panelAccionesMesa');
-      document.getElementById('panelTituloMesa').textContent = nombreMesaCompleto;
+    const panel = document.getElementById('panelAccionesMesa');
+    document.getElementById('panelTituloMesa').textContent = nombreMesaCompleto;
 
-      const btnAgregar = document.getElementById('btnPanelAgregar');
-      const btnCobrar = document.getElementById('btnPanelCobrar');
-      const btnMover = document.getElementById('btnPanelMover');
-      const btnTotal = document.getElementById('panelTotalMesa');
+    const btnAgregar = document.getElementById('btnPanelAgregar');
+    const btnCobrar = document.getElementById('btnPanelCobrar');
+    const btnMover = document.getElementById('btnPanelMover');
+    const btnTicket = document.getElementById('btnPanelTicket'); // NUEVO
+    const btnTotal = document.getElementById('panelTotalMesa');
 
-      if (ocupada) {
-          btnTotal.textContent = `Cuenta: $${totalMesa.toFixed(2)}`;
-          btnAgregar.textContent = "➕ Agregar más";
-          btnCobrar.style.display = "inline-block";
-          btnMover.style.display = "inline-block"; // Solo puedes mover mesas ocupadas
-      } else {
-          btnTotal.textContent = "Mesa Libre";
-          btnAgregar.textContent = "📝 Iniciar Pedido";
-          btnCobrar.style.display = "none";
-          btnMover.style.display = "none";
-      }
+    if (ocupada) {
+        btnTotal.textContent = `Cuenta: $${totalMesa.toFixed(2)}`;
+        btnAgregar.textContent = "➕ Agregar más";
+        btnCobrar.style.display = "inline-block";
+        btnMover.style.display = "inline-block";
+        btnTicket.style.display = "inline-block"; // NUEVO
+        
+        // NUEVO: Lógica para generar un "Pre-Ticket"
+        btnTicket.onclick = () => {
+            const ordenesMesa = App.getOrdenes().filter(o => o.mesa === nombreMesaCompleto && !['pagado', 'cancelado'].includes(o.estado));
+            let todosProductos = [];
+            ordenesMesa.forEach(o => {
+                todosProductos = todosProductos.concat(typeof o.productos === 'string' ? o.productos.split(',') : o.productos);
+            });
+            
+            // Reutilizamos tu modal de ticket existente
+            mostrarTicket({
+                id: "PREVIO",
+                mesa: nombreMesaCompleto,
+                total: totalMesa,
+                productos: todosProductos,
+                metodo: "Pendiente"
+            });
+        };
 
-      // Mostrar el panel (usamos flex para que se vea bien)
-      panel.style.display = "flex";
+    } else {
+        btnTotal.textContent = "Mesa Libre";
+        btnAgregar.textContent = "📝 Iniciar Pedido";
+        btnCobrar.style.display = "none";
+        btnMover.style.display = "none";
+        btnTicket.style.display = "none"; // NUEVO
+    }
 
-      // Asignar funciones a los botones
-      btnAgregar.onclick = () => window.agregarPedido(idMesa);
-      btnCobrar.onclick = () => window.abrirModalCobro(nombreMesaCompleto, totalMesa);
-      document.getElementById('btnPanelQR').onclick = () => window.generarQR(nombreMesaCompleto);
-      btnMover.onclick = () => window.cambiarMesa(nombreMesaCompleto);
-  };
+    panel.style.display = "flex";
+    btnAgregar.onclick = () => window.agregarPedido(idMesa);
+    btnCobrar.onclick = () => window.abrirModalCobro(nombreMesaCompleto, totalMesa);
+    document.getElementById('btnPanelQR').onclick = () => window.generarQR(nombreMesaCompleto);
+    btnMover.onclick = () => window.cambiarMesa(nombreMesaCompleto);
+};
 
   // Función para transferir la orden a otra mesa
   window.cambiarMesa = async (mesaActual) => {
