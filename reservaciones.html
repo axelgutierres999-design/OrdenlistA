@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>OrdenLista | Reservaciones</title>
+  
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@picocss/pico@1/css/pico.min.css" />
+  <link rel="stylesheet" href="css/app.css" />
+  
+  <style>
+    /* Estilos base de tu sistema */
+    .tabla-ordenes { margin-top: 1rem; font-size: 0.95rem; background: white; border-radius: 8px; overflow: hidden; }
+    .tabla-ordenes th { background: #f8f9fa; color: #333; }
+    .tabla-ordenes td { vertical-align: middle; padding: 12px; }
+    
+    /* Estados para Reservaciones */
+    .badge-estado { padding: 4px 10px; border-radius: 20px; font-weight: bold; font-size: 0.7rem; text-transform: uppercase; display: inline-block; }
+    .state-pendiente { background-color: #f39c12; color: white; animation: blink 1.5s infinite; }
+    .state-confirmada { background-color: #10ad93; color: white; }
+    .state-cancelada { background-color: #e53935; color: white; }
+    .state-completada { background-color: #2ecc71; color: white; border: 2px solid #27ae60; }
+
+    @keyframes blink { 0% { opacity: 1; } 50% { opacity: 0.7; } 100% { opacity: 1; } }
+
+    /* Colores de fila según estado */
+    .fila-pendiente { background-color: #fffdf0 !important; }
+    .fila-cancelada { background-color: #fff5f5 !important; }
+
+    /* Navegación (Heredada de tu código) */
+    .nav-inicio { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; padding: 0.5rem 1rem; position: sticky; top: 0; z-index: 1000; background: white !important; border-bottom: 1px solid #e0e6e4; }
+    .brand-group { display: flex; align-items: center; gap: 10px; }
+    .btn-ajustes-manual { border: 1px solid #10ad93 !important; color: #10ad93 !important; padding: 5px 12px !important; font-size: 0.85rem !important; border-radius: 8px; text-decoration: none; }
+    .hamburger { display: none; background: none; border: none; font-size: 1.5rem; color: #333; cursor: pointer; padding: 0; }
+    #menuNavegacion { display: flex; list-style: none; margin: 0; padding: 0; gap: 1rem; }
+
+    @media (max-width: 768px) {
+        .hamburger { display: block; }
+        .hide-mobile { display: none; }
+        #menuNavegacion { display: none; width: 100%; flex-direction: column; order: 3; border-top: 1px solid #eee; padding: 10px 0; margin-top: 10px; }
+        #menuNavegacion.show { display: flex; }
+        #menuNavegacion li { width: 100%; text-align: center; }
+        .tabla-ordenes { display: block; overflow-x: auto; }
+    }
+  </style>
+</head>
+<body style="background-color: #f4f7f6;">
+
+  <audio id="audioNotificacion" src="https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3" preload="auto"></audio>
+
+  <nav class="nav-inicio">
+    <div class="brand-group">
+      <a href="index.html" style="text-decoration: none;">
+        <strong style="font-size: 1.3rem; color: #10ad93;">☕ OrdenLista</strong>
+      </a>
+      <span class="hide-mobile" style="color: #888;">| Panel de Reservaciones</span>
+    </div>
+
+    <div style="display: flex; align-items: center; gap: 10px;">
+      <a href="ordenes.html" role="button" class="btn-ajustes-manual">
+        🍳 <span class="hide-mobile">Ir a Órdenes</span>
+      </a>
+      <button class="hamburger" onclick="toggleNav()">☰</button>
+    </div>
+    <ul id="menuNavegacion" class="nav-botones"></ul>
+  </nav>
+
+  <main class="container-fluid" style="padding: 20px;">
+    <header style="margin-bottom: 2rem;">
+        <div class="grid">
+            <div>
+                <h1 style="margin-bottom: 0;">Gestión de Reservas</h1>
+                <p style="color: #666;">Aprueba o rechaza solicitudes de mesas en tiempo real</p>
+            </div>
+            
+            <div style="display:flex; gap:10px; align-items:flex-end; justify-content:flex-end;">
+                <div>
+                    <small>Filtrar Estado:</small>
+                    <select id="filtroEstado" style="margin-bottom: 0;">
+                        <option value="todos">👁️ Todas</option>
+                        <option value="pendiente" selected>🔔 Pendientes</option>
+                        <option value="confirmada">✅ Confirmadas</option>
+                        <option value="completada">🍽️ Completadas</option>
+                    </select>
+                </div>
+                <div>
+                    <small>Buscar Cliente:</small>
+                    <input type="search" id="inputBusqueda" placeholder="Nombre..." style="margin-bottom: 0;" />
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <div class="card" style="padding: 0; border: none; box-shadow: 0 4px 15px rgba(0,0,0,0.05);">
+      <figure style="margin: 0;">
+        <table role="grid" class="tabla-ordenes" style="margin: 0;">
+          <thead>
+            <tr>
+              <th>Fecha y Hora</th>
+              <th>Cliente</th>
+              <th>Contacto</th>
+              <th>Mesa (Pax)</th>
+              <th>Estado</th>
+              <th class="text-center">Acciones</th>
+            </tr>
+          </thead>
+          <tbody id="tablaBodyReservas">
+             <tr><td colspan="6" style="text-align:center; padding: 4rem;">Cargando reservaciones...</td></tr>
+          </tbody>
+        </table>
+      </figure>
+    </div>
+  </main>
+
+  <script>
+    function toggleNav() {
+        document.getElementById('menuNavegacion').classList.toggle('show');
+    }
+  </script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="js/supabase-client.js"></script> 
+  <script src="js/app.js"></script> 
+  <script src="js/reservaciones.js"></script>
+</body>
+</html>
