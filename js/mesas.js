@@ -166,100 +166,164 @@ stageMonitor.on('click tap', (e) => {
  // =====================================================
   // 2️⃣ RENDERIZAR MESAS EN EL PLANO
   // =====================================================
-// =====================================================
-// 2️⃣ RENDERIZAR MESAS (SISTEMA DE BLOQUES)
-// =====================================================
 async function renderizarMesas() {
     if (typeof App === 'undefined') return;
     const ordenes = App.getOrdenes();
 
     const grid = document.getElementById('gridMesas');
-    if (!grid) return;
-    
-    // Asegurarnos de que el contenedor del plano (si existe) esté oculto
     const canvasMesas = document.getElementById('canvasMesas');
-    if (canvasMesas) canvasMesas.style.display = 'none';
-    
-    // Configurar la cuadrícula de bloques
-    grid.style.display = 'grid';
-    grid.style.gridTemplateColumns = 'repeat(auto-fill, minmax(130px, 1fr))';
-    grid.style.gap = '20px';
-    grid.style.padding = '20px';
-    grid.innerHTML = ''; // Limpiamos para redibujar
 
-    // Tomamos el número de mesas de la configuración (ej. 10 por defecto)
-    const numMesas = configRestaurante.num_mesas || 10;
+    // =====================================================
+    // CASO A: SI EXISTE UN PLANO CONFIGURADO (KONVA)
+    // =====================================================
+    if (stageMonitor) {
+        // Mostramos el mapa, ocultamos la cuadrícula de bloques
+        if (canvasMesas) canvasMesas.style.display = 'block';
+        if (grid) grid.style.display = 'none';
 
-    for (let i = 1; i <= numMesas; i++) {
-        const nombreMesaCompleto = `Mesa ${i}`;
-        
-        // Filtramos las órdenes de esta mesa en específico
-        const ordenesMesa = ordenes.filter(o => 
-            o.mesa === nombreMesaCompleto && !['pagado', 'cancelado', 'entregado'].includes(o.estado)
-        );
-        
-        const ocupada = ordenesMesa.length > 0;
-        const totalMesa = ordenesMesa.reduce((acc, orden) => acc + parseFloat(orden.total), 0);
-        const hayListas = ordenesMesa.some(o => o.estado === 'terminado');
+        // 🚨 ASEGURAR BLOQUEO DE MOVIMIENTO DEL MAPA COMPLETO 🚨
+        stageMonitor.draggable(false);
+        stageMonitor.find('Layer').forEach(layer => layer.draggable(false));
+        stageMonitor.find('Group').forEach(group => group.draggable(false));
 
-        // Lógica de colores (Semáforo)
-        let bgColor = '#ffffff'; // Libre
-        let textColor = '#333';
+        // Buscamos las mesas en el plano
+        const mesasShapes = stageMonitor.find(node => node.name() === 'mesa-interactiva');
+
+        mesasShapes.forEach(mesaGroup => {
+            // Aseguramos que la mesa individual tampoco se mueva
+            mesaGroup.draggable(false); 
+            
+            const idMesa = mesaGroup.id(); 
+            const nombreMesaCompleto = `Mesa ${idMesa}`; 
+            
+            // Filtrar órdenes de esta mesa
+            const ordenesMesa = ordenes.filter(o =>
+                o.mesa === nombreMesaCompleto && !['pagado', 'cancelado', 'entregado'].includes(o.estado)
+            );
+
+            const ocupada = ordenesMesa.length > 0;
+            const totalMesa = ordenesMesa.reduce((acc, orden) => acc + parseFloat(orden.total), 0);
+            const hayListas = ordenesMesa.some(o => o.estado === 'terminado');
+
+            // Actualizar Color (Semáforo)
+            const shapeBase = mesaGroup.findOne('Rect') || mesaGroup.findOne('Circle') || mesaGroup.findOne('Line');
+            if (shapeBase) {
+                if (hayListas) {
+                    shapeBase.fill('#e74c3c'); // 🔴 ROJO: Comida lista
+                } else if (ocupada) {
+                    shapeBase.fill('#f1c40f'); // 🟡 AMARILLO: Ocupada
+                } else {
+                    shapeBase.fill('#ffffff'); // ⚪ BLANCO: Libre
+                }
+                
+                // Borde para resaltar
+                shapeBase.stroke('#10ad93');
+                shapeBase.strokeWidth(3);
+            }
+
+            // --- EVENTOS DE CLIC PARA ABRIR PANEL ---
+            mesaGroup.off('click tap'); // Limpiar eventos previos
+            mesaGroup.on('click tap', (e) => {
+                e.cancelBubble = true; // Evita que el clic pase al fondo del mapa
+                
+                // 🛠️ AQUÍ ABRIMOS EL PANEL
+                window.mostrarPanelMesa(idMesa, nombreMesaCompleto, ocupada, totalMesa);
+                
+                // Efecto visual de selección (pequeño zoom)
+                mesasShapes.forEach(m => m.to({ scaleX: 1, scaleY: 1, duration: 0.2 })); // Resetea las demás
+                mesaGroup.to({ scaleX: 1.08, scaleY: 1.08, duration: 0.2 }); // Agranda la seleccionada
+            });
+
+            // Cambiar el cursor a manita
+            mesaGroup.on('mouseenter', () => {
+                document.body.style.cursor = 'pointer';
+            });
+            mesaGroup.on('mouseleave', () => {
+                document.body.style.cursor = 'default';
+            });
+        });
+
+        // Refrescar el lienzo para aplicar los cambios de color
+        stageMonitor.batchDraw();
+    } 
+    // =====================================================
+    // CASO B: NO HAY PLANO (SISTEMA DE BLOQUES PROVISIONAL)
+    // =====================================================
+    else {
+        // Ocultamos el canvas vacío y mostramos la cuadrícula
+        if (canvasMesas) canvasMesas.style.display = 'none';
+        if (!grid) return;
         
-        if (hayListas) { 
-            bgColor = '#e74c3c'; // Rojo (Comida lista)
-            textColor = '#fff'; 
-        } else if (ocupada) { 
-            bgColor = '#f1c40f'; // Amarillo (Ocupada)
-            textColor = '#000'; 
+        grid.style.display = 'grid';
+        grid.style.gridTemplateColumns = 'repeat(auto-fill, minmax(130px, 1fr))';
+        grid.style.gap = '20px';
+        grid.style.padding = '20px';
+        grid.innerHTML = ''; // Limpiar bloques anteriores
+
+        // Tomar el número de mesas de la configuración
+        const numMesas = configRestaurante.num_mesas || 10;
+
+        for (let i = 1; i <= numMesas; i++) {
+            const nombreMesaCompleto = `Mesa ${i}`;
+            
+            // Filtrar órdenes
+            const ordenesMesa = ordenes.filter(o => o.mesa === nombreMesaCompleto && !['pagado', 'cancelado', 'entregado'].includes(o.estado));
+            const ocupada = ordenesMesa.length > 0;
+            const totalMesa = ordenesMesa.reduce((acc, orden) => acc + parseFloat(orden.total), 0);
+            const hayListas = ordenesMesa.some(o => o.estado === 'terminado');
+
+            // Colores del Semáforo
+            let bgColor = '#ffffff';
+            let textColor = '#333';
+            if (hayListas) { 
+                bgColor = '#e74c3c'; 
+                textColor = '#fff'; 
+            } else if (ocupada) { 
+                bgColor = '#f1c40f'; 
+                textColor = '#000'; 
+            }
+
+            // Crear el bloque HTML
+            const mesaDiv = document.createElement('div');
+            mesaDiv.className = 'mesa-bloque';
+            mesaDiv.style = `
+                background: ${bgColor}; 
+                color: ${textColor}; 
+                border: 3px solid #10ad93; 
+                border-radius: 12px; 
+                padding: 25px 10px; 
+                text-align: center; 
+                cursor: pointer; 
+                transition: transform 0.2s, box-shadow 0.2s; 
+                display: flex; 
+                flex-direction: column; 
+                align-items: center; 
+                justify-content: center;
+                box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            `;
+            mesaDiv.innerHTML = `<span style="font-size: 0.9rem; opacity: 0.8;">Mesa</span><strong style="font-size: 2rem;">${i}</strong>`;
+
+            // Efectos Hover
+            mesaDiv.onmouseenter = () => { mesaDiv.style.transform = 'translateY(-5px)'; mesaDiv.style.boxShadow = '0 6px 12px rgba(0,0,0,0.15)'; };
+            mesaDiv.onmouseleave = () => { mesaDiv.style.transform = 'translateY(0)'; mesaDiv.style.boxShadow = '0 4px 6px rgba(0,0,0,0.1)'; };
+
+            // 🛠️ AQUÍ ABRIMOS EL PANEL AL HACER CLIC
+            mesaDiv.onclick = (e) => {
+                e.stopPropagation(); // Evita que el clic cierre el panel por error
+                window.mostrarPanelMesa(i.toString(), nombreMesaCompleto, ocupada, totalMesa);
+            };
+
+            grid.appendChild(mesaDiv);
         }
 
-        // Creamos el bloque de la mesa
-        const mesaDiv = document.createElement('div');
-        mesaDiv.style = `
-            background: ${bgColor}; 
-            color: ${textColor};
-            border: 3px solid #10ad93; 
-            border-radius: 12px; 
-            padding: 30px 10px; 
-            text-align: center; 
-            cursor: pointer; 
-            box-shadow: 0 4px 6px rgba(0,0,0,0.1); 
-            transition: transform 0.2s, box-shadow 0.2s;
-            display: flex;
-            flex-direction: column;
-            justify-content: center;
-            align-items: center;
-        `;
-        mesaDiv.innerHTML = `<span style="font-size: 0.9rem; opacity: 0.8;">Mesa</span><strong style="font-size: 2rem;">${i}</strong>`;
-        
-        // Efectos visuales de hover
-        mesaDiv.onmouseenter = () => { 
-            mesaDiv.style.transform = 'translateY(-5px)'; 
-            mesaDiv.style.boxShadow = '0 6px 12px rgba(0,0,0,0.15)'; 
+        // Clic fuera de los bloques para cerrar el panel
+        document.body.onclick = (e) => {
+            if (!e.target.closest('#gridMesas') && !e.target.closest('#panelAccionesMesa')) {
+                const panel = document.getElementById('panelAccionesMesa');
+                if(panel) panel.style.display = 'none';
+            }
         };
-        mesaDiv.onmouseleave = () => { 
-            mesaDiv.style.transform = 'translateY(0)'; 
-            mesaDiv.style.boxShadow = '0 4px 6px rgba(0,0,0,0.1)'; 
-        };
-
-        // Al hacer clic, abrimos el panel de herramientas de esa mesa
-        mesaDiv.onclick = (e) => {
-            e.stopPropagation(); // Evitamos que el clic cierre el panel por accidente
-            window.mostrarPanelMesa(i.toString(), nombreMesaCompleto, ocupada, totalMesa);
-        };
-
-        // Añadimos el bloque al contenedor
-        grid.appendChild(mesaDiv);
     }
-
-    // Si hacen clic en cualquier parte fuera de los bloques, cerramos el panel
-    document.body.onclick = (e) => {
-        if (!e.target.closest('#gridMesas') && !e.target.closest('#panelAccionesMesa')) {
-            const panel = document.getElementById('panelAccionesMesa');
-            if(panel) panel.style.display = 'none';
-        }
-    };
 }
   // =====================================================
   // 3️⃣ LÓGICA DE COBRO (ACTUALIZADA V9.0)
