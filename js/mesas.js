@@ -42,7 +42,7 @@ async function cargarConfigRestaurante() {
             .from('planos')
             .select('estructura')
             .eq('restaurante_id', sesion.restaurante_id)
-            .single();
+            .maybeSingle();
         
         if (planoData && planoData.estructura) {
     planoActual = planoData.estructura;
