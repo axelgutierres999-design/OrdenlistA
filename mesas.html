@@ -111,6 +111,25 @@
             <button id="btnPanelCobrar" style="padding: 10px; font-size: 0.9em; background: #10ad93; border: none; color: white;">💸 Cobrar</button>
         </div>
     </div>
+    
+    <section id="config-rapida" style="margin-bottom: 20px; padding: 15px; background: #f4f4f4; border-radius: 10px; border: 1px solid #ddd;">
+    <div class="grid" style="align-items: center; margin-bottom: 0;">
+        <div>
+            <label for="inputNumMesas" style="font-weight: bold; margin-bottom: 5px; display: block;">
+                🔢 Cantidad de Mesas:
+            </label>
+            <div style="display: flex; gap: 10px;">
+                <input type="number" id="inputNumMesas" placeholder="Ej: 15" min="1" max="100" style="margin-bottom: 0;">
+                <button onclick="guardarConfiguracionMesas()" style="width: auto; padding: 0 20px; background: #10ad93; border: none;">
+                    Guardar
+                </button>
+            </div>
+        </div>
+        <div class="hide-mobile" style="text-align: right; color: #666; font-size: 0.85rem;">
+            <p style="margin: 0;">Esta configuración define cuántos bloques aparecen <br> si no tienes un plano visual activo.</p>
+        </div>
+    </div>
+</section>
   </main>
 
   <dialog id="modalCobro">
