@@ -33,7 +33,7 @@ async function cargarConfigRestaurante() {
     if(!sesion) return;
 
     try {
-        // 1. Cargar Configuración General
+        // 1. Cargar Configuración General (para saber num_mesas)
         const { data: configData } = await db.from('restaurantes').select('*').eq('id', sesion.restaurante_id).single();
         if(configData) configRestaurante = configData;
 
@@ -44,123 +44,109 @@ async function cargarConfigRestaurante() {
             .eq('restaurante_id', sesion.restaurante_id)
             .maybeSingle();
         
-        if (planoData && planoData.estructura) {
-    planoActual = planoData.estructura;
+        // 3. EVALUADOR DE VISTA (¿Usamos Mapa Visual o Cuadrícula Básica?)
+        let usarMapaVisual = false;
 
-    if (!planoActual.visual) {
-        console.warn("Plano sin estructura visual");
-        return;
-    }
+        if (planoData && planoData.estructura && planoData.estructura.visual) {
+            planoActual = planoData.estructura;
+            usarMapaVisual = true; // Todo en orden, encendemos el mapa
+        }
+
+        if (usarMapaVisual) {
+            // ==========================================
+            // VISTA 1: INICIAR MAPA VISUAL CON KONVA
+            // ==========================================
+            if (stageMonitor) stageMonitor.destroy();
             
-            if (stageMonitor) {
-                stageMonitor.destroy();
-            }
+            stageMonitor = Konva.Node.create(planoActual.visual, 'canvasMesas');
 
-            // ... (líneas anteriores iguales)
-// --- INICIALIZACIÓN ---
-stageMonitor = Konva.Node.create(planoActual.visual, 'canvasMesas');
+            setTimeout(() => {
+                const container = document.getElementById('contenedorPlanoVisual');
+                if (!container || !stageMonitor) return;
 
-// 🌟 REEMPLAZA DESDE AQUÍ HASTA EL FINAL DE LA FUNCIÓN CON ESTO 🌟
+                const rect = container.getBoundingClientRect();
+                stageMonitor.width(rect.width);
+                stageMonitor.height(rect.height);
 
-// Usamos setTimeout de 100ms para que el navegador termine de renderizar el CSS
-// y nos dé las medidas reales del contenedor.
-setTimeout(() => {
-    const container = document.getElementById('contenedorPlanoVisual');
-    if (!container || !stageMonitor) return;
+                const dataBox = stageMonitor.getClientRect({ skipTransform: true });
+                const contentW = dataBox.width || 800;
+                const contentH = dataBox.height || 600;
+                const contentX = dataBox.x || 0;
+                const contentY = dataBox.y || 0;
 
-    // 1. Ajustar el escenario al tamaño REAL del contenedor gris
-    const rect = container.getBoundingClientRect();
-    stageMonitor.width(rect.width);
-    stageMonitor.height(rect.height);
+                const padding = 40; 
+                const scaleX = (rect.width - padding) / contentW;
+                const scaleY = (rect.height - padding) / contentH;
+                const escala = Math.min(scaleX, scaleY);
 
-    // 2. Calcular el área que ocupan los objetos (mesas, paredes, etc.)
-    // .getClientRect({ skipTransform: true }) nos dice dónde empieza y termina el dibujo real
-    const dataBox = stageMonitor.getClientRect({ skipTransform: true });
+                stageMonitor.scale({ x: escala, y: escala });
 
-    // Valores de respaldo por si el plano está vacío
-    const contentW = dataBox.width || 800;
-    const contentH = dataBox.height || 600;
-    const contentX = dataBox.x || 0;
-    const contentY = dataBox.y || 0;
+                const xCentrado = (rect.width - contentW * escala) / 2 - (contentX * escala);
+                const yCentrado = (rect.height - contentH * escala) / 2 - (contentY * escala);
 
-    // 3. Calcular escala para que el CONTENIDO quepa (con un margen de 40px)
-    const padding = 40; 
-    const scaleX = (rect.width - padding) / contentW;
-    const scaleY = (rect.height - padding) / contentH;
-    
-    // Usamos la escala más pequeña para que nada se corte
-    const escala = Math.min(scaleX, scaleY);
+                stageMonitor.position({ x: xCentrado, y: yCentrado });
 
-    stageMonitor.scale({ x: escala, y: escala });
+                let mesasDetectadas = stageMonitor.find('.mesa-interactiva');
+                if (mesasDetectadas.length === 0) {
+                    stageMonitor.find('Group').forEach(g => {
+                        if (g.id()) g.name('mesa-interactiva');
+                    });
+                    mesasDetectadas = stageMonitor.find('.mesa-interactiva');
+                }
 
-    // 4. CENTRADO PERFECTO
-    // Calculamos cuánto espacio sobra para repartirlo a los lados
-    // Restamos contentX/Y * escala para compensar si el dibujo no empezó en 0,0
-    const xCentrado = (rect.width - contentW * escala) / 2 - (contentX * escala);
-    const yCentrado = (rect.height - contentH * escala) / 2 - (contentY * escala);
+                mesasDetectadas.forEach(mesaGroup => {
+                    mesaGroup.listening(true);
+                    mesaGroup.setAttr('cursor', 'pointer');
+                    mesaGroup.draggable(false);
+                    mesaGroup.getChildren().forEach(child => {
+                        child.listening(true);
+                        child.draggable(false);
+                    });
+                });
 
-    stageMonitor.position({ x: xCentrado, y: yCentrado });
+                stageMonitor.draggable(false);
+                stageMonitor.find('Layer').forEach(layer => layer.draggable(false));
+                stageMonitor.find('Group').forEach(group => group.draggable(false));
 
-    // 5. REACTIVAR INTERACCIÓN (Tu lógica de rescate)
-    let mesasDetectadas = stageMonitor.find('.mesa-interactiva');
-    if (mesasDetectadas.length === 0) {
-        stageMonitor.find('Group').forEach(g => {
-            if (g.id()) g.name('mesa-interactiva');
-        });
-        mesasDetectadas = stageMonitor.find('.mesa-interactiva');
-    }
+                // Ocultar cuadrícula antigua por si acaso
+                const gridAntiguo = document.getElementById('gridMesas');
+                if(gridAntiguo) gridAntiguo.style.display = 'none';
+                document.getElementById('canvasMesas').style.display = 'block';
 
-    mesasDetectadas.forEach(mesaGroup => {
-        mesaGroup.listening(true);
-        mesaGroup.setAttr('cursor', 'pointer');
-        mesaGroup.draggable(false);
-        mesaGroup.getChildren().forEach(child => {
-            child.listening(true);
-            child.draggable(false);
-        });
-    });
-    // BLOQUEAR EL MOVIMIENTO DEL PLANO COMPLETO
-    stageMonitor.draggable(false);
-    stageMonitor.find('Layer').forEach(layer => layer.draggable(false));
-    stageMonitor.find('Group').forEach(group => group.draggable(false));
+                stageMonitor.batchDraw();
+                renderizarMesas(); // Llamar de nuevo para pintar colores
 
-    const gridAntiguo = document.getElementById('gridMesas');
-    if(gridAntiguo) gridAntiguo.style.display = 'none';
+            }, 150);
 
-    stageMonitor.batchDraw();
-    renderizarMesas();
-
-    console.log(`🚀 Plano ajustado. Escala: ${escala.toFixed(2)} | Mesas: ${mesasDetectadas.length}`);
-
-}, 150); // El delay es la clave del éxito aquí
-
-// 🌟 NUEVO: Ocultar panel al tocar el fondo del mapa 🌟
-stageMonitor.on('click tap', (e) => {
-    // Si el clic fue directamente en el lienzo (fondo) y no en una mesa
-    if (e.target === stageMonitor) {
-        document.getElementById('panelAccionesMesa').style.display = 'none';
-        
-        // Quitar el efecto de zoom a todas las mesas
-        stageMonitor.find('.mesa-interactiva').forEach(m => {
-            m.to({ scaleX: 1, scaleY: 1, duration: 0.2 });
-        });
-    }
-});
-
-// 🌟 AQUÍ TERMINA LO NUEVO 🌟
+            // Clic en el fondo del mapa cierra el panel
+            stageMonitor.on('click tap', (e) => {
+                if (e.target === stageMonitor) {
+                    document.getElementById('panelAccionesMesa').style.display = 'none';
+                    stageMonitor.find('.mesa-interactiva').forEach(m => {
+                        m.to({ scaleX: 1, scaleY: 1, duration: 0.2 });
+                    });
+                }
+            });
 
         } else {
-            // NO HAY PLANO: Ocultamos el canvas, mostramos el grid antiguo y anulamos el stageMonitor
+            // ==========================================
+            // VISTA 2: FALLBACK A CUADRÍCULA BÁSICA
+            // ==========================================
+            console.warn("No se encontró plano visual. Activando vista de cuadrícula por defecto.");
+            
             document.getElementById('canvasMesas').style.display = 'none';
             const gridAntiguo = document.getElementById('gridMesas');
             if(gridAntiguo) gridAntiguo.style.display = 'grid';
-            stageMonitor = null; // Esto le avisará a la siguiente función que debe pintar cuadritos
+            
+            stageMonitor = null; // 🚨 ESTO ES CLAVE: Le dice a renderizarMesas que use el CASO B
         }
+
     } catch(e) { 
         console.error("Error cargando configuración o plano:", e); 
+        // Si hay un error crítico de red, también disparamos la vista por defecto
+        stageMonitor = null; 
     }
 }
-
 
   esperarAppYRenderizar();
  // =====================================================
