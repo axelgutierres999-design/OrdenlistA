@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Facturación | OrdenLista</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@picocss/pico@1/css/pico.min.css">
+    <link rel="stylesheet" href="css/app.css">
+    <style>
+        /* Manteniendo tu línea de diseño */
+        :root { --primary: #10ad93; }
+        .panel-factura { background: white; padding: 2rem; border-radius: 16px; box-shadow: 0 10px 25px rgba(0,0,0,0.05); }
+        .linea-detalle:nth-child(even) { background: #f9fbfd; }
+        .total-box { border-top: 2px solid #10ad93; padding-top: 1rem; margin-top: 1rem; }
+    </style>
+</head>
+<body style="background-color: #f9fbfd;">
+
+    <!-- Tu misma Navegación -->
+    <nav class="nav-inicio">
+        <div class="brand-group">
+            <strong style="font-size: 1.3rem; color: #10ad93;">☕ OrdenLista</strong>
+            <span style="color: #888;">| Facturación</span>
+        </div>
+        <ul id="menuNavegacion"></ul>
+    </nav>
+
+    <main class="container">
+        <header style="margin-top:20px;">
+            <h1>📑 Nueva Factura</h1>
+            <p>Genera comprobantes profesionales para tus clientes.</p>
+        </header>
+
+        <div class="grid">
+            <!-- Formulario de Datos -->
+            <section class="panel-factura">
+                <h4>Datos del Cliente</h4>
+                <input type="text" id="clienteNombre" placeholder="Nombre o Razón Social">
+                <div class="grid">
+                    <input type="text" id="clienteRFC" placeholder="RFC (Ej: ABC123456...)">
+                    <select id="metodoPago">
+                        <option value="efectivo">Efectivo</option>
+                        <option value="tarjeta">Tarjeta</option>
+                        <option value="transferencia">Transferencia</option>
+                    </select>
+                </div>
+                
+                <hr>
+                
+                <h4>Conceptos</h4>
+                <div id="contenedorConceptos">
+                    <!-- Aquí JS inyectará los productos de la venta seleccionada -->
+                </div>
+                
+                <div class="total-box">
+                    <div style="display:flex; justify-content: space-between;">
+                        <span>Subtotal:</span> <span id="subtotalFactura">$0.00</span>
+                    </div>
+                    <div style="display:flex; justify-content: space-between;">
+                        <span>IVA (16%):</span> <span id="ivaFactura">$0.00</span>
+                    </div>
+                    <div style="display:flex; justify-content: space-between; font-weight: bold; color: #10ad93; font-size: 1.5rem;">
+                        <span>TOTAL:</span> <span id="totalFactura">$0.00</span>
+                    </div>
+                </div>
+
+                <button class="contrast" onclick="procesarFactura()" style="margin-top:1rem; background-color: #10ad93; border:none;">
+                    🚀 Generar y Proteger Factura
+                </button>
+            </section>
+        </div>
+    </main>
+
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="js/facturacion.js"></script>
+</body>
+</html>

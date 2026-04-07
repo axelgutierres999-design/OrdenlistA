@@ -350,7 +350,8 @@ function renderizarMenuSeguro() {
             { h: "ordenes.html", i: "📋", t: "Órdenes" },
             { h: "cocina.html", i: "👨‍🍳", t: "Cocina" },
             { h: "stock.html", i: "📦", t: "Stock" },
-            { h: "reservaciones.html", i: "📅", t: "reservaciones" }
+            { h: "reservaciones.html", i: "📅", t: "reservaciones" },
+            { h: "facturas.html", i: "📝", t: "facturas" }
         ];
 
         // Agregados exclusivos para Dueño/Admin

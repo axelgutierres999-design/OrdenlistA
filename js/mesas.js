@@ -127,6 +127,7 @@ async function cargarConfigRestaurante() {
                     });
                 }
             });
+            
 
         } else {
             // ==========================================
