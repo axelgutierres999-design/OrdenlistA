@@ -196,7 +196,7 @@ async function renderizarMesas() {
             const shapeBase = mesaGroup.findOne('Rect') || mesaGroup.findOne('Circle') || mesaGroup.findOne('Line');
             if (shapeBase) {
                 if (hayListas) {
-                    shapeBase.fill('#e74c3c'); // 🔴 ROJO: Comida lista
+                    shapeBase.fill('#10ec91'); // 🟢 verde: Comida lista
                 } else if (ocupada) {
                     shapeBase.fill('#f1c40f'); // 🟡 AMARILLO: Ocupada
                 } else {
