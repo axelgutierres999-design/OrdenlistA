@@ -149,6 +149,9 @@
 
     <section class="bloque-ajuste">
       <h3>🏪 Identidad del Negocio</h3>
+      <label>Nombre del Establecimiento
+          <input type="text" id="inputNombre" placeholder="Ej. Taquería El Fogón">
+        </label>
       <div class="grid">
         <label>
           Tipo de Establecimiento
@@ -192,6 +195,24 @@
         <input type="text" id="inputLong" placeholder="Longitud" readonly>
       </div>
       <button id="btnUbicacion" type="button">📍 Obtener ubicación actual</button>
+    </section>
+    
+    <section class="bloque-ajuste">
+      <h3>🖨️ Información del Ticket</h3>
+      <p><small>Estos datos aparecerán impresos en el recibo de tus clientes.</small></p>
+      
+      <label>Mensaje de Agradecimiento
+        <input type="text" id="inputMensajeTicket" placeholder="Ej. ¡Esperamos verte pronto!">
+      </label>
+      
+      <div class="grid">
+        <label>Red WiFi (Opcional) 
+          <input type="text" id="inputWifi" placeholder="Ej. Red: Local / Pass: 1234">
+        </label>
+        <label>Instagram o Red Social
+          <input type="text" id="inputInstagram" placeholder="Ej. @mi_restaurante">
+        </label>
+      </div>
     </section>
 
     <section class="bloque-ajuste">

@@ -30,6 +30,11 @@ document.addEventListener('DOMContentLoaded', async () => {
     const inTel = document.getElementById('inputTelefono');
     const inHor = document.getElementById('inputHorarios');
     const inBanco = document.getElementById('inputDatosBanco');
+    // 🆕 NUEVO: Datos para el Ticket
+    const inNombre = document.getElementById('inputNombre');
+    const inMensajeTicket = document.getElementById('inputMensajeTicket');
+    const inWifi = document.getElementById('inputWifi');
+    const inInstagram = document.getElementById('inputInstagram');
     
     // 🆕 NUEVO: Categoría del restaurante
     const inCategoria = document.getElementById('inputCategoria'); 
@@ -78,6 +83,11 @@ document.addEventListener('DOMContentLoaded', async () => {
                 inCategoria.value = data.categoria || 'Restaurante'; // Default
                 inLat.value = data.lat || '';
                 inLong.value = data.longitud || '';
+                // Nuevos campos del ticket
+                inNombre.value = data.nombre || '';
+                inMensajeTicket.value = data.mensaje_ticket || '¡GRACIAS POR SU COMPRA!';
+                inWifi.value = data.wifi || '';
+                inInstagram.value = data.instagram || '';
 
                 // Imágenes simples
                 mostrarImagenDesdeUrl(data.logo_url, imgLogo);
@@ -251,6 +261,11 @@ document.addEventListener('DOMContentLoaded', async () => {
                 logo_url: urlLogo,
                 qr_pago_url: urlQR,
                 foto_lugar_url: urlLugar, // 🆕
+                // Nuevos campos a guardar:
+                nombre: inNombre.value,
+                mensaje_ticket: inMensajeTicket.value,
+                wifi: inWifi.value,
+                instagram: inInstagram.value,
                 
                 // Guardamos el array como JSONB. 
                 // IMPORTANTE: Asegúrate de crear la columna 'galeria_menu' tipo JSONB en Supabase

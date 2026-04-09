@@ -516,24 +516,51 @@ async function renderizarMesas() {
   // =====================================================
   // 6️⃣ MOSTRAR TICKET (Resto del código igual)
   // =====================================================
-  function mostrarTicket(orden) {
+function mostrarTicket(orden) {
     const modal = document.getElementById('modalTicket');
+    
+    // 1. DATOS DEL DUEÑO (Desde configRestaurante cargado de Supabase)
+    // Asumimos que las columnas en la tabla 'restaurantes' se llaman así:
+    document.getElementById('t-nombre-rest').textContent = configRestaurante.nombre || "Mi Restaurante";
+    document.getElementById('t-direccion').textContent = configRestaurante.direccion || "Dirección no registrada";
+    document.getElementById('t-telefono').textContent = "Tel: " + (configRestaurante.telefono || "00000000");
+    
+    // Pie de ticket
+    document.getElementById('t-mensaje-agradecimiento').textContent = configRestaurante.mensaje_ticket || "¡GRACIAS POR SU COMPRA!";
+    document.getElementById('t-wifi').textContent = configRestaurante.wifi ? `WiFi: ${configRestaurante.wifi}` : "";
+    document.getElementById('t-redes').textContent = configRestaurante.instagram ? `@${configRestaurante.instagram}` : "";
+
+    // 2. DATOS DE LA ORDEN
     document.getElementById('t-mesa').textContent = orden.mesa;
     document.getElementById('t-fecha').textContent = new Date().toLocaleString();
     document.getElementById('t-folio').textContent = orden.id;
-    document.getElementById('t-total').textContent = parseFloat(orden.total).toFixed(2);
-    
-    // Opcional: mostrar método en ticket si tienes un elemento con id 't-metodo'
-    const elMetodo = document.getElementById('t-metodo');
-    if(elMetodo) elMetodo.textContent = (orden.metodo || 'Efectivo').toUpperCase();
+    document.getElementById('t-metodo').textContent = (orden.metodo || 'Efectivo').toUpperCase();
 
+    // 3. CÁLCULO DE IMPUESTOS (IVA 16% sugerido)
+    const total = parseFloat(orden.total);
+    const subtotal = total / 1.16;
+    const iva = total - subtotal;
+
+    document.getElementById('t-subtotal').textContent = subtotal.toFixed(2);
+    document.getElementById('t-iva').textContent = iva.toFixed(2);
+    document.getElementById('t-total').textContent = total.toFixed(2);
+
+    // 4. LISTADO DE PRODUCTOS
+    // Si orden.productos es un string separado por comas, lo convertimos a array
+    const listaProductos = Array.isArray(orden.productos) ? orden.productos : orden.productos.split(',');
+    
     const tbody = document.getElementById('t-items');
-    tbody.innerHTML = (orden.productos || [])
-      .map(p => `<tr><td>${p}</td><td style="text-align:right;">—</td></tr>`)
+    tbody.innerHTML = listaProductos
+      .map(p => `
+        <tr>
+            <td>1x</td>
+            <td>${p.trim()}</td>
+            <td style="text-align:right;">—</td>
+        </tr>`)
       .join('');
 
     modal.showModal();
-  }
+}
 
   // =====================================================
   // 7️⃣ CONFIGURACIÓN DE MESAS Y QR MÓVIL

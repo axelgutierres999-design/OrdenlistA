@@ -150,34 +150,65 @@
     </article>
   </dialog>
 
-  <dialog id="modalTicket">
+<dialog id="modalTicket">
     <article>
-      <div class="ticket-body">
-        <div style="text-align:center; border-bottom: 2px dashed #000; padding-bottom:10px; margin-bottom:15px;">
-          <h2 style="margin:0; font-size:1.2rem;">ORDEN LISTA</h2>
-          <p style="font-size:0.7rem; margin:0;">TICKET DE CONSUMO</p>
+        <div class="ticket-body" id="areaImpresion">
+            <!-- ENCABEZADO PERSONALIZABLE -->
+            <div style="text-align: center; margin-bottom: 10px;">
+                <h2 id="t-nombre-rest" style="margin: 0; text-transform: uppercase;">NOMBRE RESTAURANTE</h2>
+                <p id="t-direccion" style="font-size: 12px; margin: 2px 0;">Dirección no configurada</p>
+                <p id="t-telefono" style="font-size: 12px; margin: 2px 0;">Tel: 000-000-0000</p>
+            </div>
+
+            <div style="border-top: 1px dashed #000; margin: 10px 0;"></div>
+
+            <!-- INFO ORDEN -->
+            <div style="font-size: 13px;">
+                <p style="margin: 2px 0;"><strong>MESA:</strong> <span id="t-mesa"></span></p>
+                <p style="margin: 2px 0;"><strong>FECHA:</strong> <span id="t-fecha"></span></p>
+                <p style="margin: 2px 0;"><strong>FOLIO:</strong> #<span id="t-folio"></span></p>
+                <p style="margin: 2px 0;"><strong>PAGO:</strong> <span id="t-metodo"></span></p>
+            </div>
+
+            <div style="border-top: 1px dashed #000; margin: 10px 0;"></div>
+
+            <!-- PRODUCTOS -->
+            <table style="width: 100%; font-size: 13px; border-collapse: collapse;">
+                <thead>
+                    <tr>
+                        <th style="text-align: left;">CANT</th>
+                        <th style="text-align: left;">DESC</th>
+                        <th style="text-align: right;">TOTAL</th>
+                    </tr>
+                </thead>
+                <tbody id="t-items">
+                    <!-- Se llena con JS -->
+                </tbody>
+            </table>
+
+            <div style="border-top: 1px dashed #000; margin: 10px 0;"></div>
+
+            <!-- TOTALES -->
+            <div style="text-align: right; font-size: 13px;">
+                <p style="margin: 2px 0;">SUBTOTAL: $<span id="t-subtotal">0.00</span></p>
+                <p style="margin: 2px 0;">IVA (16%): $<span id="t-iva">0.00</span></p>
+                <h3 style="margin: 5px 0; font-size: 18px;">TOTAL: $<span id="t-total">0.00</span></h3>
+            </div>
+
+            <div style="border-top: 1px dashed #000; margin: 10px 0;"></div>
+
+            <!-- PIE DE TICKET PERSONALIZABLE -->
+            <div style="text-align: center; font-size: 11px;">
+                <p id="t-mensaje-agradecimiento" style="margin: 5px 0; font-weight: bold;">¡GRACIAS POR SU COMPRA!</p>
+                <p id="t-wifi" style="margin: 2px 0;"></p>
+                <p id="t-redes" style="margin: 2px 0;"></p>
+            </div>
         </div>
         
-        <div style="font-size:0.8rem; margin-bottom:10px;">
-          <p style="margin:0;"><strong>MESA:</strong> <span id="t-mesa">--</span></p>
-          <p style="margin:0;"><strong>FECHA:</strong> <span id="t-fecha">--</span></p>
-          <p style="margin:0;"><strong>FOLIO:</strong> #<span id="t-folio">--</span></p>
-        </div>
-
-        <table style="width:100%; font-size:0.8rem; margin-bottom:10px;">
-          <tbody id="t-items">
-          </tbody>
-        </table>
-
-        <div style="border-top: 2px dashed #000; padding-top:10px; text-align:right;">
-          <h3 style="margin:0;">TOTAL: $<span id="t-total">0.00</span></h3>
-        </div>
-      </div>
-      
-      <footer class="no-print" style="padding: 10px; display: flex; gap: 10px;">
-        <button class="secondary outline" onclick="document.getElementById('modalTicket').close()" style="flex:1;">Cerrar</button>
-        <button onclick="window.print()" style="flex:1;">🖨️ Imprimir</button>
-      </footer>
+        <footer class="no-print" style="display: flex; gap: 10px; padding: 10px;">
+            <button onclick="window.print()" style="flex: 1; background: #10ad93; color: white; border: none; padding: 10px; border-radius: 5px; cursor: pointer;">🖨️ Imprimir</button>
+            <button onclick="document.getElementById('modalTicket').close()" style="flex: 1; background: #ccc; border: none; padding: 10px; border-radius: 5px; cursor: pointer;">Cerrar</button>
+        </footer>
     </article>
   </dialog>
   
