@@ -70,8 +70,8 @@ async function inicializar() {
 
     try {
         // 1. Cargar info del restaurante (QR y Banco) - Antes se perdía por la duplicidad
-        const { data: info } = await db.from("restaurantes")
-            .select("qr_pago_url, datos_bancarios")
+       const { data: info } = await db.from("restaurantes")
+            .select("nombre, direccion, telefono, mensaje_ticket, qr_pago_url, datos_bancarios")
             .eq("id", restoIdActivo)
             .single();
         if (info) datosRestaurante = info;
@@ -606,50 +606,148 @@ async function inicializar() {
       modal.close(); 
   };
 }
-  function generarTicket(total, metodo, mesa) {
+function generarTicket(total, metodo, mesa) {
     let modal = document.getElementById("modalTicketMenu") || document.createElement("dialog");
     modal.id = "modalTicketMenu";
-    modal.style = "padding:20px; border:none; border-radius:12px; box-shadow:0 10px 40px rgba(0,0,0,0.4);";
+    modal.style = "padding:0; border:none; border-radius:12px; box-shadow:0 10px 40px rgba(0,0,0,0.4); max-width:350px; width:90%;";
     if(!modal.parentElement) document.body.appendChild(modal);
 
+    const nombreRest = datosRestaurante.nombre || "Mi Restaurante";
+    const dirRest = datosRestaurante.direccion || "Dirección no configurada";
+    const telRest = datosRestaurante.telefono || "000-000-0000";
+    const msjRest = datosRestaurante.mensaje_ticket || "¡GRACIAS POR SU COMPRA!";
+    const fechaActual = new Date().toLocaleDateString() + ' ' + new Date().toLocaleTimeString();
+
+    // HTML de los items para impresión
     const itemsHtml = ordenActual.map(i => `
-      <div style="margin-bottom:5px;">
-        <div style="display:flex; justify-content:space-between;">
-            <span>${i.cantidad}x ${i.nombre.substring(0,18)}</span>
-            <span>$${(i.cantidad * i.precio).toFixed(2)}</span>
-        </div>
-        ${i.comentario ? `<div style="font-size:11px; color:#555; margin-left:10px; font-style:italic;">└ ${i.comentario}</div>` : ''}
-      </div>`).join("");
+      <tr>
+        <td style="padding: 3px 0; border-bottom: 1px dotted #ccc;">${i.cantidad}</td>
+        <td style="padding: 3px 0; border-bottom: 1px dotted #ccc;">
+            ${i.nombre.substring(0,18)}
+            ${i.comentario ? `<br><small style="color:#555; font-style:italic;">└ ${i.comentario}</small>` : ''}
+        </td>
+        <td style="padding: 3px 0; border-bottom: 1px dotted #ccc; text-align: right;">$${(i.cantidad * i.precio).toFixed(2)}</td>
+      </tr>`).join("");
 
     modal.innerHTML = `
-      <div id="areaImpresion" style="width:280px; font-family:'Courier New', monospace; font-size:13px; color:black; background:white; padding:10px;">
-        <div style="text-align:center; font-weight:bold; font-size:16px; margin-bottom:5px;">*** ORDEN LISTA ***</div>
-        <div style="text-align:center; margin-bottom:10px; border-bottom:1px dashed #000; padding-bottom:5px;">
-          ${new Date().toLocaleDateString()} ${new Date().toLocaleTimeString()}
+      <div id="areaImpresion" style="font-family: 'Courier New', monospace; color: black; background: white; padding: 20px; font-size: 13px;">
+        <!-- ENCABEZADO -->
+        <div style="text-align: center; margin-bottom: 10px;">
+            <h2 style="margin: 0; font-size: 18px; text-transform: uppercase;">${nombreRest}</h2>
+            <p style="font-size: 11px; margin: 2px 0;">${dirRest}</p>
+            <p style="font-size: 11px; margin: 2px 0;">Tel: ${telRest}</p>
         </div>
-        <div style="margin-bottom:10px;">
-          <b>MESA:</b> ${mesa.toUpperCase()}<br>
-          <b>PAGO:</b> ${metodo.toUpperCase()}
+
+        <div style="border-top: 1px dashed #000; margin: 10px 0;"></div>
+
+        <!-- DATOS DE ORDEN -->
+        <div style="font-size: 12px;">
+            <p style="margin: 2px 0;"><strong>MESA:</strong> ${mesa.toUpperCase()}</p>
+            <p style="margin: 2px 0;"><strong>FECHA:</strong> ${fechaActual}</p>
+            <p style="margin: 2px 0;"><strong>PAGO:</strong> ${metodo.toUpperCase()}</p>
         </div>
-        <div style="border-bottom:1px dashed #000; margin-bottom:5px;"></div>
-        ${itemsHtml}
-        <div style="border-bottom:1px dashed #000; margin-top:5px; margin-bottom:5px;"></div>
-        <div style="text-align:right; font-size:16px; font-weight:bold;">TOTAL: $${total.toFixed(2)}</div>
-        <div style="text-align:center; margin-top:15px; border-top:1px dashed #000; padding-top:10px;">
-          ¡GRACIAS POR SU COMPRA!
+
+        <div style="border-top: 1px dashed #000; margin: 10px 0;"></div>
+
+        <!-- PRODUCTOS -->
+        <table style="width: 100%; font-size: 12px; border-collapse: collapse;">
+            <thead>
+                <tr>
+                    <th style="text-align: left; padding-bottom: 5px;">CANT</th>
+                    <th style="text-align: left; padding-bottom: 5px;">DESC</th>
+                    <th style="text-align: right; padding-bottom: 5px;">TOTAL</th>
+                </tr>
+            </thead>
+            <tbody>
+                ${itemsHtml}
+            </tbody>
+        </table>
+
+        <div style="border-top: 1px dashed #000; margin: 10px 0;"></div>
+
+        <!-- TOTALES -->
+        <div style="text-align: right; font-size: 14px;">
+            <h3 style="margin: 5px 0; font-size: 18px;">TOTAL: $${total.toFixed(2)}</h3>
+        </div>
+
+        <div style="border-top: 1px dashed #000; margin: 10px 0;"></div>
+
+        <!-- PIE DE TICKET -->
+        <div style="text-align: center; font-size: 11px;">
+            <p style="margin: 5px 0; font-weight: bold;">${msjRest}</p>
+            <p style="margin: 2px 0;">*** ORDEN LISTA ***</p>
         </div>
       </div>
-      <div style="margin-top:20px; display:flex; gap:10px;">
-        <button id="btnPnt" style="flex:1; padding:12px; background:#333; color:white; border:none; border-radius:8px; font-weight:bold; cursor:pointer;">🖨️ IMPRIMIR</button>
-        <button onclick="document.getElementById('modalTicketMenu').close()" style="flex:1; padding:12px; background:white; border:1px solid #333; border-radius:8px; cursor:pointer;">CERRAR</button>
+      
+      <!-- BOTONES DE ACCIÓN -->
+      <div class="no-print" style="display: flex; gap: 8px; padding: 15px; background: #f9f9f9; border-top: 1px solid #ddd; border-radius: 0 0 12px 12px;">
+        <button id="btnPnt" style="flex: 1; padding: 10px; background: #333; color: white; border: none; border-radius: 6px; cursor: pointer;">🖨️ Imprimir</button>
+        <button id="btnWts" style="flex: 1; padding: 10px; background: #25D366; color: white; border: none; border-radius: 6px; cursor: pointer;">📱 WhatsApp</button>
+        <button onclick="document.getElementById('modalTicketMenu').close()" style="flex: 1; padding: 10px; background: #ccc; border: none; border-radius: 6px; cursor: pointer;">Cerrar</button>
       </div>`;
+    
     modal.showModal();
 
+    // LÓGICA DE IMPRESIÓN
     modal.querySelector("#btnPnt").onclick = () => {
       const win = window.open('', 'PRINT', 'height=600,width=400');
-      win.document.write(`<html><body onload="window.print();window.close()">${document.getElementById("areaImpresion").innerHTML}</body></html>`);
+      win.document.write(`<html><body onload="window.print();window.close()" style="margin:0;">${document.getElementById("areaImpresion").innerHTML}</body></html>`);
       win.document.close();
     };
+
+// LÓGICA DE WHATSAPP (GENERAR IMAGEN Y COMPARTIR)
+modal.querySelector("#btnWts").onclick = async () => {
+    const areaTicket = document.getElementById("areaImpresion");
+    const btnWts = modal.querySelector("#btnWts");
+    
+    // 1. Feedback visual
+    btnWts.disabled = true;
+    btnWts.textContent = "Generando...";
+
+    try {
+        // 2. Convertir el HTML del ticket en un Canvas (imagen)
+        // Usamos scale: 3 para que se vea en alta resolución (HD)
+        const canvas = await html2canvas(areaTicket, { 
+            scale: 3,
+            backgroundColor: "#ffffff"
+        });
+        
+        // 3. Convertir el Canvas a un archivo real (Blob)
+        canvas.toBlob(async (blob) => {
+            const file = new File([blob], `Ticket_${mesa}_${Date.now()}.png`, { type: "image/png" });
+
+            // 4. ¿El navegador soporta compartir archivos? (Celulares y tablets)
+            if (navigator.canShare && navigator.canShare({ files: [file] })) {
+                try {
+                    await navigator.share({
+                        files: [file],
+                        title: 'Ticket de Compra',
+                        text: `Ticket de consumo - ${nombreRest}`
+                    });
+                } catch (err) {
+                    console.log("Compartir cancelado o fallido", err);
+                }
+            } else {
+                // 5. Opción para PC / Navegadores viejos: Descargar la imagen
+                // Así el cajero solo la arrastra a WhatsApp Web
+                const link = document.createElement('a');
+                link.download = `Ticket_${mesa}.png`;
+                link.href = canvas.toDataURL("image/png");
+                link.click();
+                alert("La imagen del ticket se ha descargado. Puedes enviarla por WhatsApp Web.");
+            }
+            
+            btnWts.disabled = false;
+            btnWts.innerHTML = "📱 WhatsApp";
+        }, "image/png");
+
+    } catch (error) {
+        console.error("Error generando imagen:", error);
+        alert("No se pudo generar la imagen del ticket.");
+        btnWts.disabled = false;
+        btnWts.innerHTML = "📱 WhatsApp";
+    }
+};
   }
 
   inicializar();
