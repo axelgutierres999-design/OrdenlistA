@@ -559,6 +559,46 @@ function mostrarTicket(orden) {
         </tr>`)
       .join('');
 
+      // --- LÓGICA PARA ENVIAR POR WHATSAPP ---
+    const btnWhatsapp = document.getElementById('btnWhatsapp');
+    
+    // Quitamos eventos anteriores para evitar que se disparen múltiples veces si abres varios tickets
+    btnWhatsapp.onclick = null; 
+    
+    btnWhatsapp.onclick = () => {
+        // Pedimos el número al cajero
+        const telefonoCliente = prompt("Ingresa el número de WhatsApp del cliente (10 dígitos):");
+        
+        if (telefonoCliente && telefonoCliente.length >= 10) {
+            // Construimos el texto del ticket
+            let textoTicket = `🧾 *${configRestaurante.nombre || "MI RESTAURANTE"}*\n`;
+            textoTicket += `Ticket de consumo\n`;
+            textoTicket += `------------------------\n`;
+            textoTicket += `Mesa: ${orden.mesa} | Folio: #${orden.id}\n`;
+            textoTicket += `Fecha: ${new Date().toLocaleDateString()}\n\n`;
+            
+            // Agregamos los productos
+            listaProductos.forEach(p => {
+                textoTicket += `1x ${p.trim()}\n`;
+            });
+            
+            textoTicket += `------------------------\n`;
+            textoTicket += `*TOTAL: $${total.toFixed(2)}*\n\n`;
+            textoTicket += `${configRestaurante.mensaje_ticket || "¡Gracias por su compra!"}`;
+
+            // Codificamos el texto para la URL
+            const mensajeCodificado = encodeURIComponent(textoTicket);
+            
+            // Creamos el link (usamos 52 por default para México, puedes ajustarlo si es necesario)
+            const urlWhatsapp = `https://wa.me/52${telefonoCliente.replace(/\D/g,'')}?text=${mensajeCodificado}`;
+            
+            // Abrimos WhatsApp en una nueva pestaña
+            window.open(urlWhatsapp, '_blank');
+        } else if (telefonoCliente !== null) {
+            alert("Por favor, ingresa un número válido.");
+        }
+    };
+
     modal.showModal();
 }
 
