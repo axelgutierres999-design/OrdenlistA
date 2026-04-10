@@ -559,59 +559,45 @@ function mostrarTicket(orden) {
         </tr>`)
       .join('');
 
-      // LÓGICA DE WHATSAPP (GENERAR IMAGEN Y COMPARTIR)
-modal.querySelector("#btnWts").onclick = async () => {
-    const areaTicket = document.getElementById("areaImpresion");
-    const btnWts = modal.querySelector("#btnWts");
+// --- LÓGICA PARA ENVIAR POR WHATSAPP ---
+    const btnWhatsapp = document.getElementById('btnWhatsapp');
     
-    // 1. Feedback visual
-    btnWts.disabled = true;
-    btnWts.textContent = "Generando...";
-
-    try {
-        // 2. Convertir el HTML del ticket en un Canvas (imagen)
-        // Usamos scale: 3 para que se vea en alta resolución (HD)
-        const canvas = await html2canvas(areaTicket, { 
-            scale: 3,
-            backgroundColor: "#ffffff"
-        });
+    // Quitamos eventos anteriores para evitar que se disparen múltiples veces si abres varios tickets
+    btnWhatsapp.onclick = null; 
+    
+    btnWhatsapp.onclick = () => {
+        // Pedimos el número al cajero
+        const telefonoCliente = prompt("Ingresa el número de WhatsApp del cliente (10 dígitos):");
         
-        // 3. Convertir el Canvas a un archivo real (Blob)
-        canvas.toBlob(async (blob) => {
-            const file = new File([blob], `Ticket_${mesa}_${Date.now()}.png`, { type: "image/png" });
-
-            // 4. ¿El navegador soporta compartir archivos? (Celulares y tablets)
-            if (navigator.canShare && navigator.canShare({ files: [file] })) {
-                try {
-                    await navigator.share({
-                        files: [file],
-                        title: 'Ticket de Compra',
-                        text: `Ticket de consumo - ${nombreRest}`
-                    });
-                } catch (err) {
-                    console.log("Compartir cancelado o fallido", err);
-                }
-            } else {
-                // 5. Opción para PC / Navegadores viejos: Descargar la imagen
-                // Así el cajero solo la arrastra a WhatsApp Web
-                const link = document.createElement('a');
-                link.download = `Ticket_${mesa}.png`;
-                link.href = canvas.toDataURL("image/png");
-                link.click();
-                alert("La imagen del ticket se ha descargado. Puedes enviarla por WhatsApp Web.");
-            }
+        if (telefonoCliente && telefonoCliente.length >= 10) {
+            // Construimos el texto del ticket
+            let textoTicket = `🧾 *${configRestaurante.nombre || "MI RESTAURANTE"}*\n`;
+            textoTicket += `Ticket de consumo\n`;
+            textoTicket += `------------------------\n`;
+            textoTicket += `Mesa: ${orden.mesa} | Folio: #${orden.id}\n`;
+            textoTicket += `Fecha: ${new Date().toLocaleDateString()}\n\n`;
             
-            btnWts.disabled = false;
-            btnWts.innerHTML = "📱 WhatsApp";
-        }, "image/png");
+            // Agregamos los productos
+            listaProductos.forEach(p => {
+                textoTicket += `1x ${p.trim()}\n`;
+            });
+            
+            textoTicket += `------------------------\n`;
+            textoTicket += `*TOTAL: $${total.toFixed(2)}*\n\n`;
+            textoTicket += `${configRestaurante.mensaje_ticket || "¡Gracias por su compra!"}`;
 
-    } catch (error) {
-        console.error("Error generando imagen:", error);
-        alert("No se pudo generar la imagen del ticket.");
-        btnWts.disabled = false;
-        btnWts.innerHTML = "📱 WhatsApp";
-    }
-};
+            // Codificamos el texto para la URL
+            const mensajeCodificado = encodeURIComponent(textoTicket);
+            
+            // Creamos el link (usamos 52 por default para México, puedes ajustarlo si es necesario)
+            const urlWhatsapp = `https://wa.me/52${telefonoCliente.replace(/\D/g,'')}?text=${mensajeCodificado}`;
+            
+            // Abrimos WhatsApp en una nueva pestaña
+            window.open(urlWhatsapp, '_blank');
+        } else if (telefonoCliente !== null) {
+            alert("Por favor, ingresa un número válido.");
+        }
+    };
 
     modal.showModal();
 }
