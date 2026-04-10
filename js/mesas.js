@@ -516,27 +516,22 @@ async function renderizarMesas() {
   // =====================================================
   // 6️⃣ MOSTRAR TICKET (Resto del código igual)
   // =====================================================
-function mostrarTicket(orden) {
+async function mostrarTicket(orden) {
     const modal = document.getElementById('modalTicket');
     
-    // 1. DATOS DEL DUEÑO (Desde configRestaurante cargado de Supabase)
-    // Asumimos que las columnas en la tabla 'restaurantes' se llaman así:
+    // 1. LLENADO DE DATOS (Igual que antes)
     document.getElementById('t-nombre-rest').textContent = configRestaurante.nombre || "Mi Restaurante";
     document.getElementById('t-direccion').textContent = configRestaurante.direccion || "Dirección no registrada";
     document.getElementById('t-telefono').textContent = "Tel: " + (configRestaurante.telefono || "00000000");
-    
-    // Pie de ticket
     document.getElementById('t-mensaje-agradecimiento').textContent = configRestaurante.mensaje_ticket || "¡GRACIAS POR SU COMPRA!";
     document.getElementById('t-wifi').textContent = configRestaurante.wifi ? `WiFi: ${configRestaurante.wifi}` : "";
     document.getElementById('t-redes').textContent = configRestaurante.instagram ? `@${configRestaurante.instagram}` : "";
 
-    // 2. DATOS DE LA ORDEN
     document.getElementById('t-mesa').textContent = orden.mesa;
     document.getElementById('t-fecha').textContent = new Date().toLocaleString();
     document.getElementById('t-folio').textContent = orden.id;
     document.getElementById('t-metodo').textContent = (orden.metodo || 'Efectivo').toUpperCase();
 
-    // 3. CÁLCULO DE IMPUESTOS (IVA 16% sugerido)
     const total = parseFloat(orden.total);
     const subtotal = total / 1.16;
     const iva = total - subtotal;
@@ -545,57 +540,62 @@ function mostrarTicket(orden) {
     document.getElementById('t-iva').textContent = iva.toFixed(2);
     document.getElementById('t-total').textContent = total.toFixed(2);
 
-    // 4. LISTADO DE PRODUCTOS
-    // Si orden.productos es un string separado por comas, lo convertimos a array
     const listaProductos = Array.isArray(orden.productos) ? orden.productos : orden.productos.split(',');
-    
     const tbody = document.getElementById('t-items');
-    tbody.innerHTML = listaProductos
-      .map(p => `
+    tbody.innerHTML = listaProductos.map(p => `
         <tr>
             <td>1x</td>
             <td>${p.trim()}</td>
             <td style="text-align:right;">—</td>
-        </tr>`)
-      .join('');
+        </tr>`).join('');
 
-// --- LÓGICA PARA ENVIAR POR WHATSAPP ---
+    // 2. LÓGICA DE WHATSAPP (MODO PROFESIONAL: IMAGEN)
     const btnWhatsapp = document.getElementById('btnWhatsapp');
-    
-    // Quitamos eventos anteriores para evitar que se disparen múltiples veces si abres varios tickets
-    btnWhatsapp.onclick = null; 
-    
-    btnWhatsapp.onclick = () => {
-        // Pedimos el número al cajero
-        const telefonoCliente = prompt("Ingresa el número de WhatsApp del cliente (10 dígitos):");
+    btnWhatsapp.onclick = async () => {
+        const areaTicket = document.getElementById('areaImpresion');
         
-        if (telefonoCliente && telefonoCliente.length >= 10) {
-            // Construimos el texto del ticket
-            let textoTicket = `🧾 *${configRestaurante.nombre || "MI RESTAURANTE"}*\n`;
-            textoTicket += `Ticket de consumo\n`;
-            textoTicket += `------------------------\n`;
-            textoTicket += `Mesa: ${orden.mesa} | Folio: #${orden.id}\n`;
-            textoTicket += `Fecha: ${new Date().toLocaleDateString()}\n\n`;
-            
-            // Agregamos los productos
-            listaProductos.forEach(p => {
-                textoTicket += `1x ${p.trim()}\n`;
-            });
-            
-            textoTicket += `------------------------\n`;
-            textoTicket += `*TOTAL: $${total.toFixed(2)}*\n\n`;
-            textoTicket += `${configRestaurante.mensaje_ticket || "¡Gracias por su compra!"}`;
+        // Feedback visual mientras procesa
+        const originalText = btnWhatsapp.innerHTML;
+        btnWhatsapp.disabled = true;
+        btnWhatsapp.innerHTML = "⌛ Generando...";
 
-            // Codificamos el texto para la URL
-            const mensajeCodificado = encodeURIComponent(textoTicket);
-            
-            // Creamos el link (usamos 52 por default para México, puedes ajustarlo si es necesario)
-            const urlWhatsapp = `https://wa.me/52${telefonoCliente.replace(/\D/g,'')}?text=${mensajeCodificado}`;
-            
-            // Abrimos WhatsApp en una nueva pestaña
-            window.open(urlWhatsapp, '_blank');
-        } else if (telefonoCliente !== null) {
-            alert("Por favor, ingresa un número válido.");
+        try {
+            // "Tomamos la foto" del ticket en alta definición
+            const canvas = await html2canvas(areaTicket, {
+                scale: 3, // Calidad HD
+                backgroundColor: "#f9f9f9",
+                logging: false
+            });
+
+            // Convertimos a archivo de imagen real
+            canvas.toBlob(async (blob) => {
+                const file = new File([blob], `Ticket_Mesa_${orden.mesa}.png`, { type: "image/png" });
+
+                // Verificamos si es móvil/tablet para compartir directamente
+                if (navigator.canShare && navigator.canShare({ files: [file] })) {
+                    await navigator.share({
+                        files: [file],
+                        title: `Ticket Mesa ${orden.mesa}`,
+                        text: `Aquí tienes tu ticket de OrdenLista. ¡Gracias por tu visita!`
+                    });
+                } else {
+                    // Si es PC, descargamos la imagen para que el cajero la arrastre a WhatsApp Web
+                    const link = document.createElement('a');
+                    link.download = `Ticket_Mesa_${orden.mesa}.png`;
+                    link.href = canvas.toDataURL("image/png");
+                    link.click();
+                    alert("Se ha descargado el ticket en imagen. Puedes enviarlo por WhatsApp Web.");
+                }
+
+                btnWhatsapp.disabled = false;
+                btnWhatsapp.innerHTML = originalText;
+            }, "image/png");
+
+        } catch (error) {
+            console.error("Error al generar imagen:", error);
+            alert("Hubo un error al crear la imagen del ticket.");
+            btnWhatsapp.disabled = false;
+            btnWhatsapp.innerHTML = originalText;
         }
     };
 
