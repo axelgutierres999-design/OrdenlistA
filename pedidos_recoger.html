@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>OrdenLista | Gestión de Pedidos</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@picocss/pico@1/css/pico.min.css" />
+  <style>
+      .panel-gestion { padding: 2rem 0; }
+      .columna-kanban { background-color: #f4f7f6; padding: 1rem; border-radius: 8px; min-height: 70vh; border: 1px solid #e0e0e0; }
+      .tarjeta-orden { background-color: white; border-radius: 10px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); padding: 1rem; margin-bottom: 1rem; border-left: 5px solid #ccc; }
+      .btn-accion { width: 100%; padding: 8px; margin-top: 5px; border-radius: 6px; border: none; cursor: pointer; font-weight: bold; }
+      
+      /* Estados de tarjetas */
+      .pendiente { border-left-color: #f39c12; }
+      .esperando-pago { border-left-color: #3498db; }
+      .listo { border-left-color: #27ae60; }
+  </style>
+</head>
+<body>
+
+<nav class="container-fluid" style="padding: 1rem;">
+  <strong>☕ OrdenLista | Mostrador</strong>
+</nav>
+
+<main class="container panel-gestion">
+    <header>
+        <h1>🛍️ Gestión de Pedidos por Recoger</h1>
+        <p>Valida las órdenes y gestiona el tiempo límite de pago.</p>
+    </header>
+
+    <div class="grid">
+        <div>
+            <h3 style="color: #f39c12;">📥 Nuevas Solicitudes</h3>
+            <div class="columna-kanban" id="pedidosNuevos"></div>
+        </div>
+
+        <div>
+            <h3 style="color: #3498db;">⏱️ Esperando Pago</h3>
+            <div class="columna-kanban" id="pedidosEsperando"></div>
+        </div>
+
+        <div>
+            <h3 style="color: #27ae60;">✅ Pagados / Listos</h3>
+            <div class="columna-kanban" id="pedidosPagados"></div>
+        </div>
+    </div>
+</main>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="js/supabase-client.js"></script>
+<script>
+    // Lógica rápida para aceptar orden
+    async function aceptarOrden(id) {
+        const limite = new Date();
+        limite.setMinutes(limite.getMinutes() + 10); // 10 minutos para pagar
+
+        const { error } = await db.from('ordenes').update({
+            estado: 'por_pagar',
+            tiempo_aceptacion: new Date().toISOString(),
+            limite_pago: limite.toISOString()
+        }).eq('id', id);
+
+        if(!error) location.reload();
+    }
+
+    async function cancelarOrden(id) {
+        if(!confirm("¿Cancelar este pedido?")) return;
+        await db.from('ordenes').update({ estado: 'cancelada' }).eq('id', id);
+        location.reload();
+    }
+
+    // Aquí iría tu script que hace el fetch de las tablas y renderiza los divs
+    // Tip: Usa 'db.from("ordenes").on("INSERT", ...)' para que se actualice en tiempo real.
+</script>
+</body>
+</html>

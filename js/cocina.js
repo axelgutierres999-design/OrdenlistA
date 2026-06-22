@@ -3,11 +3,15 @@ document.addEventListener('DOMContentLoaded', () => {
     const pendientes = document.getElementById('tareasPendientes');
     const enProceso = document.getElementById('tareasEnProceso');
     const terminadas = document.getElementById('tareasTerminadas');
+    const pendiente_aceptacion = document.getElementById('tareaspendiente_aceptacion');
+    const por_pagar = document.getElementById('tareaspor_pagar');
 
     const estadosContainer = {
         'pendiente': pendientes,
         'preparando': enProceso,
-        'terminado': terminadas
+        'terminado': terminadas,
+        'pendiente_aceptacion': pendiente_aceptacion,
+        'por_paga': por_paga
     };
 
     function crearTarjetaOrden(orden) {
@@ -26,6 +30,25 @@ document.addEventListener('DOMContentLoaded', () => {
             colorBorde = '#10ad93'; 
             botonHTML = `<button data-id="${orden.id}" data-action="quitar" style="width:100%; background: #455a64; border:none; color:white;">🥡 Entregar / Archivar</button>`;
         }
+        if (orden.estado === 'pendiente_aceptacion') {
+        colorBorde = '#f39c12';
+        return `
+            <article class="tarjeta-orden" style="border-left: 8px solid ${colorBorde};">
+                <strong>🛍️ Nuevo Pedido: ${orden.cliente_nombre || 'Cliente'}</strong>
+                <p>Productos: ${orden.productos}</p>
+                <button class="btn-accion" style="background:#27ae60; color:white;" onclick="aceptarOrden('${orden.id}')">✅ Aceptar Pedido</button>
+                <button class="btn-accion" style="background:#c0392b; color:white;" onclick="cancelarOrden('${orden.id}')">❌ Cancelar</button>
+            </article>`;
+    }
+    if (orden.estado === 'por_pagar') {
+        colorBorde = '#3498db';
+        return `
+            <article class="tarjeta-orden" style="border-left: 8px solid ${colorBorde};">
+                <strong>⏱️ Esperando Pago: ${orden.cliente_nombre}</strong>
+                <p>Total: $${orden.total}</p>
+                <div id="timer-${orden.id}" style="font-weight:bold;">Pendiente de pago...</div>
+            </article>`;
+    }
 
         const itemsList = (orden.productos || '').split(',').filter(p => p.trim() !== "");
         const productosHTML = itemsList.map(item => `
@@ -148,3 +171,20 @@ document.addEventListener('DOMContentLoaded', () => {
 
     iniciarModuloCocina();
 });
+// Funciones para el flujo de recoger (se llaman desde el HTML o botones nuevos)
+window.aceptarOrden = async (id) => {
+    const limite = new Date();
+    limite.setMinutes(limite.getMinutes() + 10); 
+
+    await App.db.from('ordenes').update({
+        estado: 'por_pagar',
+        tiempo_aceptacion: new Date().toISOString(),
+        limite_pago: limite.toISOString()
+    }).eq('id', id);
+    // App.render() o lo que uses para actualizar tu lista
+};
+
+window.cancelarOrden = async (id) => {
+    if(!confirm("¿Cancelar este pedido?")) return;
+    await App.db.from('ordenes').update({ estado: 'cancelada' }).eq('id', id);
+};

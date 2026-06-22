@@ -306,86 +306,74 @@
     // ============================================
     document.getElementById("btnEnviarPedido").onclick = async () => {
       const btn = document.getElementById("btnEnviarPedido");
-      btn.disabled = true; btn.textContent = "Enviando...";
+      btn.disabled = true; btn.textContent = "Procesando orden...";
 
+      // 1. Obtener sesión del usuario actual
+      const { data: { user }, error: authError } = await db.auth.getUser();
+      
+      if (authError || !user) {
+          alert("🔒 Por favor, inicia sesión en la app para realizar tu pedido.");
+          window.location.href = 'login.html'; // Cambia esto si tu login se llama diferente
+          return;
+      }
+
+      // 2. Intentar sacar el nombre del perfil (o usar el correo como respaldo)
+      let nombreCliente = user.email.split('@')[0];
+      try {
+          const { data: perfil } = await db.from('perfiles_clientes').select('nombre').eq('id', user.id).single();
+          if (perfil && perfil.nombre) nombreCliente = perfil.nombre;
+      } catch(e) { console.log("Usando email como nombre"); }
+
+      // 3. Formatear los productos y el total
       const productosTexto = carrito.map(i => `${i.cantidad}x ${i.nombre}${i.comentario ? " ["+i.comentario+"]" : ""}`).join(", ");
       const total = carrito.reduce((a, b) => a + b.precio * b.cantidad, 0);
       const comentarioGeneral = document.getElementById("comentarioCliente").value;
 
+      // 4. Determinar si es "Para Recoger" o "Pedido en Mesa"
+      const esParaRecoger = (mesaParam === "Para Recoger");
+      const estadoPedido = esParaRecoger ? "por_pagar" : "por_confirmar";
+
       try {
+        // 5. Insertar en la tabla ordenes (incluyendo los nuevos campos SQL)
         const { error } = await db.from("ordenes").insert([{
-          restaurante_id: ridParam, mesa: mesaParam, productos: productosTexto,
-          total, comentarios: comentarioGeneral, estado: "por_confirmar"
+          restaurante_id: ridParam, 
+          mesa: mesaParam, 
+          productos: productosTexto,
+          total: total, 
+          comentarios: comentarioGeneral, 
+          estado: estadoPedido,
+          usuario_email: user.email,         // 🆕 Nuevo campo
+          cliente_nombre: nombreCliente      // 🆕 Nuevo campo
         }]);
+        
         if (error) throw error;
         
-        // --- ÉXITO: REEMPLAZAR PANTALLA ---
-        document.body.innerHTML = `
-            <div style="
-                min-height: 100vh;
-                display: flex;
-                flex-direction: column;
-                justify-content: center;
-                align-items: center;
-                padding: 20px;
-                text-align: center;
-                background: #f6f8f9;
-                font-family: 'Inter', sans-serif;
-            ">
-                <div style="
-                    background: white; 
-                    padding: 40px 30px; 
-                    border-radius: 20px; 
-                    box-shadow: 0 10px 25px rgba(0,0,0,0.1); 
-                    max-width: 400px; 
-                    width: 100%;
-                ">
-                    <div style="background:#dcfce7; color:#166534; width:80px; height:80px; border-radius:50%; display:flex; align-items:center; justify-content:center; margin:0 auto 20px auto; font-size:40px;">
-                        <i class="fa-solid fa-check"></i>
+        // 6. REDIRECCIÓN INTELIGENTE
+        if (esParaRecoger) {
+            // Si es para recoger, lo mandamos a su perfil para que vea cómo pagar
+            window.location.href = 'perfil.html';
+        } else {
+            // Si es en mesa, le mostramos la pantalla verde de éxito estática
+            document.body.innerHTML = `
+                <div style="min-height: 100vh; display: flex; flex-direction: column; justify-content: center; align-items: center; padding: 20px; text-align: center; background: #f6f8f9; font-family: 'Inter', sans-serif;">
+                    <div style="background: white; padding: 40px 30px; border-radius: 20px; box-shadow: 0 10px 25px rgba(0,0,0,0.1); max-width: 400px; width: 100%;">
+                        <div style="background:#dcfce7; color:#166534; width:80px; height:80px; border-radius:50%; display:flex; align-items:center; justify-content:center; margin:0 auto 20px auto; font-size:40px;">
+                            <i class="fa-solid fa-check"></i>
+                        </div>
+                        <h2 style="color: #333; margin: 0 0 10px 0; font-size: 1.8rem;">¡Pedido Enviado a Cocina!</h2>
+                        <p style="color: #666; margin-bottom: 20px;">En breve llevaremos tu orden a la ${mesaParam}.</p>
+                        <a href="index.html" style="text-decoration: none;">
+                            <button style="background: #10ad93; color: white; border: none; padding: 16px 20px; border-radius: 12px; font-weight: bold; width: 100%; cursor: pointer;">Volver al inicio</button>
+                        </a>
                     </div>
-                    
-                    <h2 style="color: #333; margin: 0 0 10px 0; font-size: 1.8rem;">¡Pedido Enviado!</h2>
-                    <p style="color: #666; margin-bottom: 20px;">Estamos preparando tus alimentos.</p>
-                    
-                    <hr style="border: 0; border-top: 1px solid #eee; margin: 20px 0;">
-                    
-                    <p style="font-weight: 600; font-size: 1.1rem; color: #10ad93; margin-bottom: 20px; line-height: 1.5;">
-                        Agréganos a tus favoritos para seguir disfrutando de la experiencia
-                    </p>
-                    
-                    <a href="https://aplicacionordenlista.vercel.app/" target="_blank" style="text-decoration: none;">
-                        <button style="
-                            background: linear-gradient(135deg, #10ad93 0%, #0d9488 100%); 
-                            color: white; 
-                            border: none; 
-                            padding: 16px 20px; 
-                            border-radius: 12px; 
-                            font-size: 1rem; 
-                            font-weight: bold; 
-                            cursor: pointer;
-                            display: flex; 
-                            align-items: center; 
-                            justify-content: center; 
-                            gap: 10px;
-                            width: 100%;
-                            box-shadow: 0 4px 12px rgba(16, 173, 147, 0.3);
-                            transition: transform 0.2s;
-                        " onmouseover="this.style.transform='scale(1.02)'" onmouseout="this.style.transform='scale(1)'">
-                            <i class="fa-solid fa-star"></i> Ir a OrdenLista
-                        </button>
-                    </a>
                 </div>
-                
-                <p style="margin-top: 30px; color: #999; font-size: 0.9rem;">
-                    Ya puedes cerrar esta pestaña si lo deseas.
-                </p>
-            </div>
-        `;
+            `;
+        }
 
       } catch (err) { 
-          alert("Error: " + err.message); 
+          alert("Error de conexión: " + err.message); 
           btn.disabled = false; 
-          btn.textContent = "Reintentar"; 
+          btn.textContent = "Reintentar envío"; 
       }
     };
 
