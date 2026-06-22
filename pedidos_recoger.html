@@ -3,75 +3,370 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>OrdenLista | Gestión de Pedidos</title>
+  <title>OrdenLista | Monitor de Órdenes</title>
+  
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@picocss/pico@1/css/pico.min.css" />
+  
   <style>
-      .panel-gestion { padding: 2rem 0; }
-      .columna-kanban { background-color: #f4f7f6; padding: 1rem; border-radius: 8px; min-height: 70vh; border: 1px solid #e0e0e0; }
-      .tarjeta-orden { background-color: white; border-radius: 10px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); padding: 1rem; margin-bottom: 1rem; border-left: 5px solid #ccc; }
-      .btn-accion { width: 100%; padding: 8px; margin-top: 5px; border-radius: 6px; border: none; cursor: pointer; font-weight: bold; }
-      
-      /* Estados de tarjetas */
-      .pendiente { border-left-color: #f39c12; }
-      .esperando-pago { border-left-color: #3498db; }
-      .listo { border-left-color: #27ae60; }
+    body { background-color: #f4f7f6; font-family: system-ui, -apple-system, sans-serif; }
+    
+    /* Estilos de la tabla */
+    .tabla-ordenes { margin-top: 1rem; font-size: 0.95rem; background: white; border-radius: 8px; overflow: hidden; width: 100%; border-collapse: collapse; }
+    .tabla-ordenes th { background: #f8f9fa; color: #333; padding: 12px; text-align: left; }
+    .tabla-ordenes td { vertical-align: middle; padding: 12px; border-bottom: 1px solid #eee; }
+    
+    /* Badges de Estado */
+    .badge-estado { padding: 6px 12px; border-radius: 20px; font-weight: bold; font-size: 0.75rem; text-transform: uppercase; display: inline-block; text-align: center; }
+    .state-por_pagar { background-color: #3498db; color: white; }
+    .state-pendiente { background-color: #e53935; color: white; }
+    .state-preparando { background-color: #ffb300; color: white; }
+    .state-terminado { background-color: #10ad93; color: white; }
+    .state-entregado { background-color: #7f8c8d; color: white; }
+    .state-cancelado { background-color: #d32f2f; color: white; }
+
+    /* Filas según estado para organización visual */
+    .fila-por_pagar { background-color: #f0f7fc !important; }
+    .fila-urgente { background-color: #fff5f5 !important; }
+    .fila-proceso { background-color: #fffdf0 !important; }
+    .fila-terminado { background-color: #f0fff4 !important; }
+
+    .tiempo-cronometro { font-family: monospace; font-weight: bold; font-size: 1rem; color: #333; }
+    .tiempo-alerta { color: #d32f2f; animation: blink 1s infinite; }
+
+    @keyframes blink { 0% { opacity: 1; } 50% { opacity: 0.4; } 100% { opacity: 1; } }
+
+    /* Botones de acción rápidos dentro de la tabla */
+    .btn-tabla { padding: 6px 12px; font-size: 0.85rem; border-radius: 6px; border: none; cursor: pointer; font-weight: bold; margin-right: 5px; }
+    .btn-principal { background-color: #10ad93; color: white; }
+    .btn-secundario { background-color: #1a1a1a; color: white; }
+    .btn-peligro { background-color: #e53935; color: white; }
+
+    /* Modal Ticket Estilo Térmico */
+    #modalTicket article { max-width: 380px; font-family: 'Courier New', Courier, monospace; color: #000; background: #fff; padding: 20px; border-radius: 4px; }
+    
+    @media print {
+      body * { visibility: hidden; }
+      #modalTicket, #modalTicket * { visibility: visible; }
+      #modalTicket { position: fixed; left: 0; top: 0; width: 100%; margin: 0; padding: 0; box-shadow: none; }
+      .no-print { display: none !important; }
+    }
+
+    /* Navegación limpia */
+    .nav-inicio { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; padding: 1rem 2rem; position: sticky; top: 0; z-index: 1000; background: white; border-bottom: 1px solid #e0e6e4; }
+    .brand-group { display: flex; align-items: center; gap: 10px; }
+    .brand-group a { text-decoration: none; font-size: 1.3rem; color: #10ad93; font-weight: bold; }
+
+    @media (max-width: 768px) {
+        .hide-mobile { display: none; }
+        .tabla-ordenes-wrapper { display: block; overflow-x: auto; }
+    }
   </style>
 </head>
 <body>
 
-<nav class="container-fluid" style="padding: 1rem;">
-  <strong>☕ OrdenLista | Mostrador</strong>
-</nav>
+  <audio id="audioNotificacion" src="https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3" preload="auto"></audio>
 
-<main class="container panel-gestion">
-    <header>
-        <h1>🛍️ Gestión de Pedidos por Recoger</h1>
-        <p>Valida las órdenes y gestiona el tiempo límite de pago.</p>
+  <nav class="nav-inicio">
+    <div class="brand-group">
+      <a href="index.html">☕ OrdenLista</a>
+      <span class="hide-mobile" style="color: #888;">| Monitor de Despacho</span>
+    </div>
+    <div>
+       <span id="indicadorRealtime" class="badge-estado" style="background:#27ae60; color:white;">● Tiempo Real Activo</span>
+    </div>
+  </nav>
+
+  <main class="container-fluid" style="padding: 20px;">
+    
+    <header style="margin-bottom: 2rem;">
+        <div class="grid">
+            <div>
+                <h1 style="margin-bottom: 0;">Panel de Control</h1>
+                <p style="color: #666;">Seguimiento y flujo de órdenes en cocina y entrega</p>
+            </div>
+            
+            <div style="display:flex; gap:10px; align-items:flex-end; justify-content:flex-end; flex-wrap: wrap;">
+                <div>
+                    <small>Filtrar por Estado:</small>
+                    <select id="filtroEstado" style="margin-bottom: 0;" onchange="filtrarYRenderizar()">
+                        <option value="todos">👁️ Ver Todos</option>
+                        <option value="por_pagar">🔔 Por Pagar (Cuenta regresiva)</option>
+                        <option value="pendiente" selected>🔥 Pendientes (Cocina)</option>
+                        <option value="preparando">👨‍🍳 En Preparación</option>
+                        <option value="terminado">🛎️ Listos para Entrega</option>
+                        <option value="entregado">✅ Entregados</option>
+                        <option value="cancelado">❌ Cancelados</option>
+                    </select>
+                </div>
+                <div>
+                    <small>Buscar Cliente / Mesa:</small>
+                    <input type="search" id="inputBusqueda" placeholder="Escribe para buscar..." style="margin-bottom: 0;" oninput="filtrarYRenderizar()" />
+                </div>
+            </div>
+        </div>
     </header>
 
-    <div class="grid">
-        <div>
-            <h3 style="color: #f39c12;">📥 Nuevas Solicitudes</h3>
-            <div class="columna-kanban" id="pedidosNuevos"></div>
-        </div>
-
-        <div>
-            <h3 style="color: #3498db;">⏱️ Esperando Pago</h3>
-            <div class="columna-kanban" id="pedidosEsperando"></div>
-        </div>
-
-        <div>
-            <h3 style="color: #27ae60;">✅ Pagados / Listos</h3>
-            <div class="columna-kanban" id="pedidosPagados"></div>
-        </div>
+    <div class="card" style="padding: 0; border: none; box-shadow: 0 4px 15px rgba(0,0,0,0.05); overflow: hidden;">
+      <div class="tabla-ordenes-wrapper">
+        <table role="grid" class="tabla-ordenes" style="margin: 0;">
+          <thead>
+            <tr>
+              <th style="width: 70px;">ID</th>
+              <th>Mesa / Cliente</th>
+              <th>Productos</th>
+              <th>Total</th>
+              <th>Estado</th>
+              <th>Tiempo / Límite</th>
+              <th style="text-align: center; width: 280px;">Acciones</th>
+            </tr>
+          </thead>
+          <tbody id="tablaBodyOrdenes">
+             <tr><td colspan="7" style="text-align:center; padding: 4rem;">Conectando con Supabase...</td></tr>
+          </tbody>
+        </table>
+      </div>
     </div>
-</main>
+  </main>
 
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script src="js/supabase-client.js"></script>
-<script>
-    // Lógica rápida para aceptar orden
-    async function aceptarOrden(id) {
-        const limite = new Date();
-        limite.setMinutes(limite.getMinutes() + 10); // 10 minutos para pagar
+  <dialog id="modalTicket">
+    <article>
+      <header style="text-align: center; border-bottom: 1px dashed #000; padding-bottom: 10px; margin-bottom: 10px;">
+        <h3 style="margin: 0; font-size: 1.4rem;">ORDENLISTA</h3>
+        <p style="margin: 0;">Comanda de Servicio</p>
+        <p style="margin: 5px 0 0 0; font-weight: bold; font-size: 1.1rem;">Pedido: #<span id="t-folio"></span></p>
+        <small id="t-fecha"></small>
+      </header>
+      
+      <div style="margin-bottom: 10px;">
+        <strong>Cliente:</strong> <span id="t-cliente"></span><br>
+        <strong>Entrega:</strong> <span id="t-mesa"></span>
+      </div>
 
-        const { error } = await db.from('ordenes').update({
-            estado: 'por_pagar',
-            tiempo_aceptacion: new Date().toISOString(),
-            limite_pago: limite.toISOString()
-        }).eq('id', id);
+      <table style="width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 0.9rem;">
+        <thead>
+          <tr style="border-bottom: 1px dashed #000;">
+            <th style="padding: 4px 0;">Cant. x Producto</th>
+          </tr>
+        </thead>
+        <tbody id="t-items"></tbody>
+      </table>
 
-        if(!error) location.reload();
+      <footer style="margin-top: 15px; border-top: 1px dashed #000; padding-top: 10px;">
+        <div style="display: flex; justify-content: space-between; font-weight: bold; font-size: 1.1rem; margin-bottom: 15px;">
+            <span>TOTAL:</span>
+            <span>$<span id="t-total"></span></span>
+        </div>
+        
+        <div class="grid no-print" style="gap: 10px; margin: 0;">
+          <button onclick="window.print()" class="btn-tabla btn-principal" style="width: 100%; padding: 10px;">🖨️ Imprimir</button>
+          <button onclick="document.getElementById('modalTicket').close()" class="btn-tabla btn-secundario" style="width: 100%; padding: 10px;">Cerrar</button>
+        </div>
+      </footer>
+    </article>
+  </dialog>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  
+  <script>
+    // Inicialización directa de credenciales
+    const SUPABASE_URL = "https://cpveuexgxwxjejurtwro.supabase.co";
+    const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNwdmV1ZXhneHd4amVqdXJ0d3JvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjY2MTYxMzAsImV4cCI6MjA4MjE5MjEzMH0.I4FeC3dmtOXNqLWA-tRgxAb7JCe13HysOkqMGkXaUUc";
+    const db = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+    let todasLasOrdenes = [];
+
+    // Carga inicial de datos
+    async function cargarOrdenes() {
+        try {
+            const { data, error } = await db
+                .from('ordenes')
+                .select('*')
+                .order('created_at', { ascending: false });
+
+            if (error) throw error;
+            todasLasOrdenes = data || [];
+            filtrarYRenderizar();
+        } catch (err) {
+            console.error("Error cargando órdenes:", err);
+            document.getElementById("tablaBodyOrdenes").innerHTML = `<tr><td colspan="7" style="text-align:center; color:red;">Error de conexión: ${err.message}</td></tr>`;
+        }
+    }
+
+    // Filtrado local y generación de HTML
+    function filtrarYRenderizar() {
+        const filtro = document.getElementById("filtroEstado").value;
+        const busqueda = document.getElementById("inputBusqueda").value.toLowerCase();
+        const tbody = document.getElementById("tablaBodyOrdenes");
+        
+        tbody.innerHTML = "";
+
+        const ordenesFiltradas = todasLasOrdenes.filter(o => {
+            const cumpleEstado = (filtro === "todos") || (o.estado === filtro);
+            const cliente = (o.cliente_nombre || "").toLowerCase();
+            const mesa = (o.mesa || "").toLowerCase();
+            const cumpleBusqueda = cliente.includes(busqueda) || mesa.includes(busqueda);
+            return cumpleEstado && cumpleBusqueda;
+        });
+
+        if (ordenesFiltradas.length === 0) {
+            tbody.innerHTML = `<tr><td colspan="7" style="text-align:center; padding: 3rem; color:#888;">No hay órdenes que coincidan con los criterios.</td></tr>`;
+            return;
+        }
+
+        ordenesFiltradas.forEach(o => {
+            const tr = document.createElement("tr");
+            
+            // Asignar clase de fondo según estado e importancia
+            if (o.estado === 'por_pagar') tr.className = "fila-por_pagar";
+            else if (o.estado === 'pendiente') tr.className = "fila-urgente";
+            else if (o.estado === 'preparando') tr.className = "fila-proceso";
+            else if (o.estado === 'terminado') tr.className = "fila-terminado";
+
+            // Configurar columna de tiempos dinamicos o estaticos
+            let celdaTiempo = "";
+            if (o.estado === 'por_pagar' && o.limite_pago) {
+                celdaTiempo = `<span class="tiempo-cronometro tiempo-alerta" data-limite="${o.limite_pago}" data-id="${o.id}">Calculando...</span>`;
+            } else {
+                const hora = new Date(o.created_at).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+                celdaTiempo = `<span>${hora}</span>`;
+            }
+
+            // Generador de flujo de botones segun maquinas de estado relacionales
+            let botonesAccion = "";
+            if (o.estado === 'por_pagar') {
+                botonesAccion += `<button class="btn-tabla btn-principal" onclick="cambiarEstado('${o.id}', 'pendiente')">💵 Confirmar Pago</button>`;
+            } else if (o.estado === 'pendiente') {
+                botonesAccion += `<button class="btn-tabla btn-principal" onclick="cambiarEstado('${o.id}', 'preparando')">👨‍🍳 A Cocina</button>`;
+            } else if (o.estado === 'preparando') {
+                botonesAccion += `<button class="btn-tabla btn-principal" onclick="cambiarEstado('${o.id}', 'terminado')">🛎️ Terminar</button>`;
+            } else if (o.estado === 'terminado') {
+                botonesAccion += `<button class="btn-tabla btn-principal" onclick="cambiarEstado('${o.id}', 'entregado')">📦 Entregar</button>`;
+            }
+
+            // Botones universales (Ticket / Cancelar)
+            botonesAccion += `<button class="btn-tabla btn-secundario" onclick="verTicket('${o.id}')">📋 Ticket</button>`;
+            if (o.estado !== 'entregado' && o.estado !== 'cancelado') {
+                botonesAccion += `<button class="btn-tabla btn-peligro" onclick="cancelarOrden('${o.id}')">❌</button>`;
+            }
+
+            tr.innerHTML = `
+                <td><strong>#${o.id}</strong></td>
+                <td>
+                    <strong>${o.cliente_nombre || 'Sin nombre'}</strong><br>
+                    <small style="color:#777;">${o.usuario_email || ''}</small><br>
+                    <span style="font-size:0.8rem; background:#eee; padding:2px 6px; border-radius:4px;">${o.mesa}</span>
+                </td>
+                <td style="max-width: 300px; font-size:0.9rem;">${o.productos}</td>
+                <td><strong>$${parseFloat(o.total).toFixed(2)}</strong></td>
+                <td><span class="badge-estado state-${o.estado}">${o.estado.replace('_', ' ')}</span></td>
+                <td>${celdaTiempo}</td>
+                <td style="text-align: center;">${botonesAccion}</td>
+            `;
+            tbody.appendChild(tr);
+        });
+    }
+
+    // Cambios de estado en la base de datos
+    async function cambiarEstado(id, nuevoEstado) {
+        const updates = { estado: nuevoEstado };
+        
+        // Si pasa a cocina (pendiente), guardamos tiempos de control
+        if (nuevoEstado === 'pendiente') {
+            updates.tiempo_aceptacion = new Date().toISOString();
+        }
+
+        const { error } = await db.from('ordenes').update(updates).eq('id', id);
+        if (error) alert("Error al cambiar estado: " + error.message);
+        // Nota: No necesitas recargar manualmente, el canal Realtime actualizará la UI solo.
     }
 
     async function cancelarOrden(id) {
-        if(!confirm("¿Cancelar este pedido?")) return;
-        await db.from('ordenes').update({ estado: 'cancelada' }).eq('id', id);
-        location.reload();
+        if (!confirm("¿Seguro que deseas cancelar esta orden permanentemente?")) return;
+        const { error } = await db.from('ordenes').update({ estado: 'cancelado' }).eq('id', id);
+        if (error) alert("Error al cancelar: " + error.message);
     }
 
-    // Aquí iría tu script que hace el fetch de las tablas y renderiza los divs
-    // Tip: Usa 'db.from("ordenes").on("INSERT", ...)' para que se actualice en tiempo real.
-</script>
+    // Modal de comanda térmica
+    function verTicket(id) {
+        const o = todasLasOrdenes.find(item => item.id == id);
+        if (!o) return;
+
+        document.getElementById("t-folio").textContent = o.id;
+        document.getElementById("t-fecha").textContent = new Date(o.created_at).toLocaleString();
+        document.getElementById("t-cliente").textContent = o.cliente_nombre || 'General';
+        document.getElementById("t-mesa").textContent = o.mesa;
+        document.getElementById("t-total").textContent = parseFloat(o.total).toFixed(2);
+
+        const itemsBody = document.getElementById("t-items");
+        itemsBody.innerHTML = "";
+        
+        // Separar la cadena estructurada de texto (Ej: "2x Pizza, 1x CocaCola")
+        const arrProductos = o.productos.split(",");
+        arrProductos.forEach(p => {
+            const row = document.createElement("tr");
+            row.innerHTML = `<td style="padding: 4px 0;">${p.trim()}</td>`;
+            itemsBody.appendChild(row);
+        });
+
+        document.getElementById("modalTicket").showModal();
+    }
+
+    // Loop de reloj para manejar el tiempo de expiración (Conteo regresivo de 10 min)
+    setInterval(() => {
+        document.querySelectorAll(".tiempo-cronometro").forEach(el => {
+            const limite = new Date(el.getAttribute("data-limite")).getTime();
+            const ahora = new Date().getTime();
+            const distancia = limite - ahora;
+
+            if (distancia < 0) {
+                el.textContent = "¡Tiempo Expirado!";
+                el.style.color = "#d32f2f";
+                // Opcional: auto-cancelar en base de datos si expira el tiempo límite de pago
+            } else {
+                const minutos = Math.floor((distancia % (1000 * 60 * 60)) / (1000 * 60));
+                const segundos = Math.floor((distancia % (1000 * 60)) / 1000);
+                el.textContent = `${minutos.toString().padStart(2, '0')}:${segundos.toString().padStart(2, '0')} min`;
+            }
+        });
+    }, 1000);
+
+    // Reproducción de alerta sonora limpia
+    function reproducirAlerta() {
+        const audio = document.getElementById("audioNotificacion");
+        if (audio) {
+            audio.play().catch(e => console.log("Interacción de usuario requerida para reproducir audio."));
+        }
+    }
+
+    // CONFIGURACIÓN DEL CANAL SUPABASE REALTIME V2
+    function conectarRealtime() {
+        db.channel('monitor_ordenes')
+          .on('postgres_changes', { event: '*', schema: 'public', table: 'ordenes' }, payload => {
+              console.log("Cambio en tiempo real detectado:", payload);
+              
+              // Si entra un nuevo registro, detona el sonido de alerta
+              if (payload.eventType === "INSERT") {
+                  reproducirAlerta();
+              }
+              
+              // Refresca la memoria local de datos y redibuja la pantalla de manera transparente
+              cargarOrdenes();
+          })
+          .subscribe((status) => {
+              const indicador = document.getElementById("indicadorRealtime");
+              if (status === "SUBSCRIBED") {
+                  indicador.textContent = "● Tiempo Real Activo";
+                  indicador.style.background = "#27ae60";
+              } else {
+                  indicador.textContent = "○ Desconectado";
+                  indicador.style.background = "#e53935";
+              }
+          });
+    }
+
+    // Encendido de motores
+    cargarOrdenes();
+    conectarRealtime();
+  </script>
 </body>
 </html>

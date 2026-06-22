@@ -1,372 +1,448 @@
 <!DOCTYPE html>
-<html lang="es">
-<head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>OrdenLista | Monitor de Órdenes</title>
-  
-  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@picocss/pico@1/css/pico.min.css" />
-  
-  <style>
-    body { background-color: #f4f7f6; font-family: system-ui, -apple-system, sans-serif; }
-    
-    /* Estilos de la tabla */
-    .tabla-ordenes { margin-top: 1rem; font-size: 0.95rem; background: white; border-radius: 8px; overflow: hidden; width: 100%; border-collapse: collapse; }
-    .tabla-ordenes th { background: #f8f9fa; color: #333; padding: 12px; text-align: left; }
-    .tabla-ordenes td { vertical-align: middle; padding: 12px; border-bottom: 1px solid #eee; }
-    
-    /* Badges de Estado */
-    .badge-estado { padding: 6px 12px; border-radius: 20px; font-weight: bold; font-size: 0.75rem; text-transform: uppercase; display: inline-block; text-align: center; }
-    .state-por_pagar { background-color: #3498db; color: white; }
-    .state-pendiente { background-color: #e53935; color: white; }
-    .state-preparando { background-color: #ffb300; color: white; }
-    .state-terminado { background-color: #10ad93; color: white; }
-    .state-entregado { background-color: #7f8c8d; color: white; }
-    .state-cancelado { background-color: #d32f2f; color: white; }
 
-    /* Filas según estado para organización visual */
-    .fila-por_pagar { background-color: #f0f7fc !important; }
+<html lang="es">
+
+<head>
+
+  <meta charset="UTF-8" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <title>OrdenLista | Monitor de Órdenes</title>
+
+ 
+
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@picocss/pico@1/css/pico.min.css" />
+
+  <link rel="stylesheet" href="css/app.css" />
+
+ 
+
+  <style>
+
+    /* Estilos de la tabla */
+
+    .tabla-ordenes { margin-top: 1rem; font-size: 0.95rem; background: white; border-radius: 8px; overflow: hidden; }
+
+    .tabla-ordenes th { background: #f8f9fa; color: #333; }
+
+    .tabla-ordenes td { vertical-align: middle; padding: 12px; }
+
+   
+
+    /* Estados actualizados según lógica JS */
+
+    .badge-estado { padding: 4px 10px; border-radius: 20px; font-weight: bold; font-size: 0.7rem; text-transform: uppercase; display: inline-block; }
+
+    .state-pendiente { background-color: #e53935; color: white; }
+
+    .state-preparando, .state-proceso { background-color: #ffb300; color: white; }
+
+    .state-terminado { background-color: #10ad93; color: white; }
+
+    .state-pagado { background-color: #2ecc71; color: white; border: 2px solid #27ae60; }
+
+    .state-por_confirmar { background-color: #f39c12; color: white; animation: blink 1s infinite; }
+
+
+
+    @keyframes blink { 0% { opacity: 1; } 50% { opacity: 0.6; } 100% { opacity: 1; } }
+
+
+
+    /* Filas con colores suaves según urgencia */
+
     .fila-urgente { background-color: #fff5f5 !important; }
+
     .fila-proceso { background-color: #fffdf0 !important; }
+
     .fila-terminado { background-color: #f0fff4 !important; }
 
-    .tiempo-cronometro { font-family: monospace; font-weight: bold; font-size: 1rem; color: #333; }
-    .tiempo-alerta { color: #d32f2f; animation: blink 1s infinite; }
 
-    @keyframes blink { 0% { opacity: 1; } 50% { opacity: 0.4; } 100% { opacity: 1; } }
 
-    /* Botones de acción rápidos dentro de la tabla */
-    .btn-tabla { padding: 6px 12px; font-size: 0.85rem; border-radius: 6px; border: none; cursor: pointer; font-weight: bold; margin-right: 5px; }
-    .btn-principal { background-color: #10ad93; color: white; }
-    .btn-secundario { background-color: #1a1a1a; color: white; }
-    .btn-peligro { background-color: #e53935; color: white; }
+    /* Reloj de tiempo */
+
+    .tiempo-transcurrido { font-family: monospace; font-weight: bold; font-size: 1.1rem; }
+
+
 
     /* Modal Ticket Estilo Térmico */
-    #modalTicket article { max-width: 380px; font-family: 'Courier New', Courier, monospace; color: #000; background: #fff; padding: 20px; border-radius: 4px; }
-    
+
+    #modalTicket article { max-width: 380px; font-family: 'Courier New', Courier, monospace; color: #000; }
+
+   
+
     @media print {
+
       body * { visibility: hidden; }
+
       #modalTicket, #modalTicket * { visibility: visible; }
+
       #modalTicket { position: fixed; left: 0; top: 0; width: 100%; margin: 0; padding: 0; box-shadow: none; }
+
       .no-print { display: none !important; }
+
     }
 
-    /* Navegación limpia */
-    .nav-inicio { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; padding: 1rem 2rem; position: sticky; top: 0; z-index: 1000; background: white; border-bottom: 1px solid #e0e6e4; }
-    .brand-group { display: flex; align-items: center; gap: 10px; }
-    .brand-group a { text-decoration: none; font-size: 1.3rem; color: #10ad93; font-weight: bold; }
+    /* --- NAVEGACIÓN UNIFICADA --- */
+
+    .nav-inicio {
+
+        display: flex;
+
+        flex-wrap: wrap;
+
+        align-items: center;
+
+        justify-content: space-between;
+
+        padding: 0.5rem 1rem;
+
+        position: sticky;
+
+        top: 0;
+
+        z-index: 1000;
+
+        background: white !important;
+
+        border-bottom: 1px solid #e0e6e4;
+
+    }
+
+
+
+    .brand-group {
+
+        display: flex;
+
+        align-items: center;
+
+        gap: 10px;
+
+    }
+
+
+
+    .hamburger {
+
+        display: none;
+
+        background: none;
+
+        border: none;
+
+        font-size: 1.5rem;
+
+        color: #333;
+
+        cursor: pointer;
+
+        padding: 0;
+
+    }
+
+
+
+    #menuNavegacion {
+
+        display: flex;
+
+        list-style: none;
+
+        margin: 0;
+
+        padding: 0;
+
+        gap: 1rem;
+
+    }
+
+
+
+    .btn-ajustes-manual {
+
+        border: 1px solid #10ad93 !important;
+
+        color: #10ad93 !important;
+
+        padding: 5px 12px !important;
+
+        font-size: 0.85rem !important;
+
+        border-radius: 8px;
+
+        text-decoration: none;
+
+    }
+
+
+
+    /* REGLAS MÓVILES */
 
     @media (max-width: 768px) {
+
+        .hamburger { display: block; }
+
         .hide-mobile { display: none; }
-        .tabla-ordenes-wrapper { display: block; overflow-x: auto; }
+
+        #menuNavegacion {
+
+            display: none;
+
+            width: 100%;
+
+            flex-direction: column;
+
+            order: 3;
+
+            border-top: 1px solid #eee;
+
+            padding: 10px 0;
+
+            margin-top: 10px;
+
+        }
+
+        #menuNavegacion.show { display: flex; }
+
+        #menuNavegacion li { width: 100%; text-align: center; }
+
+       
+
+        /* Ajuste para que la tabla no rompa el layout en móvil */
+
+        .tabla-ordenes { display: block; overflow-x: auto; }
+
     }
+
   </style>
+
 </head>
-<body>
+
+<body style="background-color: #f4f7f6;">
+
+
 
   <audio id="audioNotificacion" src="https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3" preload="auto"></audio>
 
-  <nav class="nav-inicio">
-    <div class="brand-group">
-      <a href="index.html">☕ OrdenLista</a>
-      <span class="hide-mobile" style="color: #888;">| Monitor de Despacho</span>
-    </div>
-    <div>
-       <span id="indicadorRealtime" class="badge-estado" style="background:#27ae60; color:white;">● Tiempo Real Activo</span>
-    </div>
-  </nav>
+
+
+ <nav class="nav-inicio">
+
+  <div class="brand-group">
+
+    <a href="index.html" style="text-decoration: none;">
+
+      <strong style="font-size: 1.3rem; color: #10ad93;">☕ OrdenLista</strong>
+
+    </a>
+
+    <span class="hide-mobile" style="color: #888;">| Monitor de Despacho</span>
+
+  </div>
+
+
+
+  <div style="display: flex; align-items: center; gap: 10px;">
+
+    <a href="ajustes.html" role="button" class="btn-ajustes-manual">
+
+      ⚙️ <span class="hide-mobile">Ajustes</span>
+
+    </a>
+
+    <button class="hamburger" onclick="toggleNav()">☰</button>
+
+  </div>
+
+
+
+  <ul id="menuNavegacion" class="nav-botones"></ul>
+
+</nav>
+
+
 
   <main class="container-fluid" style="padding: 20px;">
-    
+
+   
+
     <header style="margin-bottom: 2rem;">
+
         <div class="grid">
+
             <div>
+
                 <h1 style="margin-bottom: 0;">Panel de Control</h1>
-                <p style="color: #666;">Seguimiento y flujo de órdenes en cocina y entrega</p>
+
+                <p style="color: #666;">Seguimiento en tiempo real de la operación</p>
+
             </div>
-            
-            <div style="display:flex; gap:10px; align-items:flex-end; justify-content:flex-end; flex-wrap: wrap;">
+
+           
+
+            <div style="display:flex; gap:10px; align-items:flex-end; justify-content:flex-end;">
+
                 <div>
-                    <small>Filtrar por Estado:</small>
-                    <select id="filtroEstado" style="margin-bottom: 0;" onchange="filtrarYRenderizar()">
-                        <option value="todos">👁️ Ver Todos</option>
-                        <option value="por_pagar">🔔 Por Pagar (Cuenta regresiva)</option>
-                        <option value="pendiente" selected>🔥 Pendientes (Cocina)</option>
-                        <option value="preparando">👨‍🍳 En Preparación</option>
-                        <option value="terminado">🛎️ Listos para Entrega</option>
-                        <option value="entregado">✅ Entregados</option>
-                        <option value="cancelado">❌ Cancelados</option>
+
+                    <small>Filtrar Estado:</small>
+
+                    <select id="filtroEstado" style="margin-bottom: 0;">
+
+                        <option value="todos">👁️ Todas las órdenes</option>
+
+                        <option value="por_confirmar">🔔 Por Confirmar</option>
+
+                        <option value="pendiente" selected>🔥 Pendientes</option>
+
+                        <option value="preparando">👨‍🍳 En Cocina</option>
+
+                        <option value="terminado">🛎️ Listas para Entrega</option>
+
                     </select>
+
                 </div>
+
                 <div>
-                    <small>Buscar Cliente / Mesa:</small>
-                    <input type="search" id="inputBusqueda" placeholder="Escribe para buscar..." style="margin-bottom: 0;" oninput="filtrarYRenderizar()" />
+
+                    <small>Buscar:</small>
+
+                    <input type="search" id="inputBusqueda" placeholder="Mesa..." style="margin-bottom: 0;" />
+
                 </div>
+
             </div>
+
         </div>
+
     </header>
 
-    <div class="card" style="padding: 0; border: none; box-shadow: 0 4px 15px rgba(0,0,0,0.05); overflow: hidden;">
-      <div class="tabla-ordenes-wrapper">
+
+
+    <div class="card" style="padding: 0; border: none; box-shadow: 0 4px 15px rgba(0,0,0,0.05);">
+
+      <figure style="margin: 0;">
+
         <table role="grid" class="tabla-ordenes" style="margin: 0;">
+
           <thead>
+
             <tr>
-              <th style="width: 70px;">ID</th>
+
+              <th style="width: 80px;">ID</th>
+
               <th>Mesa / Cliente</th>
+
               <th>Productos</th>
+
               <th>Total</th>
+
               <th>Estado</th>
-              <th>Tiempo / Límite</th>
-              <th style="text-align: center; width: 280px;">Acciones</th>
+
+              <th>Tiempo</th>
+
+              <th class="text-center">Acción</th>
+
             </tr>
+
           </thead>
+
           <tbody id="tablaBodyOrdenes">
-             <tr><td colspan="7" style="text-align:center; padding: 4rem;">Conectando con Supabase...</td></tr>
+
+             <tr><td colspan="7" style="text-align:center; padding: 4rem;">Cargando sistema de órdenes...</td></tr>
+
           </tbody>
+
         </table>
-      </div>
+
+      </figure>
+
     </div>
+
   </main>
 
-  <dialog id="modalTicket">
-    <article>
-      <header style="text-align: center; border-bottom: 1px dashed #000; padding-bottom: 10px; margin-bottom: 10px;">
-        <h3 style="margin: 0; font-size: 1.4rem;">ORDENLISTA</h3>
-        <p style="margin: 0;">Comanda de Servicio</p>
-        <p style="margin: 5px 0 0 0; font-weight: bold; font-size: 1.1rem;">Pedido: #<span id="t-folio"></span></p>
-        <small id="t-fecha"></small>
-      </header>
-      
-      <div style="margin-bottom: 10px;">
-        <strong>Cliente:</strong> <span id="t-cliente"></span><br>
-        <strong>Entrega:</strong> <span id="t-mesa"></span>
-      </div>
 
-      <table style="width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 0.9rem;">
-        <thead>
-          <tr style="border-bottom: 1px dashed #000;">
-            <th style="padding: 4px 0;">Cant. x Producto</th>
-          </tr>
-        </thead>
-        <tbody id="t-items"></tbody>
+
+  <dialog id="modalTicket">
+
+    <article style="background: white; border-radius: 0;">
+
+      <header style="text-align: center; border-bottom: 1px dashed #000; padding: 0 0 10px 0;">
+
+        <h3 style="margin: 0;">COMANDA</h3>
+
+        <p style="margin: 0;">#<span id="t-folio"></span></p>
+
+        <p style="margin: 0; font-weight: bold; font-size: 1.2rem;" id="t-mesa"></p>
+
+        <small id="t-fecha"></small>
+
+      </header>
+
+     
+
+      <table style="width: 100%; border-collapse: collapse; margin-top: 10px;">
+
+        <tbody id="t-items">
+
+          </tbody>
+
       </table>
 
+
+
       <footer style="margin-top: 15px; border-top: 1px dashed #000; padding-top: 10px;">
-        <div style="display: flex; justify-content: space-between; font-weight: bold; font-size: 1.1rem; margin-bottom: 15px;">
+
+        <div style="display: flex; justify-content: space-between; font-weight: bold; font-size: 1.1rem;">
+
             <span>TOTAL:</span>
+
             <span>$<span id="t-total"></span></span>
+
         </div>
-        
-        <div class="grid no-print" style="gap: 10px; margin: 0;">
-          <button onclick="window.print()" class="btn-tabla btn-principal" style="width: 100%; padding: 10px;">🖨️ Imprimir</button>
-          <button onclick="document.getElementById('modalTicket').close()" class="btn-tabla btn-secundario" style="width: 100%; padding: 10px;">Cerrar</button>
+
+       
+
+        <div class="grid no-print" style="margin-top: 20px; gap: 10px;">
+
+          <button onclick="window.print()" class="primary">🖨️ Imprimir</button>
+
+          <button onclick="document.getElementById('modalTicket').close()" class="secondary outline">Cerrar</button>
+
         </div>
+
       </footer>
+
     </article>
+
   </dialog>
 
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  
+
+
   <script>
-    // Inicialización directa de credenciales
-    const SUPABASE_URL = "https://cpveuexgxwxjejurtwro.supabase.co";
-    const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNwdmV1ZXhneHd4amVqdXJ0d3JvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjY2MTYxMzAsImV4cCI6MjA4MjE5MjEzMH0.I4FeC3dmtOXNqLWA-tRgxAb7JCe13HysOkqMGkXaUUc";
-    const db = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
-    let todasLasOrdenes = [];
+  function toggleNav() {
 
-    // Carga inicial de datos
-    async function cargarOrdenes() {
-        try {
-            const { data, error } = await db
-                .from('ordenes')
-                .select('*')
-                .order('created_at', { ascending: false });
+      const menu = document.getElementById('menuNavegacion');
 
-            if (error) throw error;
-            todasLasOrdenes = data || [];
-            filtrarYRenderizar();
-        } catch (err) {
-            console.error("Error cargando órdenes:", err);
-            document.getElementById("tablaBodyOrdenes").innerHTML = `<tr><td colspan="7" style="text-align:center; color:red;">Error de conexión: ${err.message}</td></tr>`;
-        }
-    }
+      menu.classList.toggle('show');
 
-    // Filtrado local y generación de HTML
-    function filtrarYRenderizar() {
-        const filtro = document.getElementById("filtroEstado").value;
-        const busqueda = document.getElementById("inputBusqueda").value.toLowerCase();
-        const tbody = document.getElementById("tablaBodyOrdenes");
-        
-        tbody.innerHTML = "";
+  }
 
-        const ordenesFiltradas = todasLasOrdenes.filter(o => {
-            const cumpleEstado = (filtro === "todos") || (o.estado === filtro);
-            const cliente = (o.cliente_nombre || "").toLowerCase();
-            const mesa = (o.mesa || "").toLowerCase();
-            const cumpleBusqueda = cliente.includes(busqueda) || mesa.includes(busqueda);
-            return cumpleEstado && cumpleBusqueda;
-        });
+</script>
 
-        if (ordenesFiltradas.length === 0) {
-            tbody.innerHTML = `<tr><td colspan="7" style="text-align:center; padding: 3rem; color:#888;">No hay órdenes que coincidan con los criterios.</td></tr>`;
-            return;
-        }
 
-        ordenesFiltradas.forEach(o => {
-            const tr = document.createElement("tr");
-            
-            // Asignar clase de fondo según estado e importancia
-            if (o.estado === 'por_pagar') tr.className = "fila-por_pagar";
-            else if (o.estado === 'pendiente') tr.className = "fila-urgente";
-            else if (o.estado === 'preparando') tr.className = "fila-proceso";
-            else if (o.estado === 'terminado') tr.className = "fila-terminado";
 
-            // Configurar columna de tiempos dinamicos o estaticos
-            let celdaTiempo = "";
-            if (o.estado === 'por_pagar' && o.limite_pago) {
-                celdaTiempo = `<span class="tiempo-cronometro tiempo-alerta" data-limite="${o.limite_pago}" data-id="${o.id}">Calculando...</span>`;
-            } else {
-                const hora = new Date(o.created_at).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
-                celdaTiempo = `<span>${hora}</span>`;
-            }
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
-            // Generador de flujo de botones segun maquinas de estado relacionales
-            let botonesAccion = "";
-            if (o.estado === 'por_pagar') {
-                botonesAccion += `<button class="btn-tabla btn-principal" onclick="cambiarEstado('${o.id}', 'pendiente')">💵 Confirmar Pago</button>`;
-            } else if (o.estado === 'pendiente') {
-                botonesAccion += `<button class="btn-tabla btn-principal" onclick="cambiarEstado('${o.id}', 'preparando')">👨‍🍳 A Cocina</button>`;
-            } else if (o.estado === 'preparando') {
-                botonesAccion += `<button class="btn-tabla btn-principal" onclick="cambiarEstado('${o.id}', 'terminado')">🛎️ Terminar</button>`;
-            } else if (o.estado === 'terminado') {
-                botonesAccion += `<button class="btn-tabla btn-principal" onclick="cambiarEstado('${o.id}', 'entregado')">📦 Entregar</button>`;
-            }
+  <script src="js/supabase-client.js"></script>
 
-            // Botones universales (Ticket / Cancelar)
-            botonesAccion += `<button class="btn-tabla btn-secundario" onclick="verTicket('${o.id}')">📋 Ticket</button>`;
-            if (o.estado !== 'entregado' && o.estado !== 'cancelado') {
-                botonesAccion += `<button class="btn-tabla btn-peligro" onclick="cancelarOrden('${o.id}')">❌</button>`;
-            }
+  <script src="js/app.js"></script>
 
-            tr.innerHTML = `
-                <td><strong>#${o.id}</strong></td>
-                <td>
-                    <strong>${o.cliente_nombre || 'Sin nombre'}</strong><br>
-                    <small style="color:#777;">${o.usuario_email || ''}</small><br>
-                    <span style="font-size:0.8rem; background:#eee; padding:2px 6px; border-radius:4px;">${o.mesa}</span>
-                </td>
-                <td style="max-width: 300px; font-size:0.9rem;">${o.productos}</td>
-                <td><strong>$${parseFloat(o.total).toFixed(2)}</strong></td>
-                <td><span class="badge-estado state-${o.estado}">${o.estado.replace('_', ' ')}</span></td>
-                <td>${celdaTiempo}</td>
-                <td style="text-align: center;">${botonesAccion}</td>
-            `;
-            tbody.appendChild(tr);
-        });
-    }
+  <script src="js/ordenes.js"></script>
 
-    // Cambios de estado en la base de datos
-    async function cambiarEstado(id, nuevoEstado) {
-        const updates = { estado: nuevoEstado };
-        
-        // Si pasa a cocina (pendiente), guardamos tiempos de control
-        if (nuevoEstado === 'pendiente') {
-            updates.tiempo_aceptacion = new Date().toISOString();
-        }
-
-        const { error } = await db.from('ordenes').update(updates).eq('id', id);
-        if (error) alert("Error al cambiar estado: " + error.message);
-        // Nota: No necesitas recargar manualmente, el canal Realtime actualizará la UI solo.
-    }
-
-    async function cancelarOrden(id) {
-        if (!confirm("¿Seguro que deseas cancelar esta orden permanentemente?")) return;
-        const { error } = await db.from('ordenes').update({ estado: 'cancelado' }).eq('id', id);
-        if (error) alert("Error al cancelar: " + error.message);
-    }
-
-    // Modal de comanda térmica
-    function verTicket(id) {
-        const o = todasLasOrdenes.find(item => item.id == id);
-        if (!o) return;
-
-        document.getElementById("t-folio").textContent = o.id;
-        document.getElementById("t-fecha").textContent = new Date(o.created_at).toLocaleString();
-        document.getElementById("t-cliente").textContent = o.cliente_nombre || 'General';
-        document.getElementById("t-mesa").textContent = o.mesa;
-        document.getElementById("t-total").textContent = parseFloat(o.total).toFixed(2);
-
-        const itemsBody = document.getElementById("t-items");
-        itemsBody.innerHTML = "";
-        
-        // Separar la cadena estructurada de texto (Ej: "2x Pizza, 1x CocaCola")
-        const arrProductos = o.productos.split(",");
-        arrProductos.forEach(p => {
-            const row = document.createElement("tr");
-            row.innerHTML = `<td style="padding: 4px 0;">${p.trim()}</td>`;
-            itemsBody.appendChild(row);
-        });
-
-        document.getElementById("modalTicket").showModal();
-    }
-
-    // Loop de reloj para manejar el tiempo de expiración (Conteo regresivo de 10 min)
-    setInterval(() => {
-        document.querySelectorAll(".tiempo-cronometro").forEach(el => {
-            const limite = new Date(el.getAttribute("data-limite")).getTime();
-            const ahora = new Date().getTime();
-            const distancia = limite - ahora;
-
-            if (distancia < 0) {
-                el.textContent = "¡Tiempo Expirado!";
-                el.style.color = "#d32f2f";
-                // Opcional: auto-cancelar en base de datos si expira el tiempo límite de pago
-            } else {
-                const minutos = Math.floor((distancia % (1000 * 60 * 60)) / (1000 * 60));
-                const segundos = Math.floor((distancia % (1000 * 60)) / 1000);
-                el.textContent = `${minutos.toString().padStart(2, '0')}:${segundos.toString().padStart(2, '0')} min`;
-            }
-        });
-    }, 1000);
-
-    // Reproducción de alerta sonora limpia
-    function reproducirAlerta() {
-        const audio = document.getElementById("audioNotificacion");
-        if (audio) {
-            audio.play().catch(e => console.log("Interacción de usuario requerida para reproducir audio."));
-        }
-    }
-
-    // CONFIGURACIÓN DEL CANAL SUPABASE REALTIME V2
-    function conectarRealtime() {
-        db.channel('monitor_ordenes')
-          .on('postgres_changes', { event: '*', schema: 'public', table: 'ordenes' }, payload => {
-              console.log("Cambio en tiempo real detectado:", payload);
-              
-              // Si entra un nuevo registro, detona el sonido de alerta
-              if (payload.eventType === "INSERT") {
-                  reproducirAlerta();
-              }
-              
-              // Refresca la memoria local de datos y redibuja la pantalla de manera transparente
-              cargarOrdenes();
-          })
-          .subscribe((status) => {
-              const indicador = document.getElementById("indicadorRealtime");
-              if (status === "SUBSCRIBED") {
-                  indicador.textContent = "● Tiempo Real Activo";
-                  indicador.style.background = "#27ae60";
-              } else {
-                  indicador.textContent = "○ Desconectado";
-                  indicador.style.background = "#e53935";
-              }
-          });
-    }
-
-    // Encendido de motores
-    cargarOrdenes();
-    conectarRealtime();
-  </script>
 </body>
-</html>
+
+</html> 
+
