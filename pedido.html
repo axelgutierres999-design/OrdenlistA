@@ -178,7 +178,8 @@
   <script src="js/supabase-client.js"></script>
   <script>
     const params = new URLSearchParams(window.location.search);
-    const mesaParam = params.get("mesa") || "Mesa Sin Número";
+   // decodeURIComponent asegura que "Para%20Recoger" se lea como "Para Recoger"
+const mesaParam = decodeURIComponent(params.get("mesa") || "Mesa Sin Número");
     const ridParam = params.get("rid");
 
     document.getElementById("nombreMesa").textContent = "📍 " + mesaParam;
