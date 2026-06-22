@@ -8,41 +8,83 @@
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@picocss/pico@1/css/pico.min.css" />
   
   <style>
-    body { background-color: #f4f7f6; font-family: system-ui, -apple-system, sans-serif; }
+    /* VARIABLES DE COLOR Y ESTILO */
+    :root {
+        --color-primario: #10ad93;
+        --color-secundario: #1a1a1a;
+        --color-fondo: #f4f7f6;
+        --sombra-suave: 0 4px 15px rgba(0, 0, 0, 0.05);
+        --sombra-hover: 0 8px 25px rgba(0, 0, 0, 0.1);
+        --borde-redondeado: 12px;
+    }
+
+    body { background-color: var(--color-fondo); font-family: 'Inter', system-ui, -apple-system, sans-serif; }
     
-    /* Estilos de la tabla */
-    .tabla-ordenes { margin-top: 1rem; font-size: 0.95rem; background: white; border-radius: 8px; overflow: hidden; width: 100%; border-collapse: collapse; }
-    .tabla-ordenes th { background: #f8f9fa; color: #333; padding: 12px; text-align: left; }
-    .tabla-ordenes td { vertical-align: middle; padding: 12px; border-bottom: 1px solid #eee; }
+    /* --- NAVEGACIÓN UNIFICADA Y MODERNA --- */
+    .nav-inicio {
+        display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; 
+        padding: 0.8rem 2rem; position: sticky; top: 0; z-index: 1000; 
+        background: white !important; box-shadow: 0 2px 10px rgba(0,0,0,0.03); border-bottom: 1px solid #e0e6e4;
+    }
+    .brand-group { display: flex; align-items: center; gap: 10px; }
+    .brand-group a { text-decoration: none; font-size: 1.4rem; color: var(--color-primario); font-weight: 800; letter-spacing: -0.5px; }
     
-    /* Badges de Estado */
-    .badge-estado { padding: 6px 12px; border-radius: 20px; font-weight: bold; font-size: 0.75rem; text-transform: uppercase; display: inline-block; text-align: center; }
-    .state-por_pagar { background-color: #3498db; color: white; }
-    .state-pendiente { background-color: #e53935; color: white; }
-    .state-preparando { background-color: #ffb300; color: white; }
-    .state-terminado { background-color: #10ad93; color: white; }
-    .state-entregado { background-color: #7f8c8d; color: white; }
-    .state-cancelado { background-color: #d32f2f; color: white; }
+    .btn-ajustes-manual { 
+        border: 2px solid var(--color-primario) !important; color: var(--color-primario) !important; 
+        padding: 6px 16px !important; font-size: 0.9rem !important; border-radius: 8px; 
+        text-decoration: none; font-weight: bold; transition: all 0.2s ease; background: transparent;
+    }
+    .btn-ajustes-manual:hover { background: var(--color-primario) !important; color: white !important; }
+    
+    .hamburger { display: none; background: none; border: none; font-size: 1.8rem; color: #333; cursor: pointer; padding: 0; }
+    #menuNavegacion { display: flex; list-style: none; margin: 0; padding: 0; gap: 1rem; align-items: center; }
 
-    /* Filas según estado para organización visual */
-    .fila-por_pagar { background-color: #f0f7fc !important; }
-    .fila-urgente { background-color: #fff5f5 !important; }
-    .fila-proceso { background-color: #fffdf0 !important; }
-    .fila-terminado { background-color: #f0fff4 !important; }
+    /* --- CONTENEDORES Y TABLA --- */
+    .panel-control-header { background: white; padding: 20px; border-radius: var(--borde-redondeado); box-shadow: var(--sombra-suave); margin-bottom: 20px; }
+    
+    .tabla-ordenes-wrapper { background: white; border-radius: var(--borde-redondeado); box-shadow: var(--sombra-suave); overflow: hidden; }
+    .tabla-ordenes { margin: 0; font-size: 0.95rem; width: 100%; border-collapse: collapse; }
+    .tabla-ordenes th { background: #f8f9fa; color: #4a5568; padding: 16px; text-align: left; font-weight: 700; text-transform: uppercase; font-size: 0.8rem; letter-spacing: 0.5px; border-bottom: 2px solid #edf2f7; }
+    .tabla-ordenes td { vertical-align: middle; padding: 16px; border-bottom: 1px solid #edf2f7; color: #2d3748; }
+    .tabla-ordenes tr:hover { background-color: #f7fafc !important; }
+    
+    /* --- BADGES DE ESTADO --- */
+    .badge-estado { padding: 6px 14px; border-radius: 20px; font-weight: bold; font-size: 0.75rem; text-transform: uppercase; display: inline-block; text-align: center; letter-spacing: 0.5px; }
+    .state-por_pagar { background-color: #ebf8ff; color: #3182ce; border: 1px solid #90cdf4; }
+    .state-pendiente { background-color: #fff5f5; color: #e53935; border: 1px solid #feb2b2; }
+    .state-preparando { background-color: #fffff0; color: #d69e2e; border: 1px solid #f6e05e; }
+    .state-terminado { background-color: #e6fffa; color: #319795; border: 1px solid #81e6d9; }
+    .state-entregado { background-color: #f7fafc; color: #718096; border: 1px solid #e2e8f0; }
+    .state-cancelado { background-color: #fff5f5; color: #c53030; border: 1px dashed #fc8181; }
 
-    .tiempo-cronometro { font-family: monospace; font-weight: bold; font-size: 1rem; color: #333; }
-    .tiempo-alerta { color: #d32f2f; animation: blink 1s infinite; }
+    /* --- FILAS CON COLORES SUAVES --- */
+    .fila-por_pagar { border-left: 4px solid #3182ce; }
+    .fila-urgente { border-left: 4px solid #e53935; background-color: #fffafa !important; }
+    .fila-proceso { border-left: 4px solid #d69e2e; }
+    .fila-terminado { border-left: 4px solid #319795; background-color: #f0fff4 !important; }
 
-    @keyframes blink { 0% { opacity: 1; } 50% { opacity: 0.4; } 100% { opacity: 1; } }
+    /* --- CRONÓMETRO Y ANIMACIONES --- */
+    .tiempo-cronometro { font-family: 'Courier New', monospace; font-weight: 800; font-size: 1.1rem; color: #2d3748; background: #edf2f7; padding: 4px 8px; border-radius: 6px; }
+    .tiempo-alerta { color: white; background: #e53935; animation: pulse 1.5s infinite; }
 
-    /* Botones de acción rápidos dentro de la tabla */
-    .btn-tabla { padding: 6px 12px; font-size: 0.85rem; border-radius: 6px; border: none; cursor: pointer; font-weight: bold; margin-right: 5px; }
-    .btn-principal { background-color: #10ad93; color: white; }
-    .btn-secundario { background-color: #1a1a1a; color: white; }
-    .btn-peligro { background-color: #e53935; color: white; }
+    @keyframes pulse { 0% { transform: scale(1); opacity: 1; } 50% { transform: scale(1.05); opacity: 0.8; } 100% { transform: scale(1); opacity: 1; } }
 
-    /* Modal Ticket Estilo Térmico */
-    #modalTicket article { max-width: 380px; font-family: 'Courier New', Courier, monospace; color: #000; background: #fff; padding: 20px; border-radius: 4px; }
+    /* --- BOTONES DE ACCIÓN EN TABLA --- */
+    .btn-tabla { padding: 8px 14px; font-size: 0.85rem; border-radius: 8px; border: none; cursor: pointer; font-weight: bold; margin-right: 6px; transition: all 0.2s; }
+    .btn-tabla:hover { transform: translateY(-2px); box-shadow: 0 4px 8px rgba(0,0,0,0.1); }
+    .btn-tabla:active { transform: translateY(0); }
+    .btn-principal { background-color: var(--color-primario); color: white; }
+    .btn-secundario { background-color: #e2e8f0; color: #4a5568; }
+    .btn-secundario:hover { background-color: #cbd5e0; color: #2d3748; }
+    .btn-peligro { background-color: transparent; color: #e53935; border: 1px solid #e53935; padding: 8px 10px; }
+    .btn-peligro:hover { background-color: #e53935; color: white; }
+
+    /* --- INPUTS Y SELECTS DE FILTRO --- */
+    select, input[type="search"] { border: 1px solid #e2e8f0; border-radius: 8px; padding: 10px; background: #f7fafc; transition: border 0.2s; box-shadow: none; margin-bottom: 0 !important; }
+    select:focus, input[type="search"]:focus { border-color: var(--color-primario); background: white; outline: none; }
+
+    /* --- MODAL TICKET --- */
+    #modalTicket article { max-width: 380px; font-family: 'Courier New', Courier, monospace; color: #000; background: #fff; padding: 25px; border-radius: 8px; box-shadow: 0 10px 30px rgba(0,0,0,0.2); }
     
     @media print {
       body * { visibility: hidden; }
@@ -51,14 +93,16 @@
       .no-print { display: none !important; }
     }
 
-    /* Navegación limpia */
-    .nav-inicio { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; padding: 1rem 2rem; position: sticky; top: 0; z-index: 1000; background: white; border-bottom: 1px solid #e0e6e4; }
-    .brand-group { display: flex; align-items: center; gap: 10px; }
-    .brand-group a { text-decoration: none; font-size: 1.3rem; color: #10ad93; font-weight: bold; }
-
+    /* --- RESPONSIVE MOBILE --- */
     @media (max-width: 768px) {
+        .hamburger { display: block; }
         .hide-mobile { display: none; }
-        .tabla-ordenes-wrapper { display: block; overflow-x: auto; }
+        .nav-inicio { padding: 0.8rem 1rem; }
+        #menuNavegacion { display: none; width: 100%; flex-direction: column; order: 3; border-top: 1px solid #eee; padding: 15px 0; margin-top: 10px; }
+        #menuNavegacion.show { display: flex; }
+        #menuNavegacion li { width: 100%; text-align: center; }
+        .tabla-ordenes-wrapper { display: block; overflow-x: auto; border-radius: 0; }
+        .btn-tabla { padding: 10px; width: 100%; margin-bottom: 8px; }
     }
   </style>
 </head>
@@ -69,97 +113,100 @@
   <nav class="nav-inicio">
     <div class="brand-group">
       <a href="index.html">☕ OrdenLista</a>
-      <span class="hide-mobile" style="color: #888;">| Monitor de Despacho</span>
+      <span class="hide-mobile" style="color: #a0aec0; font-weight: 500;">| Monitor de Despacho</span>
     </div>
-    <div>
-       <span id="indicadorRealtime" class="badge-estado" style="background:#27ae60; color:white;">● Tiempo Real Activo</span>
+
+    <div style="display: flex; align-items: center; gap: 15px;">
+      <span id="indicadorRealtime" class="badge-estado hide-mobile" style="background:#e6fffa; color:#319795; border: 1px solid #81e6d9;">● Tiempo Real Activo</span>
+      <a href="ajustes.html" role="button" class="btn-ajustes-manual">⚙️ <span class="hide-mobile">Ajustes</span></a>
+      <button class="hamburger" onclick="toggleNav()">☰</button>
     </div>
+
+    <ul id="menuNavegacion">
+        <li class="hamburger"><span id="indicadorRealtimeMobile" class="badge-estado" style="background:#e6fffa; color:#319795;">● Tiempo Real</span></li>
+    </ul>
   </nav>
 
   <main class="container-fluid" style="padding: 20px;">
     
-    <header style="margin-bottom: 2rem;">
-        <div class="grid">
+    <header class="panel-control-header grid">
+        <div>
+            <h1 style="margin-bottom: 5px; font-size: 1.8rem; color: #2d3748;">Panel de Control</h1>
+            <p style="color: #718096; margin-bottom: 0;">Gestiona el flujo de órdenes y pagos en tiempo real.</p>
+        </div>
+        
+        <div style="display:flex; gap:15px; align-items:flex-end; justify-content:flex-end; flex-wrap: wrap;">
             <div>
-                <h1 style="margin-bottom: 0;">Panel de Control</h1>
-                <p style="color: #666;">Seguimiento y flujo de órdenes en cocina y entrega</p>
+                <small style="color: #718096; font-weight: 600;">Filtrar por Estado:</small>
+                <select id="filtroEstado" onchange="filtrarYRenderizar()">
+                    <option value="todos">👁️ Ver Todos</option>
+                    <option value="por_pagar">🔔 Por Pagar (Cuenta regresiva)</option>
+                    <option value="pendiente" selected>🔥 Pendientes (Cocina)</option>
+                    <option value="preparando">👨‍🍳 En Preparación</option>
+                    <option value="terminado">🛎️ Listos para Entrega</option>
+                    <option value="entregado">✅ Entregados</option>
+                    <option value="cancelado">❌ Cancelados</option>
+                </select>
             </div>
-            
-            <div style="display:flex; gap:10px; align-items:flex-end; justify-content:flex-end; flex-wrap: wrap;">
-                <div>
-                    <small>Filtrar por Estado:</small>
-                    <select id="filtroEstado" style="margin-bottom: 0;" onchange="filtrarYRenderizar()">
-                        <option value="todos">👁️ Ver Todos</option>
-                        <option value="por_pagar">🔔 Por Pagar (Cuenta regresiva)</option>
-                        <option value="pendiente" selected>🔥 Pendientes (Cocina)</option>
-                        <option value="preparando">👨‍🍳 En Preparación</option>
-                        <option value="terminado">🛎️ Listos para Entrega</option>
-                        <option value="entregado">✅ Entregados</option>
-                        <option value="cancelado">❌ Cancelados</option>
-                    </select>
-                </div>
-                <div>
-                    <small>Buscar Cliente / Mesa:</small>
-                    <input type="search" id="inputBusqueda" placeholder="Escribe para buscar..." style="margin-bottom: 0;" oninput="filtrarYRenderizar()" />
-                </div>
+            <div>
+                <small style="color: #718096; font-weight: 600;">Buscar Orden:</small>
+                <input type="search" id="inputBusqueda" placeholder="Cliente o Mesa..." oninput="filtrarYRenderizar()" />
             </div>
         </div>
     </header>
 
-    <div class="card" style="padding: 0; border: none; box-shadow: 0 4px 15px rgba(0,0,0,0.05); overflow: hidden;">
-      <div class="tabla-ordenes-wrapper">
-        <table role="grid" class="tabla-ordenes" style="margin: 0;">
-          <thead>
-            <tr>
-              <th style="width: 70px;">ID</th>
-              <th>Mesa / Cliente</th>
-              <th>Productos</th>
-              <th>Total</th>
-              <th>Estado</th>
-              <th>Tiempo / Límite</th>
-              <th style="text-align: center; width: 280px;">Acciones</th>
-            </tr>
-          </thead>
-          <tbody id="tablaBodyOrdenes">
-             <tr><td colspan="7" style="text-align:center; padding: 4rem;">Conectando con Supabase...</td></tr>
-          </tbody>
-        </table>
-      </div>
+    <div class="tabla-ordenes-wrapper">
+      <table role="grid" class="tabla-ordenes">
+        <thead>
+          <tr>
+            <th style="width: 80px;">Folio</th>
+            <th>Mesa / Cliente</th>
+            <th>Detalle del Pedido</th>
+            <th>Total</th>
+            <th style="text-align: center;">Estado</th>
+            <th>Tiempo</th>
+            <th style="text-align: center; width: 280px;">Acciones Rápidas</th>
+          </tr>
+        </thead>
+        <tbody id="tablaBodyOrdenes">
+           <tr><td colspan="7" style="text-align:center; padding: 4rem; color: #a0aec0;">Conectando con el servidor... ⏳</td></tr>
+        </tbody>
+      </table>
     </div>
   </main>
 
   <dialog id="modalTicket">
     <article>
-      <header style="text-align: center; border-bottom: 1px dashed #000; padding-bottom: 10px; margin-bottom: 10px;">
-        <h3 style="margin: 0; font-size: 1.4rem;">ORDENLISTA</h3>
-        <p style="margin: 0;">Comanda de Servicio</p>
-        <p style="margin: 5px 0 0 0; font-weight: bold; font-size: 1.1rem;">Pedido: #<span id="t-folio"></span></p>
-        <small id="t-fecha"></small>
+      <header style="text-align: center; border-bottom: 2px dashed #cbd5e0; padding-bottom: 15px; margin-bottom: 15px;">
+        <h3 style="margin: 0; font-size: 1.5rem; font-weight: 900;">ORDENLISTA</h3>
+        <p style="margin: 0; color: #4a5568;">Comanda de Servicio</p>
+        <p style="margin: 10px 0 0 0; font-weight: bold; font-size: 1.2rem; background: #edf2f7; padding: 5px; border-radius: 4px;">Pedido: #<span id="t-folio"></span></p>
+        <small id="t-fecha" style="color: #718096; display: block; margin-top: 5px;"></small>
       </header>
       
-      <div style="margin-bottom: 10px;">
+      <div style="margin-bottom: 15px; background: #f7fafc; padding: 10px; border-radius: 6px;">
         <strong>Cliente:</strong> <span id="t-cliente"></span><br>
         <strong>Entrega:</strong> <span id="t-mesa"></span>
       </div>
 
-      <table style="width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 0.9rem;">
+      <table style="width: 100%; border-collapse: collapse; font-size: 0.95rem;">
         <thead>
-          <tr style="border-bottom: 1px dashed #000;">
-            <th style="padding: 4px 0;">Cant. x Producto</th>
+          <tr style="border-bottom: 2px solid #cbd5e0;">
+            <th style="padding: 8px 0; text-align: left;">Cant. x Producto</th>
           </tr>
         </thead>
         <tbody id="t-items"></tbody>
       </table>
 
-      <footer style="margin-top: 15px; border-top: 1px dashed #000; padding-top: 10px;">
-        <div style="display: flex; justify-content: space-between; font-weight: bold; font-size: 1.1rem; margin-bottom: 15px;">
+      <footer style="margin-top: 20px; border-top: 2px dashed #cbd5e0; padding-top: 15px;">
+        <div style="display: flex; justify-content: space-between; font-weight: 900; font-size: 1.3rem; margin-bottom: 20px;">
             <span>TOTAL:</span>
             <span>$<span id="t-total"></span></span>
         </div>
         
         <div class="grid no-print" style="gap: 10px; margin: 0;">
-          <button onclick="window.print()" class="btn-tabla btn-principal" style="width: 100%; padding: 10px;">🖨️ Imprimir</button>
-          <button onclick="document.getElementById('modalTicket').close()" class="btn-tabla btn-secundario" style="width: 100%; padding: 10px;">Cerrar</button>
+          <button onclick="window.print()" class="btn-tabla btn-principal" style="width: 100%; padding: 12px; font-size: 1rem;">🖨️ Imprimir</button>
+          <button onclick="document.getElementById('modalTicket').close()" class="btn-tabla btn-secundario" style="width: 100%; padding: 12px; font-size: 1rem;">Cerrar</button>
         </div>
       </footer>
     </article>
@@ -168,6 +215,12 @@
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   
   <script>
+    // Toggle Menú Móvil
+    function toggleNav() {
+        const menu = document.getElementById('menuNavegacion');
+        menu.classList.toggle('show');
+    }
+
     // Inicialización directa de credenciales
     const SUPABASE_URL = "https://cpveuexgxwxjejurtwro.supabase.co";
     const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNwdmV1ZXhneHd4amVqdXJ0d3JvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjY2MTYxMzAsImV4cCI6MjA4MjE5MjEzMH0.I4FeC3dmtOXNqLWA-tRgxAb7JCe13HysOkqMGkXaUUc";
@@ -188,7 +241,7 @@
             filtrarYRenderizar();
         } catch (err) {
             console.error("Error cargando órdenes:", err);
-            document.getElementById("tablaBodyOrdenes").innerHTML = `<tr><td colspan="7" style="text-align:center; color:red;">Error de conexión: ${err.message}</td></tr>`;
+            document.getElementById("tablaBodyOrdenes").innerHTML = `<tr><td colspan="7" style="text-align:center; color:#e53935;">Error de conexión: ${err.message}</td></tr>`;
         }
     }
 
@@ -209,56 +262,52 @@
         });
 
         if (ordenesFiltradas.length === 0) {
-            tbody.innerHTML = `<tr><td colspan="7" style="text-align:center; padding: 3rem; color:#888;">No hay órdenes que coincidan con los criterios.</td></tr>`;
+            tbody.innerHTML = `<tr><td colspan="7" style="text-align:center; padding: 4rem; color:#a0aec0; font-weight: 500;">No hay órdenes que coincidan con los filtros.</td></tr>`;
             return;
         }
 
         ordenesFiltradas.forEach(o => {
             const tr = document.createElement("tr");
             
-            // Asignar clase de fondo según estado e importancia
             if (o.estado === 'por_pagar') tr.className = "fila-por_pagar";
             else if (o.estado === 'pendiente') tr.className = "fila-urgente";
             else if (o.estado === 'preparando') tr.className = "fila-proceso";
             else if (o.estado === 'terminado') tr.className = "fila-terminado";
 
-            // Configurar columna de tiempos dinamicos o estaticos
             let celdaTiempo = "";
             if (o.estado === 'por_pagar' && o.limite_pago) {
                 celdaTiempo = `<span class="tiempo-cronometro tiempo-alerta" data-limite="${o.limite_pago}" data-id="${o.id}">Calculando...</span>`;
             } else {
                 const hora = new Date(o.created_at).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
-                celdaTiempo = `<span>${hora}</span>`;
+                celdaTiempo = `<span class="tiempo-cronometro" style="background:transparent; color:#4a5568;">${hora}</span>`;
             }
 
-            // Generador de flujo de botones segun maquinas de estado relacionales
             let botonesAccion = "";
             if (o.estado === 'por_pagar') {
-                botonesAccion += `<button class="btn-tabla btn-principal" onclick="cambiarEstado('${o.id}', 'pendiente')">💵 Confirmar Pago</button>`;
+                botonesAccion += `<button class="btn-tabla btn-principal" onclick="cambiarEstado('${o.id}', 'pendiente')">💵 Pago OK</button>`;
             } else if (o.estado === 'pendiente') {
-                botonesAccion += `<button class="btn-tabla btn-principal" onclick="cambiarEstado('${o.id}', 'preparando')">👨‍🍳 A Cocina</button>`;
+                botonesAccion += `<button class="btn-tabla btn-principal" onclick="cambiarEstado('${o.id}', 'preparando')">👨‍🍳 Cocinar</button>`;
             } else if (o.estado === 'preparando') {
                 botonesAccion += `<button class="btn-tabla btn-principal" onclick="cambiarEstado('${o.id}', 'terminado')">🛎️ Terminar</button>`;
             } else if (o.estado === 'terminado') {
                 botonesAccion += `<button class="btn-tabla btn-principal" onclick="cambiarEstado('${o.id}', 'entregado')">📦 Entregar</button>`;
             }
 
-            // Botones universales (Ticket / Cancelar)
             botonesAccion += `<button class="btn-tabla btn-secundario" onclick="verTicket('${o.id}')">📋 Ticket</button>`;
             if (o.estado !== 'entregado' && o.estado !== 'cancelado') {
-                botonesAccion += `<button class="btn-tabla btn-peligro" onclick="cancelarOrden('${o.id}')">❌</button>`;
+                botonesAccion += `<button class="btn-tabla btn-peligro" onclick="cancelarOrden('${o.id}')">✖</button>`;
             }
 
             tr.innerHTML = `
-                <td><strong>#${o.id}</strong></td>
+                <td><strong style="color:var(--color-primario); font-size:1.1rem;">#${o.id}</strong></td>
                 <td>
-                    <strong>${o.cliente_nombre || 'Sin nombre'}</strong><br>
-                    <small style="color:#777;">${o.usuario_email || ''}</small><br>
-                    <span style="font-size:0.8rem; background:#eee; padding:2px 6px; border-radius:4px;">${o.mesa}</span>
+                    <strong style="font-size: 1.05rem;">${o.cliente_nombre || 'Sin nombre'}</strong><br>
+                    <small style="color:#718096;">${o.usuario_email || ''}</small><br>
+                    <span style="font-size:0.8rem; background:#edf2f7; color:#4a5568; padding:3px 8px; border-radius:6px; font-weight:600; display:inline-block; margin-top:4px;">${o.mesa}</span>
                 </td>
-                <td style="max-width: 300px; font-size:0.9rem;">${o.productos}</td>
-                <td><strong>$${parseFloat(o.total).toFixed(2)}</strong></td>
-                <td><span class="badge-estado state-${o.estado}">${o.estado.replace('_', ' ')}</span></td>
+                <td style="max-width: 300px; font-size:0.9rem; line-height: 1.5;">${o.productos}</td>
+                <td><strong style="font-size: 1.1rem;">$${parseFloat(o.total).toFixed(2)}</strong></td>
+                <td style="text-align: center;"><span class="badge-estado state-${o.estado}">${o.estado.replace('_', ' ')}</span></td>
                 <td>${celdaTiempo}</td>
                 <td style="text-align: center;">${botonesAccion}</td>
             `;
@@ -269,15 +318,11 @@
     // Cambios de estado en la base de datos
     async function cambiarEstado(id, nuevoEstado) {
         const updates = { estado: nuevoEstado };
-        
-        // Si pasa a cocina (pendiente), guardamos tiempos de control
         if (nuevoEstado === 'pendiente') {
             updates.tiempo_aceptacion = new Date().toISOString();
         }
-
         const { error } = await db.from('ordenes').update(updates).eq('id', id);
         if (error) alert("Error al cambiar estado: " + error.message);
-        // Nota: No necesitas recargar manualmente, el canal Realtime actualizará la UI solo.
     }
 
     async function cancelarOrden(id) {
@@ -300,32 +345,33 @@
         const itemsBody = document.getElementById("t-items");
         itemsBody.innerHTML = "";
         
-        // Separar la cadena estructurada de texto (Ej: "2x Pizza, 1x CocaCola")
         const arrProductos = o.productos.split(",");
         arrProductos.forEach(p => {
             const row = document.createElement("tr");
-            row.innerHTML = `<td style="padding: 4px 0;">${p.trim()}</td>`;
+            row.innerHTML = `<td style="padding: 6px 0; border-bottom: 1px dashed #e2e8f0;">${p.trim()}</td>`;
             itemsBody.appendChild(row);
         });
 
         document.getElementById("modalTicket").showModal();
     }
 
-    // Loop de reloj para manejar el tiempo de expiración (Conteo regresivo de 10 min)
+    // Loop de reloj para manejar el tiempo de expiración
     setInterval(() => {
-        document.querySelectorAll(".tiempo-cronometro").forEach(el => {
+        document.querySelectorAll(".tiempo-cronometro[data-limite]").forEach(el => {
             const limite = new Date(el.getAttribute("data-limite")).getTime();
             const ahora = new Date().getTime();
             const distancia = limite - ahora;
 
             if (distancia < 0) {
-                el.textContent = "¡Tiempo Expirado!";
-                el.style.color = "#d32f2f";
-                // Opcional: auto-cancelar en base de datos si expira el tiempo límite de pago
+                el.textContent = "Expirado";
+                el.style.animation = "none";
+                el.style.background = "#fff5f5";
+                el.style.color = "#c53030";
+                el.style.border = "1px solid #fc8181";
             } else {
                 const minutos = Math.floor((distancia % (1000 * 60 * 60)) / (1000 * 60));
                 const segundos = Math.floor((distancia % (1000 * 60)) / 1000);
-                el.textContent = `${minutos.toString().padStart(2, '0')}:${segundos.toString().padStart(2, '0')} min`;
+                el.textContent = `${minutos.toString().padStart(2, '0')}:${segundos.toString().padStart(2, '0')}`;
             }
         });
     }, 1000);
@@ -334,7 +380,7 @@
     function reproducirAlerta() {
         const audio = document.getElementById("audioNotificacion");
         if (audio) {
-            audio.play().catch(e => console.log("Interacción de usuario requerida para reproducir audio."));
+            audio.play().catch(e => console.log("Audio bloqueado por el navegador."));
         }
     }
 
@@ -342,29 +388,25 @@
     function conectarRealtime() {
         db.channel('monitor_ordenes')
           .on('postgres_changes', { event: '*', schema: 'public', table: 'ordenes' }, payload => {
-              console.log("Cambio en tiempo real detectado:", payload);
-              
-              // Si entra un nuevo registro, detona el sonido de alerta
-              if (payload.eventType === "INSERT") {
-                  reproducirAlerta();
-              }
-              
-              // Refresca la memoria local de datos y redibuja la pantalla de manera transparente
+              if (payload.eventType === "INSERT") reproducirAlerta();
               cargarOrdenes();
           })
           .subscribe((status) => {
-              const indicador = document.getElementById("indicadorRealtime");
-              if (status === "SUBSCRIBED") {
-                  indicador.textContent = "● Tiempo Real Activo";
-                  indicador.style.background = "#27ae60";
-              } else {
-                  indicador.textContent = "○ Desconectado";
-                  indicador.style.background = "#e53935";
-              }
+              const indicadores = [document.getElementById("indicadorRealtime"), document.getElementById("indicadorRealtimeMobile")];
+              indicadores.forEach(ind => {
+                  if(!ind) return;
+                  if (status === "SUBSCRIBED") {
+                      ind.textContent = "● Tiempo Real Activo";
+                      ind.style.background = "#e6fffa"; ind.style.color = "#319795"; ind.style.borderColor = "#81e6d9";
+                  } else {
+                      ind.textContent = "○ Desconectado";
+                      ind.style.background = "#fff5f5"; ind.style.color = "#c53030"; ind.style.borderColor = "#fc8181";
+                  }
+              });
           });
     }
 
-    // Encendido de motores
+    // Encendido
     cargarOrdenes();
     conectarRealtime();
   </script>
