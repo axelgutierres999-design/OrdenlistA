@@ -197,43 +197,39 @@
       </table>
     </div>
   </main>
-
+     
   <dialog id="modalTicket">
-    <article>
-      <header style="text-align: center; border-bottom: 2px dashed #cbd5e0; padding-bottom: 15px; margin-bottom: 15px;">
-        <h3 style="margin: 0; font-size: 1.5rem; font-weight: 900;">ORDENLISTA</h3>
-        <p style="margin: 0; color: #4a5568;">Comanda de Servicio</p>
-        <p style="margin: 10px 0 0 0; font-weight: bold; font-size: 1.2rem; background: #edf2f7; padding: 5px; border-radius: 4px;">Pedido: #<span id="t-folio"></span></p>
-        <small id="t-fecha" style="color: #718096; display: block; margin-top: 5px;"></small>
-      </header>
-      
-      <div style="margin-bottom: 15px; background: #f7fafc; padding: 10px; border-radius: 6px;">
-        <strong>Cliente:</strong> <span id="t-cliente"></span><br>
-        <strong>Entrega:</strong> <span id="t-mesa"></span>
-      </div>
+  <article style="max-width: 400px; padding: 20px; font-family: 'Courier New', monospace;">
+    <header style="text-align: center; border-bottom: 2px dashed #000; padding-bottom: 10px;">
+      <h2 id="t-nombre-rest" style="margin:0; font-size: 1.2rem;"></h2>
+      <p id="t-direccion" style="margin:0; font-size: 0.8rem;"></p>
+      <p id="t-telefono" style="margin:0; font-size: 0.8rem;"></p>
+    </header>
+    
+    <div style="margin: 10px 0; font-size: 0.9rem;">
+      <p>Folio: #<span id="t-folio"></span> | Mesa: <span id="t-mesa"></span></p>
+      <p>Fecha: <span id="t-fecha"></span></p>
+      <p>Método: <span id="t-metodo"></span></p>
+    </div>
 
-      <table style="width: 100%; border-collapse: collapse; font-size: 0.95rem;">
-        <thead>
-          <tr style="border-bottom: 2px solid #cbd5e0;">
-            <th style="padding: 8px 0; text-align: left;">Cant. x Producto</th>
-          </tr>
-        </thead>
-        <tbody id="t-items"></tbody>
-      </table>
+    <table style="width: 100%; border-collapse: collapse; font-size: 0.9rem; margin-bottom: 10px;">
+      <tbody id="t-items"></tbody>
+    </table>
 
-      <footer style="margin-top: 20px; border-top: 2px dashed #cbd5e0; padding-top: 15px;">
-        <div style="display: flex; justify-content: space-between; font-weight: 900; font-size: 1.3rem; margin-bottom: 20px;">
-            <span>TOTAL:</span>
-            <span>$<span id="t-total"></span></span>
-        </div>
-        
-        <div class="grid no-print" style="gap: 10px; margin: 0;">
-          <button onclick="window.print()" class="btn-tabla btn-principal" style="width: 100%; padding: 12px; font-size: 1rem;">🖨️ Imprimir</button>
-          <button onclick="document.getElementById('modalTicket').close()" class="btn-tabla btn-secundario" style="width: 100%; padding: 12px; font-size: 1rem;">Cerrar</button>
-        </div>
-      </footer>
-    </article>
-  </dialog>
+    <div style="border-top: 2px dashed #000; padding-top: 10px; font-weight: bold;">
+      <div style="display: flex; justify-content: space-between;"><span>Subtotal:</span> $ <span id="t-subtotal"></span></div>
+      <div style="display: flex; justify-content: space-between;"><span>IVA (16%):</span> $ <span id="t-iva"></span></div>
+      <div style="display: flex; justify-content: space-between; font-size: 1.2rem;"><span>TOTAL:</span> $ <span id="t-total"></span></div>
+    </div>
+
+    <footer style="text-align: center; margin-top: 20px; font-size: 0.8rem;">
+      <p id="t-mensaje-agradecimiento"></p>
+      <p id="t-wifi"></p>
+      <p id="t-redes"></p>
+      <button onclick="document.getElementById('modalTicket').close()" class="no-print">Cerrar</button>
+    </footer>
+  </article>
+</dialog>
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   
@@ -314,7 +310,10 @@
                 botonesAccion += `<button class="btn-tabla btn-principal" onclick="cambiarEstado('${o.id}', 'terminado')">🛎️ Terminar</button>`;
             } else if (o.estado === 'terminado') {
                 botonesAccion += `<button class="btn-tabla btn-principal" onclick="cambiarEstado('${o.id}', 'entregado')">📦 Entregar</button>`;
+            }else if(o.estado=== 'borrar') {
+                botonesAccion += `<button class="btn-tabla" style="background:#e53e3e; color:white;" onclick="borrarOrden('${o.id}')">🗑️</button>`;
             }
+    
 
             botonesAccion += `<button class="btn-tabla btn-secundario" onclick="verTicket('${o.id}')">📋 Ticket</button>`;
             if (o.estado !== 'entregado' && o.estado !== 'cancelado') {
@@ -428,6 +427,17 @@
               });
           });
     }
+    async function borrarOrden(id) {
+    if (!confirm("⚠️ ¿Estás seguro de ELIMINAR esta orden permanentemente?")) return;
+    
+    const { error } = await db.from('ordenes').delete().eq('id', id);
+    
+    if (error) {
+        alert("Error al borrar: " + error.message);
+    } else {
+        cargarOrdenes(); // Recarga la tabla automáticamente
+    }
+}
 
     // Encendido
     cargarOrdenes();
