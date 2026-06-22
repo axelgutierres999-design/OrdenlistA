@@ -353,15 +353,27 @@
 
     // ─── Cargar config del restaurante desde Supabase (tabla "config") ─
     async function cargarConfig() {
-        try {
-            const { data, error } = await db.from('config').select('*').single();
-            if (!error && data) {
-                configRestaurante = { ...configRestaurante, ...data };
-            }
-        } catch (_) {
-            // Si no existe la tabla config, usa los valores por defecto de arriba
+    try {
+        // Obtenemos el ID de la sesión para saber qué restaurante cargar
+        const sesion = JSON.parse(localStorage.getItem('sesion_activa'));
+        if (!sesion || !sesion.restaurante_id) return;
+
+        // Ahora pedimos los datos de la tabla 'restaurantes' filtrando por el ID
+        const { data, error } = await db
+            .from('restaurantes')
+            .select('*')
+            .eq('id', sesion.restaurante_id)
+            .single();
+
+        if (!error && data) {
+            // Actualizamos el objeto global con los datos de la BD
+            configRestaurante = { ...configRestaurante, ...data };
+            console.log("Configuración cargada:", configRestaurante);
         }
+    } catch (e) {
+        console.error("Error al cargar config:", e);
     }
+}
 
     // ─── Carga inicial ──────────────────────────────────────────────────
     async function cargarOrdenes() {
@@ -628,7 +640,7 @@
                       ind.style.borderColor = "#fc8181";
                   }
               });
-          });
+          }); 
     }
 
     // ─── Arranque ───────────────────────────────────────────────────────
