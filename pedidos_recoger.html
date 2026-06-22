@@ -20,24 +20,35 @@
 
     body { background-color: var(--color-fondo); font-family: 'Inter', system-ui, -apple-system, sans-serif; }
     
-    /* --- NAVEGACIÓN UNIFICADA Y MODERNA --- */
+   /* --- NAVEGACIÓN OSCURA (ESTILO COCINA) --- */
     .nav-inicio {
         display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; 
         padding: 0.8rem 2rem; position: sticky; top: 0; z-index: 1000; 
-        background: white !important; box-shadow: 0 2px 10px rgba(0,0,0,0.03); border-bottom: 1px solid #e0e6e4;
+        background: #000000 !important; /* FONDO NEGRO */
+        border-bottom: 3px solid var(--color-primario);
     }
     .brand-group { display: flex; align-items: center; gap: 10px; }
     .brand-group a { text-decoration: none; font-size: 1.4rem; color: var(--color-primario); font-weight: 800; letter-spacing: -0.5px; }
+    .brand-group span.hide-mobile { color: #ffffff !important; opacity: 0.8; font-weight: normal; } /* Texto blanco */
     
     .btn-ajustes-manual { 
-        border: 2px solid var(--color-primario) !important; color: var(--color-primario) !important; 
+        border: 1px solid var(--color-primario) !important; color: var(--color-primario) !important; 
         padding: 6px 16px !important; font-size: 0.9rem !important; border-radius: 8px; 
         text-decoration: none; font-weight: bold; transition: all 0.2s ease; background: transparent;
     }
     .btn-ajustes-manual:hover { background: var(--color-primario) !important; color: white !important; }
     
-    .hamburger { display: none; background: none; border: none; font-size: 1.8rem; color: #333; cursor: pointer; padding: 0; }
-    #menuNavegacion { display: flex; list-style: none; margin: 0; padding: 0; gap: 1rem; align-items: center; }
+    .hamburger { display: none; background: none; border: none; font-size: 1.8rem; color: #ffffff; cursor: pointer; padding: 0; } /* Icono blanco */
+    
+    /* ENLACES DEL MENÚ EN LA BARRA NEGRA */
+    #menuNavegacion { display: flex; list-style: none; margin: 0; padding: 0; gap: 0.5rem; align-items: center; }
+    #menuNavegacion li a {
+        color: #ffffff; text-decoration: none; padding: 8px 12px; border-radius: 8px;
+        font-size: 0.85rem; font-weight: 600; display: flex; align-items: center; gap: 6px;
+        transition: background 0.2s; text-transform: capitalize;
+    }
+    #menuNavegacion li a:hover { background: rgba(255,255,255,0.15); }
+    #menuNavegacion li a.activo { background: var(--color-primario); color: #ffffff; } /* Botón verde activo */
 
     /* --- CONTENEDORES Y TABLA --- */
     .panel-control-header { background: white; padding: 20px; border-radius: var(--borde-redondeado); box-shadow: var(--sombra-suave); margin-bottom: 20px; }
@@ -94,13 +105,18 @@
     }
 
     /* --- RESPONSIVE MOBILE --- */
-    @media (max-width: 768px) {
+@media (max-width: 768px) {
         .hamburger { display: block; }
-        .hide-mobile { display: none; }
+        .hide-mobile { display: none !important; }
         .nav-inicio { padding: 0.8rem 1rem; }
-        #menuNavegacion { display: none; width: 100%; flex-direction: column; order: 3; border-top: 1px solid #eee; padding: 15px 0; margin-top: 10px; }
-        #menuNavegacion.show { display: flex; }
+        #menuNavegacion { 
+            display: none; width: 100%; flex-direction: column; order: 3; 
+            border-top: 1px solid #333; /* Línea separadora oscura */
+            padding: 15px 0; margin-top: 10px; background: #000; /* Fondo negro en móvil */
+        }
+        #menuNavegacion.show { display: flex !important; }
         #menuNavegacion li { width: 100%; text-align: center; }
+        #menuNavegacion li a { justify-content: center; } /* Centra los iconos en móvil */
         .tabla-ordenes-wrapper { display: block; overflow-x: auto; border-radius: 0; }
         .btn-tabla { padding: 10px; width: 100%; margin-bottom: 8px; }
     }
@@ -110,21 +126,28 @@
 
   <audio id="audioNotificacion" src="https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3" preload="auto"></audio>
 
-  <nav class="nav-inicio">
+<nav class="nav-inicio">
     <div class="brand-group">
       <a href="index.html">☕ OrdenLista</a>
-      <span class="hide-mobile" style="color: #a0aec0; font-weight: 500;">| Monitor de Despacho</span>
+      <span class="hide-mobile">| Monitor de Despacho</span>
     </div>
+
+    <ul id="menuNavegacion" class="nav-botones hide-mobile">
+        <li><a href="mesas.html">🪑 Mesas</a></li>
+        <li><a href="menu.html">📜 Menú</a></li>
+        <li><a href="ordenes.html">📋 Órdenes</a></li>
+        <li><a href="cocina.html">👨‍🍳 Cocina</a></li>
+        <li><a href="stock.html">📦 Stock</a></li>
+        <li><a href="reservaciones.html">📅 Reservaciones</a></li>
+        <li><a href="pedidosrecoger.html" class="activo">🚶 Pedidos por recoger</a></li> 
+        <li><a href="ventas.html">📊 Ventas</a></li>
+    </ul>
 
     <div style="display: flex; align-items: center; gap: 15px;">
-      <span id="indicadorRealtime" class="badge-estado hide-mobile" style="background:#e6fffa; color:#319795; border: 1px solid #81e6d9;">● Tiempo Real Activo</span>
-      <a href="ajustes.html" role="button" class="btn-ajustes-manual">⚙️ <span class="hide-mobile">Ajustes</span></a>
+      <span id="indicadorRealtime" class="badge-estado hide-mobile" style="background:#0d8a75; color:white; border: none;">● Activo</span>
+      <a href="ajustes.html" role="button" class="btn-ajustes-manual hide-mobile">⚙️ Ajustes</a>
       <button class="hamburger" onclick="toggleNav()">☰</button>
     </div>
-
-    <ul id="menuNavegacion">
-        <li class="hamburger"><span id="indicadorRealtimeMobile" class="badge-estado" style="background:#e6fffa; color:#319795;">● Tiempo Real</span></li>
-    </ul>
   </nav>
 
   <main class="container-fluid" style="padding: 20px;">
