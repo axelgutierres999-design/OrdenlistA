@@ -8,7 +8,6 @@
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@picocss/pico@1/css/pico.min.css" />
   
   <style>
-    /* VARIABLES DE COLOR Y ESTILO */
     :root {
         --color-primario: #10ad93;
         --color-secundario: #1a1a1a;
@@ -20,16 +19,15 @@
 
     body { background-color: var(--color-fondo); font-family: 'Inter', system-ui, -apple-system, sans-serif; }
     
-   /* --- NAVEGACIÓN OSCURA (ESTILO COCINA) --- */
     .nav-inicio {
         display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; 
         padding: 0.8rem 2rem; position: sticky; top: 0; z-index: 1000; 
-        background: #000000 !important; /* FONDO NEGRO */
+        background: #000000 !important;
         border-bottom: 3px solid var(--color-primario);
     }
     .brand-group { display: flex; align-items: center; gap: 10px; }
     .brand-group a { text-decoration: none; font-size: 1.4rem; color: var(--color-primario); font-weight: 800; letter-spacing: -0.5px; }
-    .brand-group span.hide-mobile { color: #ffffff !important; opacity: 0.8; font-weight: normal; } /* Texto blanco */
+    .brand-group span.hide-mobile { color: #ffffff !important; opacity: 0.8; font-weight: normal; }
     
     .btn-ajustes-manual { 
         border: 1px solid var(--color-primario) !important; color: var(--color-primario) !important; 
@@ -38,9 +36,8 @@
     }
     .btn-ajustes-manual:hover { background: var(--color-primario) !important; color: white !important; }
     
-    .hamburger { display: none; background: none; border: none; font-size: 1.8rem; color: #ffffff; cursor: pointer; padding: 0; } /* Icono blanco */
+    .hamburger { display: none; background: none; border: none; font-size: 1.8rem; color: #ffffff; cursor: pointer; padding: 0; }
     
-    /* ENLACES DEL MENÚ EN LA BARRA NEGRA */
     #menuNavegacion { display: flex; list-style: none; margin: 0; padding: 0; gap: 0.5rem; align-items: center; }
     #menuNavegacion li a {
         color: #ffffff; text-decoration: none; padding: 8px 12px; border-radius: 8px;
@@ -48,9 +45,8 @@
         transition: background 0.2s; text-transform: capitalize;
     }
     #menuNavegacion li a:hover { background: rgba(255,255,255,0.15); }
-    #menuNavegacion li a.activo { background: var(--color-primario); color: #ffffff; } /* Botón verde activo */
+    #menuNavegacion li a.activo { background: var(--color-primario); color: #ffffff; }
 
-    /* --- CONTENEDORES Y TABLA --- */
     .panel-control-header { background: white; padding: 20px; border-radius: var(--borde-redondeado); box-shadow: var(--sombra-suave); margin-bottom: 20px; }
     
     .tabla-ordenes-wrapper { background: white; border-radius: var(--borde-redondeado); box-shadow: var(--sombra-suave); overflow: hidden; }
@@ -59,28 +55,32 @@
     .tabla-ordenes td { vertical-align: middle; padding: 16px; border-bottom: 1px solid #edf2f7; color: #2d3748; }
     .tabla-ordenes tr:hover { background-color: #f7fafc !important; }
     
-    /* --- BADGES DE ESTADO --- */
     .badge-estado { padding: 6px 14px; border-radius: 20px; font-weight: bold; font-size: 0.75rem; text-transform: uppercase; display: inline-block; text-align: center; letter-spacing: 0.5px; }
     .state-por_pagar { background-color: #ebf8ff; color: #3182ce; border: 1px solid #90cdf4; }
     .state-pendiente { background-color: #fff5f5; color: #e53935; border: 1px solid #feb2b2; }
     .state-preparando { background-color: #fffff0; color: #d69e2e; border: 1px solid #f6e05e; }
     .state-terminado { background-color: #e6fffa; color: #319795; border: 1px solid #81e6d9; }
-    .state-entregado { background-color: #f7fafc; color: #718096; border: 1px solid #e2e8f0; }
-    .state-cancelado { background-color: #fff5f5; color: #c53030; border: 1px dashed #fc8181; }
 
-    /* --- FILAS CON COLORES SUAVES --- */
     .fila-por_pagar { border-left: 4px solid #3182ce; }
     .fila-urgente { border-left: 4px solid #e53935; background-color: #fffafa !important; }
     .fila-proceso { border-left: 4px solid #d69e2e; }
     .fila-terminado { border-left: 4px solid #319795; background-color: #f0fff4 !important; }
 
-    /* --- CRONÓMETRO Y ANIMACIONES --- */
     .tiempo-cronometro { font-family: 'Courier New', monospace; font-weight: 800; font-size: 1.1rem; color: #2d3748; background: #edf2f7; padding: 4px 8px; border-radius: 6px; }
     .tiempo-alerta { color: white; background: #e53935; animation: pulse 1.5s infinite; }
 
     @keyframes pulse { 0% { transform: scale(1); opacity: 1; } 50% { transform: scale(1.05); opacity: 0.8; } 100% { transform: scale(1); opacity: 1; } }
 
-    /* --- BOTONES DE ACCIÓN EN TABLA --- */
+    /* Animación de desvanecimiento al eliminar fila */
+    @keyframes fadeOut {
+        from { opacity: 1; transform: translateX(0); }
+        to   { opacity: 0; transform: translateX(40px); }
+    }
+    .fila-eliminando {
+        animation: fadeOut 0.5s ease forwards;
+        pointer-events: none;
+    }
+
     .btn-tabla { padding: 8px 14px; font-size: 0.85rem; border-radius: 8px; border: none; cursor: pointer; font-weight: bold; margin-right: 6px; transition: all 0.2s; }
     .btn-tabla:hover { transform: translateY(-2px); box-shadow: 0 4px 8px rgba(0,0,0,0.1); }
     .btn-tabla:active { transform: translateY(0); }
@@ -90,12 +90,18 @@
     .btn-peligro { background-color: transparent; color: #e53935; border: 1px solid #e53935; padding: 8px 10px; }
     .btn-peligro:hover { background-color: #e53935; color: white; }
 
-    /* --- INPUTS Y SELECTS DE FILTRO --- */
     select, input[type="search"] { border: 1px solid #e2e8f0; border-radius: 8px; padding: 10px; background: #f7fafc; transition: border 0.2s; box-shadow: none; margin-bottom: 0 !important; }
     select:focus, input[type="search"]:focus { border-color: var(--color-primario); background: white; outline: none; }
 
-    /* --- MODAL TICKET --- */
+    /* Modal ticket */
     #modalTicket article { max-width: 380px; font-family: 'Courier New', Courier, monospace; color: #000; background: #fff; padding: 25px; border-radius: 8px; box-shadow: 0 10px 30px rgba(0,0,0,0.2); }
+    
+    /* Modal de cobro */
+    #modalCobro article { max-width: 420px; background: #fff; padding: 30px; border-radius: 12px; box-shadow: 0 10px 30px rgba(0,0,0,0.2); }
+    .cobro-total { font-size: 2.5rem; font-weight: 900; color: var(--color-primario); text-align: center; margin: 15px 0; }
+    .cobro-detalle { background: #f7fafc; border-radius: 8px; padding: 15px; margin-bottom: 20px; font-size: 0.95rem; line-height: 1.7; }
+    .input-efectivo { font-size: 1.4rem; font-weight: 700; text-align: center; border: 2px solid var(--color-primario); border-radius: 8px; padding: 12px; width: 100%; margin-bottom: 12px; }
+    .cambio-display { background: #e6fffa; border: 1px solid #81e6d9; color: #319795; border-radius: 8px; padding: 12px; text-align: center; font-weight: 700; font-size: 1.1rem; display: none; }
     
     @media print {
       body * { visibility: hidden; }
@@ -104,19 +110,18 @@
       .no-print { display: none !important; }
     }
 
-    /* --- RESPONSIVE MOBILE --- */
-@media (max-width: 768px) {
+    @media (max-width: 768px) {
         .hamburger { display: block; }
         .hide-mobile { display: none !important; }
         .nav-inicio { padding: 0.8rem 1rem; }
         #menuNavegacion { 
             display: none; width: 100%; flex-direction: column; order: 3; 
-            border-top: 1px solid #333; /* Línea separadora oscura */
-            padding: 15px 0; margin-top: 10px; background: #000; /* Fondo negro en móvil */
+            border-top: 1px solid #333;
+            padding: 15px 0; margin-top: 10px; background: #000;
         }
         #menuNavegacion.show { display: flex !important; }
         #menuNavegacion li { width: 100%; text-align: center; }
-        #menuNavegacion li a { justify-content: center; } /* Centra los iconos en móvil */
+        #menuNavegacion li a { justify-content: center; }
         .tabla-ordenes-wrapper { display: block; overflow-x: auto; border-radius: 0; }
         .btn-tabla { padding: 10px; width: 100%; margin-bottom: 8px; }
     }
@@ -161,14 +166,13 @@
         <div style="display:flex; gap:15px; align-items:flex-end; justify-content:flex-end; flex-wrap: wrap;">
             <div>
                 <small style="color: #718096; font-weight: 600;">Filtrar por Estado:</small>
+                <!-- CAMBIO 4: Se eliminaron "Entregados" y "Cancelados" del filtro -->
                 <select id="filtroEstado" onchange="filtrarYRenderizar()">
                     <option value="todos">👁️ Ver Todos</option>
                     <option value="por_pagar">🔔 Por Pagar (Cuenta regresiva)</option>
                     <option value="pendiente" selected>🔥 Pendientes (Cocina)</option>
                     <option value="preparando">👨‍🍳 En Preparación</option>
                     <option value="terminado">🛎️ Listos para Entrega</option>
-                    <option value="entregado">✅ Entregados</option>
-                    <option value="cancelado">❌ Cancelados</option>
                 </select>
             </div>
             <div>
@@ -198,61 +202,99 @@
     </div>
   </main>
      
-  <dialog id="modalTicket">
-  <article style="max-width: 400px; padding: 20px; font-family: 'Courier New', monospace;">
-    <header style="text-align: center; border-bottom: 2px dashed #000; padding-bottom: 10px;">
-      <h2 id="t-nombre-rest" style="margin:0; font-size: 1.2rem;"></h2>
-      <p id="t-direccion" style="margin:0; font-size: 0.8rem;"></p>
-      <p id="t-telefono" style="margin:0; font-size: 0.8rem;"></p>
-    </header>
-    
-    <div style="margin: 10px 0; font-size: 0.9rem;">
-      <p>Folio: #<span id="t-folio"></span> | Mesa: <span id="t-mesa"></span></p>
-      <p>Fecha: <span id="t-fecha"></span></p>
-      <p>Método: <span id="t-metodo"></span></p>
-    </div>
+<!-- Modal Ticket de Comanda -->
+<dialog id="modalTicket">
+    <article>
+      <header style="text-align: center; border-bottom: 2px dashed #cbd5e0; padding-bottom: 15px; margin-bottom: 15px;">
+        <h3 style="margin: 0; font-size: 1.5rem; font-weight: 900;">ORDENLISTA</h3>
+        <p style="margin: 0; color: #4a5568;">Comanda de Servicio</p>
+        <p style="margin: 10px 0 0 0; font-weight: bold; font-size: 1.2rem; background: #edf2f7; padding: 5px; border-radius: 4px;">Pedido: #<span id="t-folio"></span></p>
+        <small id="t-fecha" style="color: #718096; display: block; margin-top: 5px;"></small>
+      </header>
+      
+      <div style="margin-bottom: 15px; background: #f7fafc; padding: 10px; border-radius: 6px;">
+        <strong>Cliente:</strong> <span id="t-cliente"></span><br>
+        <strong>Entrega:</strong> <span id="t-mesa"></span>
+      </div>
 
-    <table style="width: 100%; border-collapse: collapse; font-size: 0.9rem; margin-bottom: 10px;">
-      <tbody id="t-items"></tbody>
-    </table>
+      <table style="width: 100%; border-collapse: collapse; font-size: 0.95rem;">
+        <thead>
+          <tr style="border-bottom: 2px solid #cbd5e0;">
+            <th style="padding: 8px 0; text-align: left;">Cant. x Producto</th>
+          </tr>
+        </thead>
+        <tbody id="t-items"></tbody>
+      </table>
 
-    <div style="border-top: 2px dashed #000; padding-top: 10px; font-weight: bold;">
-      <div style="display: flex; justify-content: space-between;"><span>Subtotal:</span> $ <span id="t-subtotal"></span></div>
-      <div style="display: flex; justify-content: space-between;"><span>IVA (16%):</span> $ <span id="t-iva"></span></div>
-      <div style="display: flex; justify-content: space-between; font-size: 1.2rem;"><span>TOTAL:</span> $ <span id="t-total"></span></div>
-    </div>
+      <footer style="margin-top: 20px; border-top: 2px dashed #cbd5e0; padding-top: 15px;">
+        <div style="display: flex; justify-content: space-between; font-weight: 900; font-size: 1.3rem; margin-bottom: 20px;">
+            <span>TOTAL:</span>
+            <span>$<span id="t-total"></span></span>
+        </div>
+        
+        <div class="grid no-print" style="gap: 10px; margin: 0;">
+          <button onclick="window.print()" class="btn-tabla btn-principal" style="width: 100%; padding: 12px; font-size: 1rem;">🖨️ Imprimir</button>
+          <button onclick="document.getElementById('modalTicket').close()" class="btn-tabla btn-secundario" style="width: 100%; padding: 12px; font-size: 1rem;">Cerrar</button>
+        </div>
+      </footer>
+    </article>
+  </dialog>
 
-    <footer style="text-align: center; margin-top: 20px; font-size: 0.8rem;">
-      <p id="t-mensaje-agradecimiento"></p>
-      <p id="t-wifi"></p>
-      <p id="t-redes"></p>
-      <button onclick="document.getElementById('modalTicket').close()" class="no-print">Cerrar</button>
-    </footer>
-  </article>
-</dialog>
+<!-- NUEVO: Modal de Cobro al entregar -->
+<dialog id="modalCobro">
+    <article>
+      <header style="text-align: center; border-bottom: 2px solid #edf2f7; padding-bottom: 15px; margin-bottom: 20px;">
+        <h3 style="margin: 0; font-size: 1.4rem; font-weight: 900;">💳 Cobrar y Entregar</h3>
+        <p style="margin: 5px 0 0 0; color: #718096; font-size: 0.9rem;">La orden se eliminará automáticamente al confirmar.</p>
+      </header>
+
+      <div class="cobro-detalle" id="cobro-detalle-items"></div>
+
+      <div style="text-align:center; margin-bottom: 5px; color: #718096; font-weight: 600; font-size: 0.85rem;">TOTAL A COBRAR</div>
+      <div class="cobro-total" id="cobro-total-display">$0.00</div>
+
+      <div style="margin-top: 20px;">
+        <label style="font-weight: 700; color: #4a5568; font-size: 0.9rem;">💵 Efectivo recibido (opcional):</label>
+        <input type="number" class="input-efectivo" id="inputEfectivo" placeholder="$0.00" oninput="calcularCambio()" />
+        <div class="cambio-display" id="cambioDisplay">💸 Cambio: $<span id="montoСambio">0.00</span></div>
+      </div>
+
+      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 25px;">
+        <button onclick="confirmarCobroYEliminar()" class="btn-tabla btn-principal" style="width:100%; padding:14px; font-size:1rem; border-radius:8px;">
+          ✅ Confirmar Cobro
+        </button>
+        <button onclick="document.getElementById('modalCobro').close()" class="btn-tabla btn-secundario" style="width:100%; padding:14px; font-size:1rem; border-radius:8px;">
+          Cancelar
+        </button>
+      </div>
+    </article>
+  </dialog>
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   
   <script>
-    // Toggle Menú Móvil
+    // ─── Toggle Menú Móvil ──────────────────────────────────────────────
     function toggleNav() {
         const menu = document.getElementById('menuNavegacion');
         menu.classList.toggle('show');
     }
 
-    // Inicialización directa de credenciales
+    // ─── Conexión Supabase ──────────────────────────────────────────────
     const SUPABASE_URL = "https://cpveuexgxwxjejurtwro.supabase.co";
     const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNwdmV1ZXhneHd4amVqdXJ0d3JvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjY2MTYxMzAsImV4cCI6MjA4MjE5MjEzMH0.I4FeC3dmtOXNqLWA-tRgxAb7JCe13HysOkqMGkXaUUc";
     const db = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
     let todasLasOrdenes = [];
+    let ordenCobroActual = null; // Guarda la orden en proceso de cobro
 
-    // Carga inicial de datos
+    // ─── Carga inicial ──────────────────────────────────────────────────
     async function cargarOrdenes() {
         try {
+            // CAMBIO 4: Solo cargamos estados activos, sin entregado/cancelado
             const { data, error } = await db
                 .from('ordenes')
                 .select('*')
+                .not('estado', 'in', '("entregado","cancelado","cancelada")')
                 .order('created_at', { ascending: false });
 
             if (error) throw error;
@@ -260,11 +302,12 @@
             filtrarYRenderizar();
         } catch (err) {
             console.error("Error cargando órdenes:", err);
-            document.getElementById("tablaBodyOrdenes").innerHTML = `<tr><td colspan="7" style="text-align:center; color:#e53935;">Error de conexión: ${err.message}</td></tr>`;
+            document.getElementById("tablaBodyOrdenes").innerHTML =
+                `<tr><td colspan="7" style="text-align:center; color:#e53935;">Error de conexión: ${err.message}</td></tr>`;
         }
     }
 
-    // Filtrado local y generación de HTML
+    // ─── Filtrado y renderizado ─────────────────────────────────────────
     function filtrarYRenderizar() {
         const filtro = document.getElementById("filtroEstado").value;
         const busqueda = document.getElementById("inputBusqueda").value.toLowerCase();
@@ -281,18 +324,20 @@
         });
 
         if (ordenesFiltradas.length === 0) {
-            tbody.innerHTML = `<tr><td colspan="7" style="text-align:center; padding: 4rem; color:#a0aec0; font-weight: 500;">No hay órdenes que coincidan con los filtros.</td></tr>`;
+            tbody.innerHTML = `<tr><td colspan="7" style="text-align:center; padding: 4rem; color:#a0aec0; font-weight: 500;">No hay órdenes activas en este momento.</td></tr>`;
             return;
         }
 
         ordenesFiltradas.forEach(o => {
             const tr = document.createElement("tr");
+            tr.setAttribute('data-id', o.id);
             
             if (o.estado === 'por_pagar') tr.className = "fila-por_pagar";
             else if (o.estado === 'pendiente') tr.className = "fila-urgente";
             else if (o.estado === 'preparando') tr.className = "fila-proceso";
             else if (o.estado === 'terminado') tr.className = "fila-terminado";
 
+            // Tiempo
             let celdaTiempo = "";
             if (o.estado === 'por_pagar' && o.limite_pago) {
                 celdaTiempo = `<span class="tiempo-cronometro tiempo-alerta" data-limite="${o.limite_pago}" data-id="${o.id}">Calculando...</span>`;
@@ -301,27 +346,29 @@
                 celdaTiempo = `<span class="tiempo-cronometro" style="background:transparent; color:#4a5568;">${hora}</span>`;
             }
 
+            // Botones de acción
             let botonesAccion = "";
             if (o.estado === 'por_pagar') {
-                botonesAccion += `<button class="btn-tabla btn-principal" onclick="cambiarEstado('${o.id}', 'pendiente')">💵 Pago OK</button>`;
+                // CAMBIO 2: Pago OK → pasa a "preparando" directamente (va a cocina)
+                botonesAccion += `<button class="btn-tabla btn-principal" onclick="pagoOkACocina('${o.id}')">👨‍🍳 Pago OK → Cocina</button>`;
             } else if (o.estado === 'pendiente') {
                 botonesAccion += `<button class="btn-tabla btn-principal" onclick="cambiarEstado('${o.id}', 'preparando')">👨‍🍳 Cocinar</button>`;
             } else if (o.estado === 'preparando') {
                 botonesAccion += `<button class="btn-tabla btn-principal" onclick="cambiarEstado('${o.id}', 'terminado')">🛎️ Terminar</button>`;
             } else if (o.estado === 'terminado') {
-                botonesAccion += `<button class="btn-tabla btn-principal" onclick="cambiarEstado('${o.id}', 'entregado')">📦 Entregar</button>`;
-            }else if(o.estado=== 'borrar') {
-                botonesAccion += `<button class="btn-tabla" style="background:#e53e3e; color:white;" onclick="borrarOrden('${o.id}')">🗑️</button>`;
+                // CAMBIO 3: Entregar → abre modal de cobro y luego elimina
+                botonesAccion += `<button class="btn-tabla btn-principal" onclick="abrirModalCobro('${o.id}')">💳 Cobrar y Entregar</button>`;
             }
-    
 
             botonesAccion += `<button class="btn-tabla btn-secundario" onclick="verTicket('${o.id}')">📋 Ticket</button>`;
-            if (o.estado !== 'entregado' && o.estado !== 'cancelado') {
-                botonesAccion += `<button class="btn-tabla btn-peligro" onclick="cancelarOrden('${o.id}')">✖</button>`;
+            
+            // CAMBIO 1: Cancelar ahora ELIMINA la orden de la BD en vez de solo cambiar estado
+            if (o.estado !== 'terminado') {
+                botonesAccion += `<button class="btn-tabla btn-peligro" onclick="rechazarYEliminar('${o.id}')">✖</button>`;
             }
 
             tr.innerHTML = `
-                <td><strong style="color:var(--color-primario); font-size:1.1rem;">#${o.id}</strong></td>
+                <td><strong style="color:var(--color-primario); font-size:1.1rem;">#${o.id.toString().slice(-4)}</strong></td>
                 <td>
                     <strong style="font-size: 1.05rem;">${o.cliente_nombre || 'Sin nombre'}</strong><br>
                     <small style="color:#718096;">${o.usuario_email || ''}</small><br>
@@ -337,28 +384,134 @@
         });
     }
 
-    // Cambios de estado en la base de datos
+    // ─── Cambios de estado ──────────────────────────────────────────────
     async function cambiarEstado(id, nuevoEstado) {
         const updates = { estado: nuevoEstado };
-        if (nuevoEstado === 'pendiente') {
+        if (nuevoEstado === 'pendiente' || nuevoEstado === 'preparando') {
             updates.tiempo_aceptacion = new Date().toISOString();
         }
         const { error } = await db.from('ordenes').update(updates).eq('id', id);
         if (error) alert("Error al cambiar estado: " + error.message);
     }
 
-    async function cancelarOrden(id) {
-        if (!confirm("¿Seguro que deseas cancelar esta orden permanentemente?")) return;
-        const { error } = await db.from('ordenes').update({ estado: 'cancelado' }).eq('id', id);
-        if (error) alert("Error al cancelar: " + error.message);
+    // CAMBIO 2: Confirmar pago y enviar directo a cocina (estado "preparando")
+    async function pagoOkACocina(id) {
+        const updates = {
+            estado: 'preparando', // Va directo a cocina
+            tiempo_aceptacion: new Date().toISOString()
+        };
+        const { error } = await db.from('ordenes').update(updates).eq('id', id);
+        if (error) {
+            alert("Error: " + error.message);
+        } else {
+            // Animación visual de confirmación antes de desaparecer
+            const fila = document.querySelector(`tr[data-id="${id}"]`);
+            if (fila) {
+                fila.style.background = '#e6fffa';
+                fila.style.transition = 'background 0.3s';
+            }
+        }
     }
 
-    // Modal de comanda térmica
+    // CAMBIO 1: Rechazar/cancelar elimina el registro completamente de la BD
+    async function rechazarYEliminar(id) {
+        if (!confirm("¿Rechazar esta orden? Se eliminará permanentemente del sistema.")) return;
+        
+        const fila = document.querySelector(`tr[data-id="${id}"]`);
+        
+        // Animación de salida
+        if (fila) {
+            fila.classList.add('fila-eliminando');
+            await new Promise(r => setTimeout(r, 500)); // Espera la animación
+        }
+
+        const { error } = await db.from('ordenes').delete().eq('id', id);
+        if (error) {
+            alert("Error al eliminar: " + error.message);
+            if (fila) fila.classList.remove('fila-eliminando');
+        }
+        // El canal realtime actualizará la tabla automáticamente
+    }
+
+    // CAMBIO 3: Abrir modal de cobro al entregar
+    function abrirModalCobro(id) {
+        const o = todasLasOrdenes.find(item => item.id == id);
+        if (!o) return;
+
+        ordenCobroActual = o;
+
+        // Llenar el modal
+        const total = parseFloat(o.total).toFixed(2);
+        document.getElementById('cobro-total-display').textContent = `$${total}`;
+        document.getElementById('inputEfectivo').value = '';
+        document.getElementById('cambioDisplay').style.display = 'none';
+
+        // Detalle de productos
+        const detalle = document.getElementById('cobro-detalle-items');
+        const productos = (o.productos || '').split(',').filter(p => p.trim());
+        detalle.innerHTML = `
+            <strong style="color:#2d3748;">📋 ${o.cliente_nombre || 'Cliente'} — ${o.mesa}</strong>
+            <hr style="margin: 8px 0; border-color: #e2e8f0;">
+            ${productos.map(p => `<div style="padding: 3px 0;">• ${p.trim()}</div>`).join('')}
+        `;
+
+        document.getElementById('modalCobro').showModal();
+    }
+
+    // Calcular cambio en tiempo real
+    function calcularCambio() {
+        if (!ordenCobroActual) return;
+        const efectivo = parseFloat(document.getElementById('inputEfectivo').value) || 0;
+        const total = parseFloat(ordenCobroActual.total) || 0;
+        const cambio = efectivo - total;
+        const display = document.getElementById('cambioDisplay');
+        
+        if (efectivo > 0) {
+            display.style.display = 'block';
+            const monto = document.getElementById('montoСambio'); // Nota: carácter especial en id original
+            if (monto) monto.textContent = cambio >= 0 ? cambio.toFixed(2) : '0.00';
+            display.style.background = cambio >= 0 ? '#e6fffa' : '#fff5f5';
+            display.style.color = cambio >= 0 ? '#319795' : '#e53935';
+            display.style.borderColor = cambio >= 0 ? '#81e6d9' : '#feb2b2';
+            display.innerHTML = cambio >= 0
+                ? `💸 Cambio: $${cambio.toFixed(2)}`
+                : `⚠️ Faltan: $${Math.abs(cambio).toFixed(2)}`;
+        } else {
+            display.style.display = 'none';
+        }
+    }
+
+    // CAMBIO 3: Confirmar cobro → ELIMINAR orden de la BD
+    async function confirmarCobroYEliminar() {
+        if (!ordenCobroActual) return;
+
+        const id = ordenCobroActual.id;
+        const btnConfirmar = document.querySelector('#modalCobro .btn-principal');
+        btnConfirmar.disabled = true;
+        btnConfirmar.textContent = '⌛ Procesando...';
+
+        // Opcional: registrar la venta antes de eliminar
+        // await db.from('ventas').insert({ ... });
+
+        const { error } = await db.from('ordenes').delete().eq('id', id);
+
+        if (error) {
+            alert("Error al procesar cobro: " + error.message);
+            btnConfirmar.disabled = false;
+            btnConfirmar.textContent = '✅ Confirmar Cobro';
+        } else {
+            document.getElementById('modalCobro').close();
+            ordenCobroActual = null;
+            // La tabla se actualiza sola por Realtime
+        }
+    }
+
+    // ─── Modal Ticket ───────────────────────────────────────────────────
     function verTicket(id) {
         const o = todasLasOrdenes.find(item => item.id == id);
         if (!o) return;
 
-        document.getElementById("t-folio").textContent = o.id;
+        document.getElementById("t-folio").textContent = o.id.toString().slice(-4);
         document.getElementById("t-fecha").textContent = new Date(o.created_at).toLocaleString();
         document.getElementById("t-cliente").textContent = o.cliente_nombre || 'General';
         document.getElementById("t-mesa").textContent = o.mesa;
@@ -377,7 +530,7 @@
         document.getElementById("modalTicket").showModal();
     }
 
-    // Loop de reloj para manejar el tiempo de expiración
+    // ─── Cronómetro de cuenta regresiva ────────────────────────────────
     setInterval(() => {
         document.querySelectorAll(".tiempo-cronometro[data-limite]").forEach(el => {
             const limite = new Date(el.getAttribute("data-limite")).getTime();
@@ -398,7 +551,7 @@
         });
     }, 1000);
 
-    // Reproducción de alerta sonora limpia
+    // ─── Alerta sonora ──────────────────────────────────────────────────
     function reproducirAlerta() {
         const audio = document.getElementById("audioNotificacion");
         if (audio) {
@@ -406,40 +559,36 @@
         }
     }
 
-    // CONFIGURACIÓN DEL CANAL SUPABASE REALTIME V2
+    // ─── Supabase Realtime ──────────────────────────────────────────────
     function conectarRealtime() {
         db.channel('monitor_ordenes')
           .on('postgres_changes', { event: '*', schema: 'public', table: 'ordenes' }, payload => {
               if (payload.eventType === "INSERT") reproducirAlerta();
-              cargarOrdenes();
+              cargarOrdenes(); // Recarga siempre que haya un cambio
           })
           .subscribe((status) => {
-              const indicadores = [document.getElementById("indicadorRealtime"), document.getElementById("indicadorRealtimeMobile")];
+              const indicadores = [
+                  document.getElementById("indicadorRealtime"),
+                  document.getElementById("indicadorRealtimeMobile")
+              ];
               indicadores.forEach(ind => {
-                  if(!ind) return;
+                  if (!ind) return;
                   if (status === "SUBSCRIBED") {
                       ind.textContent = "● Tiempo Real Activo";
-                      ind.style.background = "#e6fffa"; ind.style.color = "#319795"; ind.style.borderColor = "#81e6d9";
+                      ind.style.background = "#e6fffa";
+                      ind.style.color = "#319795";
+                      ind.style.borderColor = "#81e6d9";
                   } else {
                       ind.textContent = "○ Desconectado";
-                      ind.style.background = "#fff5f5"; ind.style.color = "#c53030"; ind.style.borderColor = "#fc8181";
+                      ind.style.background = "#fff5f5";
+                      ind.style.color = "#c53030";
+                      ind.style.borderColor = "#fc8181";
                   }
               });
           });
     }
-    async function borrarOrden(id) {
-    if (!confirm("⚠️ ¿Estás seguro de ELIMINAR esta orden permanentemente?")) return;
-    
-    const { error } = await db.from('ordenes').delete().eq('id', id);
-    
-    if (error) {
-        alert("Error al borrar: " + error.message);
-    } else {
-        cargarOrdenes(); // Recarga la tabla automáticamente
-    }
-}
 
-    // Encendido
+    // ─── Arranque ───────────────────────────────────────────────────────
     cargarOrdenes();
     conectarRealtime();
   </script>

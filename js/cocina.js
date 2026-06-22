@@ -11,7 +11,7 @@ document.addEventListener('DOMContentLoaded', () => {
         'preparando': enProceso,
         'terminado': terminadas,
         'pendiente_aceptacion': pendiente_aceptacion,
-        'por_paga': por_paga
+        'por_paga': por_pagar
     };
 
     function crearTarjetaOrden(orden) {
