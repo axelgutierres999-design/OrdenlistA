@@ -483,16 +483,41 @@
     }
 
     // CAMBIO 2: Confirmar pago y enviar directo a cocina (estado "preparando")
+    // CAMBIO 2: Confirmar pago, enviar a cocina Y REGISTRAR EN VENTAS (ESTADÍSTICAS)
     async function pagoOkACocina(id) {
+        // 1. Buscamos los datos completos de la orden actual
+        const orden = todasLasOrdenes.find(o => o.id == id);
+        if (!orden) return alert("No se encontró la orden.");
+
         const updates = {
             estado: 'preparando', // Va directo a cocina
             tiempo_aceptacion: new Date().toISOString()
         };
+
+        // 2. Actualizamos el estado de la orden
         const { error } = await db.from('ordenes').update(updates).eq('id', id);
+        
         if (error) {
-            alert("Error: " + error.message);
+            alert("Error al actualizar la orden: " + error.message);
         } else {
-            // Animación visual de confirmación antes de desaparecer
+            // 3. ¡NUEVO! Registrar la ganancia en la tabla de VENTAS para el Corte de Caja
+            const nuevaVenta = {
+                restaurante_id: orden.restaurante_id,
+                mesa: orden.mesa || 'Para Recoger',
+                productos: orden.productos,
+                total: orden.total,
+                metodo_pago: 'transferencia' // Etiqueta clave para tus estadísticas
+            };
+
+            // Insertamos la venta silenciosamente
+            const { error: errorVentas } = await db.from('ventas').insert([nuevaVenta]);
+            
+            if (errorVentas) {
+                console.error("Error sumando a estadísticas:", errorVentas.message);
+                // No detenemos el flujo si la estadística falla, pero lo marcamos en consola
+            }
+
+            // 4. Animación visual de confirmación antes de cambiar de columna
             const fila = document.querySelector(`tr[data-id="${id}"]`);
             if (fila) {
                 fila.style.background = '#e6fffa';
