@@ -93,23 +93,29 @@
     </style>
 </head>
 <body>
- <nav class="nav-inicio">
-  <div class="brand-group">
-    <a href="index.html" style="text-decoration: none;">
-      <strong style="font-size: 1.3rem; color: #10ad93;">☕ OrdenLista</strong>
-    </a>
-    <span class="hide-mobile" style="color: #888;">| Monitor de stock</span>
-  </div>
+<nav class="nav-inicio">
+    <div class="brand-group">
+      <a href="index.html">☕ OrdenLista</a>
+      <span class="hide-mobile">| Monitor de STOCK</span>
+    </div>
 
-  <div style="display: flex; align-items: center; gap: 10px;">
-    <a href="ajustes.html" role="button" class="btn-ajustes-manual">
-      ⚙️ <span class="hide-mobile">Ajustes</span>
-    </a>
-    <button class="hamburger" onclick="toggleNav()">☰</button>
-  </div>
+    <ul id="menuNavegacion" class="nav-botones hide-mobile">
+        <li><a href="mesas.html">🪑 Mesas</a></li>
+        <li><a href="menu.html">📜 Menú</a></li>
+        <li><a href="ordenes.html">📋 Órdenes</a></li>
+        <li><a href="cocina.html">👨‍🍳 Cocina</a></li>
+        <li><a href="stock.html">📦 Stock</a></li>
+        <li><a href="reservaciones.html">📅 Reservaciones</a></li>
+        <li><a href="pedidosrecoger.html" class="activo">🚶 Pedidos por recoger</a></li> 
+        <li><a href="ventas.html">📊 Ventas</a></li>
+    </ul>
 
-  <ul id="menuNavegacion" class="nav-botones"></ul>
-</nav>
+    <div style="display: flex; align-items: center; gap: 15px;">
+      <span id="indicadorRealtime" class="badge-estado hide-mobile" style="background:#0d8a75; color:white; border: none;">● Activo</span>
+      <a href="ajustes.html" role="button" class="btn-ajustes-manual hide-mobile">⚙️ Ajustes</a>
+      <button class="hamburger" onclick="toggleNav()">☰</button>
+    </div>
+  </nav>
 
 
     <main class="container panel">
