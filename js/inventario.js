@@ -246,3 +246,79 @@ document.addEventListener('DOMContentLoaded', async () => {
     
     cargarInventario();
 });
+// ── Ver insumos faltantes (agotados o stock bajo) ──────────────────
+window.verFaltantes = async () => {
+    const modal = document.getElementById('modalFaltantes');
+    const lista = document.getElementById('listaFaltantes');
+    if (!modal || !lista) return;
+
+    lista.innerHTML = '<p style="color:#888;">Revisando inventario...</p>';
+    modal.showModal();
+
+    try {
+        const { data, error } = await window.db
+            .from('suministros')
+            .select('nombre, cantidad, unidad, categoria')
+            .eq('restaurante_id', restoId)
+            .order('cantidad', { ascending: true });
+
+        if (error) throw error;
+
+        // Separar en agotados y bajos (menos de 5 unidades)
+        const agotados = data.filter(s => parseFloat(s.cantidad) <= 0);
+        const bajos    = data.filter(s => parseFloat(s.cantidad) > 0 && parseFloat(s.cantidad) < 5);
+
+        if (agotados.length === 0 && bajos.length === 0) {
+            lista.innerHTML = `
+                <div style="text-align:center; padding: 2rem; color: #28a745;">
+                    <div style="font-size:3rem;">✅</div>
+                    <strong>¡Todo en orden!</strong>
+                    <p>No hay insumos agotados ni con stock bajo.</p>
+                </div>`;
+            return;
+        }
+
+        const renderFila = (s, tipo) => {
+            const color  = tipo === 'agotado' ? '#dc3545' : '#ffc107';
+            const texto  = tipo === 'agotado' ? 'AGOTADO' : 'STOCK BAJO';
+            const txtCol = tipo === 'agotado' ? 'white' : '#212529';
+            return `
+                <div style="display:flex; justify-content:space-between; align-items:center;
+                            padding:10px 12px; margin-bottom:8px; border-radius:8px;
+                            border-left: 5px solid ${color}; background:#f9f9f9;">
+                    <div>
+                        <strong>${s.nombre}</strong>
+                        <small style="display:block; color:#888;">${s.categoria || 'Sin categoría'}</small>
+                    </div>
+                    <div style="text-align:right;">
+                        <span style="background:${color}; color:${txtCol}; padding:3px 10px;
+                                     border-radius:20px; font-size:0.75rem; font-weight:700;">
+                            ${texto}
+                        </span>
+                        <small style="display:block; margin-top:4px; color:#555;">
+                            ${parseFloat(s.cantidad).toFixed(2)} ${s.unidad}
+                        </small>
+                    </div>
+                </div>`;
+        };
+
+        let html = '';
+
+        if (agotados.length > 0) {
+            html += `<p style="font-weight:700; color:#dc3545; margin-bottom:8px;">
+                        🔴 Agotados (${agotados.length})</p>`;
+            html += agotados.map(s => renderFila(s, 'agotado')).join('');
+        }
+
+        if (bajos.length > 0) {
+            html += `<p style="font-weight:700; color:#e6a817; margin:16px 0 8px;">
+                        🟡 Stock Bajo (${bajos.length})</p>`;
+            html += bajos.map(s => renderFila(s, 'bajo')).join('');
+        }
+
+        lista.innerHTML = html;
+
+    } catch (err) {
+        lista.innerHTML = `<p style="color:#dc3545;">❌ Error al cargar: ${err.message}</p>`;
+    }
+};

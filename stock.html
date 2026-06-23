@@ -116,14 +116,18 @@
         <h1>📦 Gestión de Stock / Suministros</h1>
         
         <div class="grid">
-            <button role="button" onclick="nuevoInsumo()" class="contrast">+ Nuevo Insumo</button>
-            
-            <button role="button" onclick="abrirGestorRecetas()" class="secondary">📖 Configurar Recetas</button>
-            
-            <div style="display: flex; gap: 10px;">
-                <input type="text" id="busquedaInventario" placeholder="Buscar insumo..." />
-            </div>
-        </div>
+    <button role="button" onclick="nuevoInsumo()" class="contrast">+ Nuevo Insumo</button>
+    <button role="button" onclick="abrirGestorRecetas()" class="secondary">📖 Configurar Recetas</button>
+
+    <!-- NUEVO BOTÓN -->
+    <button role="button" onclick="verFaltantes()" style="background:#e53935; border:none; color:white;">
+        ⚠️ Ver Faltantes
+    </button>
+
+    <div style="display: flex; gap: 10px;">
+        <input type="text" id="busquedaInventario" placeholder="Buscar insumo..." />
+    </div>
+</div>
 
         <table role="grid">
             <thead>
@@ -205,6 +209,22 @@
             </div>
         </article>
     </dialog>
+
+    <dialog id="modalFaltantes">
+    <article style="max-width: 500px;">
+        <header>
+            <button aria-label="Close" class="close" 
+                    onclick="document.getElementById('modalFaltantes').close()"></button>
+            <h3>⚠️ Insumos con Stock Bajo o Agotado</h3>
+        </header>
+        <div id="listaFaltantes" style="max-height: 400px; overflow-y: auto;"></div>
+        <footer>
+            <button onclick="document.getElementById('modalFaltantes').close()">
+                Cerrar
+            </button>
+        </footer>
+    </article>
+</dialog>
 
     <script>
   function toggleNav() {
