@@ -112,16 +112,35 @@ const App = (function() {
         const restoId = getRestoId();
         if (!restoId || typeof db === 'undefined') return;
 
-        db.channel('cambios-globales')
-            .on('postgres_changes', { event: '*', schema: 'public', table: 'ordenes', filter: `restaurante_id=eq.${restoId}` }, payload => {
-                if (payload.eventType === 'INSERT') mostrarNotificacionNuevaOrden(payload.new);
+        // Le cambiamos el nombre al canal para limpiar la caché del navegador
+        db.channel('global-restaurant-monitor')
+            .on('postgres_changes', { 
+                event: '*', 
+                schema: 'public', 
+                table: 'ordenes' 
+                // ⚠️ Quitamos el filtro UUID problemático
+            }, payload => {
+                // Filtramos manualmente aquí por seguridad para la notificación
+                if (payload.eventType === 'INSERT' && payload.new.restaurante_id === restoId) {
+                    mostrarNotificacionNuevaOrden(payload.new);
+                }
+                // Recargamos los datos (cargarDatosIniciales ya filtra por ID de forma segura)
                 cargarDatosIniciales();
             })
-            .on('postgres_changes', { event: '*', schema: 'public', table: 'suministros', filter: `restaurante_id=eq.${restoId}` }, () => cargarDatosIniciales())
-            .on('postgres_changes', { event: '*', schema: 'public', table: 'restaurantes', filter: `id=eq.${restoId}` }, () => cargarDatosIniciales())
-            .subscribe();
+            .on('postgres_changes', { 
+                event: '*', 
+                schema: 'public', 
+                table: 'suministros' 
+            }, () => cargarDatosIniciales())
+            .on('postgres_changes', { 
+                event: '*', 
+                schema: 'public', 
+                table: 'restaurantes' 
+            }, () => cargarDatosIniciales())
+            .subscribe((status) => {
+                console.log("📡 Estado de conexión Global (App.js):", status);
+            });
     };
-
     // === MODAL DE PAGO ===
     const mostrarModalPago = (orden, callbackPago) => {
         const total = parseFloat(orden.total);
