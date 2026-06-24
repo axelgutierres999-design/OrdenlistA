@@ -352,7 +352,11 @@ async function inicializar() {
         }]);
       }
 
-      generarTicket(total, metodoPago || "Pendiente", mesaLabel);
+      // ── Descontar stock según recetas ──
+     await descontarStock(ordenActual);
+
+     generarTicket(total, metodoPago || "Pendiente", mesaLabel);
+
       if(window.App?.notifyUpdate) window.App.notifyUpdate();
       
       ordenActual = [];
@@ -361,7 +365,51 @@ async function inicializar() {
       
     } catch (err) { alert("Error al guardar: " + err.message); }
   }
+  
+async function descontarStock(productosVendidos) {
+    try {
+        for (const item of productosVendidos) {
+            if (!item.id) continue;
 
+            const { data: receta, error } = await db
+                .from('recetas')
+                .select('suministro_id, cantidad_necesaria')
+                .eq('producto_id', item.id)
+                .eq('restaurante_id', restoIdActivo);
+
+            if (error || !receta || receta.length === 0) continue;
+
+            for (const ingrediente of receta) {
+                const cantidadADescontar =
+                    ingrediente.cantidad_necesaria * item.cantidad;
+
+                const { data: suministro } = await db
+                    .from('suministros')
+                    .select('cantidad')
+                    .eq('id', ingrediente.suministro_id)
+                    .eq('restaurante_id', restoIdActivo)
+                    .single();
+
+                if (!suministro) continue;
+
+                const nuevoStock = Math.max(
+                    0,
+                    (parseFloat(suministro.cantidad) || 0) - cantidadADescontar
+                );
+
+                await db
+                    .from('suministros')
+                    .update({ cantidad: nuevoStock })
+                    .eq('id', ingrediente.suministro_id)
+                    .eq('restaurante_id', restoIdActivo);
+            }
+        }
+        console.log("✅ Stock descontado correctamente");
+    } catch (err) {
+        console.warn("⚠️ Error al descontar stock:", err.message);
+        // No bloquea la venta si falla el stock
+    }
+}
   // =====================================================
   // 4️⃣ EDITOR Y SUBIDA DE IMAGEN (SOLUCIÓN DEFINITIVA)
   // =====================================================
