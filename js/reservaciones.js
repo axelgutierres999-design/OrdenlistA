@@ -134,29 +134,39 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   };
 
-  // =====================================================
+// =====================================================
   // 4️⃣ EVENTOS Y REAL-TIME
   // =====================================================
   if (inputBusqueda) inputBusqueda.oninput = () => renderizarReservaciones();
   if (filtroEstado) filtroEstado.onchange = () => renderizarReservaciones();
 
-  // Iniciar
+  // Carga inicial
   cargarReservaciones();
 
-  // --- CONFIGURACIÓN TIEMPO REAL ---
+  // --- CONFIGURACIÓN TIEMPO REAL (CORREGIDA) ---
   const sesion = JSON.parse(localStorage.getItem('sesion_activa'));
-  if (sesion && db) {
+  
+  if (sesion && typeof db !== 'undefined') {
     console.log("🛰️ Conectando Monitor de Reservas en Tiempo Real...");
     
-    db.channel('monitor-reservas')
+    // Usamos un nombre de canal fresco para evitar conflictos en caché
+    db.channel('reservaciones_activas')
       .on(
         'postgres_changes', 
-        { event: '*', schema: 'public', table: 'reservaciones', filter: `restaurante_id=eq.${sesion.restaurante_id}` }, 
+        { 
+          event: '*', 
+          schema: 'public', 
+          table: 'reservaciones' 
+          // ⚠️ Quitamos el filtro del socket para evitar el bug del UUID.
+          // El filtrado por restaurante_id ya lo hace la función cargarReservaciones().
+        }, 
         (payload) => {
           console.log('🔔 Cambio en reservas detectado:', payload.eventType);
-          cargarReservaciones(); // Refrescar datos
+          cargarReservaciones(); // Refrescar los datos de manera segura
         }
       )
-      .subscribe();
+      .subscribe((status) => {
+          console.log("Estado de conexión Reservas:", status);
+      });
   }
 });
