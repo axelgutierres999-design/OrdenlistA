@@ -220,44 +220,23 @@
             </div>
         </div>
     </header>
-    <div class="card" style="padding: 0; border: none; box-shadow: 0 4px 15px rgba(0,0,0,0.05);">
-
-      <figure style="margin: 0;">
-
-        <table role="grid" class="tabla-ordenes" style="margin: 0;">
-
-          <thead>
-
-            <tr>
-
-              <th style="width: 80px;">ID</th>
-
-              <th>Mesa / Cliente</th>
-
-              <th>Productos</th>
-
-              <th>Total</th>
-
-              <th>Estado</th>
-
-              <th>Tiempo</th>
-
-              <th class="text-center">Acción</th>
-
-            </tr>
-
-          </thead>
-
-          <tbody id="tablaBodyOrdenes">
-
-             <tr><td colspan="7" style="text-align:center; padding: 4rem;">Cargando sistema de órdenes...</td></tr>
-
-          </tbody>
-
-        </table>
-
-      </figure>
-
+<div style="background: white; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); overflow-x: auto; border: 1px solid #eef0f2;">
+      <table role="grid" class="tabla-ordenes" style="margin: 0; min-width: 800px;">
+        <thead style="background-color: #f8f9fa;">
+          <tr>
+            <th style="width: 80px;">ID</th>
+            <th>Mesa / Cliente</th>
+            <th>Productos</th>
+            <th>Total</th>
+            <th>Estado</th>
+            <th>Tiempo</th>
+            <th class="text-center">Acción</th>
+          </tr>
+        </thead>
+        <tbody id="tablaBodyOrdenes">
+           <tr><td colspan="7" style="text-align:center; padding: 4rem;">Cargando sistema de órdenes...</td></tr>
+        </tbody>
+      </table>
     </div>
 
   </main>
