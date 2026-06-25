@@ -302,28 +302,32 @@ const mesaParam = decodeURIComponent(params.get("mesa") || "Mesa Sin Número");
     window.quitarDelCarrito = (tempId) => { carrito = carrito.filter(i => i.tempId !== tempId); renderizarCarrito(); };
     window.actualizarComentario = (tempId, texto) => { const item = carrito.find(i => i.tempId === tempId); if (item) item.comentario = texto; };
 
-    // ============================================
+// ============================================
     // MODIFICACIÓN PRINCIPAL AQUÍ (ENVIO DE PEDIDO)
     // ============================================
     document.getElementById("btnEnviarPedido").onclick = async () => {
       const btn = document.getElementById("btnEnviarPedido");
-      btn.disabled = true; btn.textContent = "Procesando orden...";
+      btn.disabled = true; 
+      btn.textContent = "Procesando orden...";
 
-      // 1. Obtener sesión del usuario actual
-      const { data: { user }, error: authError } = await db.auth.getUser();
+      // 1. Intentar obtener la sesión, pero SIN RESTRINGIR
+      const { data: { user } } = await db.auth.getUser();
       
-      if (authError || !user) {
-          alert("🔒 Por favor, inicia sesión en la app para realizar tu pedido.");
-          window.location.href = 'login.html'; // Cambia esto si tu login se llama diferente
-          return;
-      }
+      // Valores por defecto si es un Invitado (sin cuenta)
+      let emailCliente = "Invitado";
+      let nombreCliente = "Cliente Invitado";
 
-      // 2. Intentar sacar el nombre del perfil (o usar el correo como respaldo)
-      let nombreCliente = user.email.split('@')[0];
-      try {
-          const { data: perfil } = await db.from('perfiles_clientes').select('nombre').eq('id', user.id).single();
-          if (perfil && perfil.nombre) nombreCliente = perfil.nombre;
-      } catch(e) { console.log("Usando email como nombre"); }
+      // 2. Si el usuario SÍ está logueado, usamos su información real
+      if (user) {
+          emailCliente = user.email;
+          nombreCliente = user.email.split('@')[0];
+          try {
+              const { data: perfil } = await db.from('perfiles_clientes').select('nombre').eq('id', user.id).single();
+              if (perfil && perfil.nombre) nombreCliente = perfil.nombre;
+          } catch(e) { 
+              console.log("Usando email como nombre por defecto"); 
+          }
+      }
 
       // 3. Formatear los productos y el total
       const productosTexto = carrito.map(i => `${i.cantidad}x ${i.nombre}${i.comentario ? " ["+i.comentario+"]" : ""}`).join(", ");
@@ -335,7 +339,7 @@ const mesaParam = decodeURIComponent(params.get("mesa") || "Mesa Sin Número");
       const estadoPedido = esParaRecoger ? "por_pagar" : "por_confirmar";
 
       try {
-        // 5. Insertar en la tabla ordenes (incluyendo los nuevos campos SQL)
+        // 5. Insertar en la tabla ordenes usando las variables seguras
         const { error } = await db.from("ordenes").insert([{
           restaurante_id: ridParam, 
           mesa: mesaParam, 
@@ -343,16 +347,17 @@ const mesaParam = decodeURIComponent(params.get("mesa") || "Mesa Sin Número");
           total: total, 
           comentarios: comentarioGeneral, 
           estado: estadoPedido,
-          usuario_email: user.email,         // 🆕 Nuevo campo
-          cliente_nombre: nombreCliente      // 🆕 Nuevo campo
+          usuario_email: emailCliente,       // 🆕 Usa el correo o "Invitado"
+          cliente_nombre: nombreCliente      // 🆕 Usa el nombre o "Cliente Invitado"
         }]);
         
         if (error) throw error;
         
         // 6. REDIRECCIÓN INTELIGENTE
         if (esParaRecoger) {
-            // Si es para recoger, lo mandamos a su perfil para que vea cómo pagar
-            window.location.href = 'perfil.html';
+            // Si es para recoger, lo mandamos a su perfil o inicio
+            // (Si no tiene cuenta, lo mandamos al index para que no choque con perfil)
+            window.location.href = user ? 'perfil.html' : 'index.html';
         } else {
             // Si es en mesa, le mostramos la pantalla verde de éxito estática
             document.body.innerHTML = `
@@ -374,35 +379,6 @@ const mesaParam = decodeURIComponent(params.get("mesa") || "Mesa Sin Número");
       } catch (err) { 
           alert("Error de conexión: " + err.message); 
           btn.disabled = false; 
-          btn.textContent = "Reintentar envío"; 
+          btn.textContent = "🚀 Confirmar y Enviar Pedido"; 
       }
     };
-
-    // --- LÓGICA CARRUSEL ---
-    window.abrirMenuDigital = () => { 
-        if(fotosMenu.length === 0) return;
-        indiceFoto = 0; 
-        mostrarSlide(); 
-        document.getElementById("modalMenuFotos").showModal(); 
-    };
-
-    window.cambiarSlide = (d) => { 
-        indiceFoto += d; 
-        if (indiceFoto < 0) indiceFoto = fotosMenu.length - 1; 
-        if (indiceFoto >= fotosMenu.length) indiceFoto = 0; 
-        mostrarSlide(); 
-    };
-
-    function mostrarSlide() { 
-        const img = document.getElementById("imgSlide");
-        img.src = fotosMenu[indiceFoto]; 
-        document.getElementById("contadorSlide").textContent = `${indiceFoto + 1} / ${fotosMenu.length}`; 
-    }
-
-    document.getElementById("buscarProducto").addEventListener("input", renderizarProductos);
-    document.getElementById("filtroCategoria").addEventListener("change", renderizarProductos);
-
-    cargarDatosRestaurante();
-  </script>
-</body>
-</html>
