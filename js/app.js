@@ -267,7 +267,6 @@ const App = (function() {
     return {
         init: async () => { 
             await cargarDatosIniciales(); 
-            activarSuscripcionRealtime(); 
         },
         getRestoId, getRol,
         getOrdenes: () => ordenes,
@@ -385,7 +384,66 @@ document.addEventListener('DOMContentLoaded', () => {
     renderizarMenuSeguro();
     App.init();
 });
-// ====== MOTOR INDEPENDIENTE DE NOTIFICACIONES ======
+        // ====== MOTOR INDEPENDIENTE DE NOTIFICACIONES ======
+      document.addEventListener('DOMContentLoaded', () => {
+    // 1. Verificamos sesión y conexión a Supabase
+    const sesion = JSON.parse(localStorage.getItem('sesion_activa'));
+    if (!sesion || typeof db === 'undefined') return;
+
+    const restoId = sesion.restaurante_id;
+    const rol = sesion.rol;
+    
+    // 2. Filtramos quién recibe alertas
+    if (!["mesero", "encargado", "dueño", "administrador", "cocinero"].includes(rol)) return;
+
+    const sonidoNotificacion = new Audio("https://cdn.pixabay.com/download/audio/2022/03/15/audio_8b3c3b9ad9.mp3?filename=notification-106557.mp3");
+
+    // 3. Función para encender el punto rojo
+    const actualizarBadge = () => {
+        const badges = document.querySelectorAll('.badge-rojo');
+        badges.forEach(badge => badge.style.display = 'inline-block');
+    };
+
+    // 4. Función para crear el globo emergente (Toast)
+    const lanzarAlertaVisual = (titulo, detalle, urlDestino) => {
+        try { sonidoNotificacion.play().catch(()=>{}); } catch(e){}
+
+        let contenedor = document.getElementById('notifContenedor');
+        if (!contenedor) {
+            contenedor = document.createElement('div');
+            contenedor.id = 'notifContenedor';
+            document.body.appendChild(contenedor);
+        }
+
+        const toast = document.createElement('div');
+        toast.className = 'toast-notificacion';
+        toast.innerHTML = `<strong>${titulo}</strong><br><small style="color:#666;">${detalle}</small>`;
+        toast.onclick = () => window.location.href = urlDestino;
+
+        contenedor.appendChild(toast);
+        actualizarBadge();
+
+        setTimeout(() => { if(toast.parentNode) toast.remove(); }, 6000);
+    };
+
+    // 5. Suscripción a Supabase en tiempo real
+    console.log("🔔 Motor de notificaciones globales iniciado...");
+    
+    db.channel(`alertas-globales-${restoId}`)
+        .on('postgres_changes', { 
+            event: 'INSERT', schema: 'public', table: 'ordenes', filter: `restaurante_id=eq.${restoId}` 
+        }, payload => {
+            lanzarAlertaVisual('🔔 Nueva Orden', `Mesa: ${payload.new.mesa || 'Para llevar'}`, 'ordenes.html');
+        })
+        .on('postgres_changes', { 
+            event: 'INSERT', schema: 'public', table: 'reservaciones', filter: `restaurante_id=eq.${restoId}` 
+        }, payload => {
+            if (payload.new.estado === 'pendiente') {
+                lanzarAlertaVisual('📅 Nueva Reservación', `${payload.new.nombre_cliente}`, 'reservaciones.html');
+            }
+        })
+        .subscribe();
+});// ====== MOTOR INDEPENDIENTE DE NOTIFICACIONES ======
 document.addEventListener('DOMContentLoaded', () => {
     // 1. Verificamos sesión y conexión a Supabase
     const sesion = JSON.parse(localStorage.getItem('sesion_activa'));
