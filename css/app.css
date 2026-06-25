@@ -265,20 +265,3 @@ background:white;
     from { opacity: 0; transform: translateX(50px); } 
     to { opacity: 1; transform: translateX(0); } 
 }
-#menuNavegacion {
-    display: flex;          /* Coloca los elementos en línea horizontal */
-    flex-direction: row;
-    list-style: none;       /* Quita los puntos de la lista */
-    gap: 15px;              /* Espacio entre cada botón */
-    margin: 0;
-    padding: 0;
-    align-items: center;
-}
-
-/* Opcional: si tienes un menú responsive para celulares oculto por defecto */
-@media (max-width: 768px) {
-    #menuNavegacion {
-        display: none; /* Aquí iría la lógica de tu clase .nav-links para el botón hamburger */
-        flex-direction: column;
-    }
-}
