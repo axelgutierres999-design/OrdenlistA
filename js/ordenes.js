@@ -200,7 +200,7 @@ document.addEventListener('DOMContentLoaded', () => {
     setTimeout(renderizarOrdenes, 500); 
   }
   // --- 🛰️ CONEXIÓN REALTIME AISLADA PARA ÓRDENES ---
-   function iniciarRealtimeOrdenes() {
+function iniciarRealtimeOrdenes() {
     const sesion = JSON.parse(localStorage.getItem('sesion_activa'));
     
     // Verificación de seguridad
