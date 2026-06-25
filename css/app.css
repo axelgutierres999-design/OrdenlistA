@@ -216,3 +216,32 @@ background:white;
     position: relative; /* Importante */
     overflow: hidden;
 }
+/* === BADGE DE NOTIFICACIONES (PUNTO ROJO) === */
+.badge-rojo {
+    background-color: #e74c3c;
+    color: white;
+    font-size: 0.75rem;
+    font-weight: 800;
+    padding: 2px 7px;
+    border-radius: 12px;
+    margin-left: 5px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+    animation: pulse-badge 2s infinite;
+}
+
+@keyframes pulse-badge {
+    0% { box-shadow: 0 0 0 0 rgba(231, 76, 60, 0.7); }
+    70% { box-shadow: 0 0 0 6px rgba(231, 76, 60, 0); }
+    100% { box-shadow: 0 0 0 0 rgba(231, 76, 60, 0); }
+}
+
+/* Ajuste para el contenedor de notificaciones emergentes */
+#notifContenedor {
+    position: fixed;
+    top: 80px; /* Debajo de la barra de navegación */
+    right: 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    z-index: 99999;
+}
