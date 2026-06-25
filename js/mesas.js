@@ -761,4 +761,31 @@ async function mostrarTicket(orden) {
           alert("❌ Hubo un error al intentar cambiar la mesa.");
       }
   };
+  // Canal propio para mesas — detecta cambios sin depender solo de app.js
+  function iniciarRealtimeMesas() {
+    const sesion = JSON.parse(localStorage.getItem('sesion_activa'));
+    if (!sesion?.restaurante_id || typeof db === 'undefined') return;
+ 
+    db.channel(`mesas-monitor-${sesion.restaurante_id}`)
+      .on('postgres_changes', {
+          event: '*',
+          schema: 'public',
+          table: 'ordenes',
+          filter: `restaurante_id=eq.${sesion.restaurante_id}`
+        },
+        () => {
+          // Cuando cambia una orden, le pedimos a app.js que recargue
+          // sus datos, y cuando termine llamará renderizarMesas() 
+          // a través del registerRender que ya está registrado.
+          // Como respaldo adicional, esperamos 800ms y forzamos
+          // el render con los datos que app.js ya tiene en memoria.
+          setTimeout(() => renderizarMesas(), 800);
+        }
+      )
+      .subscribe(status => {
+        console.log(`[Realtime Mesas] ${status}`);
+      });
+  }
+ 
+  iniciarRealtimeMesas();
 });
