@@ -5,236 +5,198 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Pedido | OrdenLista</title>
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@picocss/pico@1/css/pico.min.css">
-  <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
   <style>
-    body { background: #f6f8f9; font-family: "Inter", system-ui, sans-serif; padding-bottom: 120px; }
-    
-    header { text-align: center; margin-bottom: 1rem; padding-top: 10px; }
-    header h1 { margin: 0.5rem 0; font-size: 1.6rem; color: #10ad93; }
-
-    /* ESTILOS CARRUSEL */
-    #btnMenuDigital {
-        display: none;
-        background-color: #333;
-        border: none;
-        color: white;
-        margin: 0 auto 15px auto;
-        padding: 8px 15px;
-        font-size: 0.9rem;
-        border-radius: 20px;
-        width: fit-content;
+    body {
+      background: #f6f8f9;
+      font-family: "Inter", system-ui, sans-serif;
     }
-    
-    .carousel-container {
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        position: relative;
-        height: 75vh;
-        background: black;
-        border-radius: 8px;
-        overflow: hidden;
+    header {
+      text-align: center;
+      margin-bottom: 1rem;
     }
-    .carousel-img { max-width: 100%; max-height: 100%; object-fit: contain; }
-    
-    /* FLECHAS MEJORADAS */
-    .c-btn {
-        position: absolute; top: 50%; transform: translateY(-50%);
-        background: rgba(0,0,0,0.5); color: white; border: none;
-        width: 50px; height: 50px; border-radius: 50%; cursor: pointer;
-        z-index: 10; display: flex; align-items: center; justify-content: center;
-        font-size: 1.5rem; transition: background 0.3s;
-    }
-    .c-btn:hover { background: rgba(16, 173, 147, 0.8); }
-    .c-prev { left: 15px; }
-    .c-next { right: 15px; }
-
-    /* Productos Grid */
-    .productos-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 1rem; }
-    
-    .producto-card { 
-        background: white; border-radius: 12px; overflow: hidden; 
-        box-shadow: 0 2px 6px rgba(0, 0, 0, 0.08); position: relative;
-        display: flex; flex-direction: column;
-    }
-    
-    .producto-card img { width: 100%; height: 110px; object-fit: cover; cursor: pointer; }
-    
-    .btn-info-detalle {
-        position: absolute; top: 8px; right: 8px;
-        background: rgba(255,255,255,0.9); color: #10ad93;
-        border: none; border-radius: 50%; width: 28px; height: 28px;
-        font-weight: bold; font-family: serif; font-style: italic;
-        cursor: pointer; box-shadow: 0 2px 4px rgba(0,0,0,0.2);
-        display: flex; align-items: center; justify-content: center; z-index: 5;
+    header h1 {
+      margin: 0.5rem 0;
+      font-size: 1.6rem;
+      color: #10ad93;
     }
 
-    .producto-info { padding: 0.6rem; text-align: center; flex-grow: 1; display: flex; flex-direction: column; justify-content: space-between; }
-    .producto-info h4 { margin: 0; font-size: 0.95rem; line-height: 1.2; }
-    .producto-info p { margin: 5px 0; color: #10ad93; font-weight: bold; }
-    
-    .btn-agregar-rapido {
-        width: 100%; background: #10ad93; color: white; border: none;
-        padding: 5px; border-radius: 6px; font-size: 0.8rem; cursor: pointer;
+    /* 🔍 Buscador */
+    .buscador-container {
+      display: flex;
+      gap: 0.5rem;
+      margin: 0 auto 1.5rem auto;
+      flex-wrap: wrap;
+      justify-content: center;
+      max-width: 600px;
+    }
+    .buscador-container input, .buscador-container select {
+      flex: 1;
+      min-width: 120px;
     }
 
-    /* MODALES */
-    dialog article { border-radius: 15px; overflow: hidden; }
-    #modalInfoProducto article { max-width: 450px; padding: 0; }
-    .detalle-img { width: 100%; height: 250px; object-fit: cover; }
-    .detalle-cuerpo { padding: 20px; }
-    .detalle-ingredientes { 
-        background: #f0fdfa; border-left: 4px solid #10ad93; 
-        padding: 15px; margin: 15px 0; font-size: 1rem; color: #333;
+    /* 🧾 Productos */
+    .productos-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+      gap: 1rem;
+    }
+    .producto-card {
+      background: white;
+      border-radius: 12px;
+      overflow: hidden;
+      box-shadow: 0 2px 6px rgba(0, 0, 0, 0.08);
+      cursor: pointer;
+      transition: transform 0.2s;
+    }
+    .producto-card:hover { transform: scale(1.03); }
+    .producto-card img {
+      width: 100%;
+      height: 100px;
+      object-fit: cover;
+    }
+    .producto-info {
+      padding: 0.5rem 0.7rem;
+      text-align: center;
+    }
+    .producto-info h4 { margin: 0.3rem 0; font-size: 1rem; }
+    .producto-info p { margin: 0; color: #10ad93; font-weight: bold; }
+
+    /* 🛒 Carrito fijo */
+    #carritoCliente {
+      position: fixed;
+      bottom: 0;
+      left: 0;
+      width: 100%;
+      background: white;
+      box-shadow: 0 -2px 10px rgba(0,0,0,0.1);
+      padding: 0.7rem 1rem;
+      border-top: 2px solid #10ad93;
+      z-index: 50;
+    }
+    #carritoCliente button {
+      width: 100%;
+      background: #10ad93;
+      border: none;
+      color: white;
+      font-size: 1.1rem;
+      padding: 0.7rem;
+      border-radius: 8px;
+      font-weight: 600;
+    }
+    #listaItemsCarrito {
+      max-height: 230px;
+      overflow-y: auto;
+      margin-bottom: 0.5rem;
+    }
+    .item-carrito {
+      background: #f9f9f9;
+      border-radius: 8px;
+      padding: 6px 8px;
+      margin-bottom: 6px;
+      display: flex;
+      flex-direction: column;
+      gap: 3px;
+    }
+    .item-top {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .item-top small { color: #555; font-size: 0.85rem; }
+    .btnQuitar {
+      background: none;
+      border: none;
+      color: #e74c3c;
+      font-weight: bold;
+      font-size: 1.1rem;
+      cursor: pointer;
+    }
+    .item-comentario {
+      font-size: 0.8rem;
+      border: 1px solid #ddd;
+      border-radius: 6px;
+      padding: 4px;
+      width: 100%;
+      resize: none;
     }
 
-    /* Carrito fijo */
-    #carritoCliente { position: fixed; bottom: 0; left: 0; width: 100%; background: white; box-shadow: 0 -2px 10px rgba(0,0,0,0.1); padding: 0.7rem 1rem; border-top: 2px solid #10ad93; z-index: 100; }
-    #carritoCliente button { width: 100%; background: #10ad93; border: none; color: white; font-size: 1.1rem; padding: 0.7rem; border-radius: 8px; font-weight: 600; }
-    #listaItemsCarrito { max-height: 200px; overflow-y: auto; margin-bottom: 0.5rem; }
-    .item-carrito { background: #f9f9f9; border-radius: 8px; padding: 6px 8px; margin-bottom: 6px; }
-    .item-top { display: flex; justify-content: space-between; align-items: center; }
-    .item-comentario { font-size: 0.8rem; border: 1px solid #ddd; border-radius: 6px; padding: 4px; width: 100%; margin-top: 5px; }
+    /* Modal */
+    dialog {
+      border: none;
+      border-radius: 12px;
+      max-width: 400px;
+      width: 90%;
+    }
+
+    @media (max-width: 600px) {
+      header h1 { font-size: 1.4rem; }
+      .producto-info h4 { font-size: 0.95rem; }
+    }
   </style>
 </head>
 <body>
 
   <header>
-    <p id="nombreMesa" style="margin:0; color:#888;">Cargando mesa...</p>
+    <p id="nombreMesa" style="margin:0; color:#888;">Mesa</p>
     <h1>☕ OrdenLista</h1>
-    <button id="btnMenuDigital" onclick="abrirMenuDigital()">📖 Ver Menú en Fotos</button>
+    <p style="margin:0;">Elige tus platillos favoritos</p>
   </header>
 
-  <section class="container" style="margin-bottom: 1rem;">
-    <div style="display:flex; gap:10px;">
-        <input type="search" id="buscarProducto" placeholder="Buscar platillo..." style="margin:0;">
-        <select id="filtroCategoria" style="margin:0; width:auto;">
-            <option value="Todos">Categorías</option>
-            <option value="Platillo">Platillos</option>
-            <option value="Bebidas">Bebidas</option>
-            <option value="Postres">Postres</option>
-            <option value="Otros">Otros</option>
-        </select>
-    </div>
+  <section class="buscador-container">
+    <input type="search" id="buscarProducto" placeholder="Buscar platillo o bebida...">
+    <select id="filtroCategoria">
+      <option value="Todos">Todas las categorías</option>
+      <option value="Platillo">Platillos</option>
+      <option value="Bebidas">Bebidas</option>
+      <option value="Postres">Postres</option>
+    </select>
   </section>
 
   <main class="container">
     <div id="productosCliente" class="productos-grid">
-      <article aria-busy="true" style="text-align:center;">Cargando el menú...</article>
+      <article aria-busy="true" style="text-align:center;">Cargando menú...</article>
     </div>
   </main>
 
   <section id="carritoCliente" hidden>
     <div id="listaItemsCarrito"></div>
-    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:0.5rem; font-weight:bold;">
-      <span>Total de tu orden:</span> <span id="totalCliente" style="color:#10ad93; font-size:1.2rem;">$0.00</span>
+    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:0.5rem;">
+      <strong>Total:</strong> <span id="totalCliente">$0.00</span>
     </div>
-    <textarea id="comentarioCliente" rows="1" placeholder="Nota general (ej: Cubiertos)..." style="width:100%; margin-bottom:0.5rem;"></textarea>
-    <button id="btnEnviarPedido">🚀 Confirmar y Enviar Pedido</button>
+    <textarea id="comentarioCliente" rows="2" placeholder="Comentario general al restaurante (ej: Traer servilletas)..." style="width:100%; margin-bottom:0.5rem;"></textarea>
+    <button id="btnEnviarPedido">🚀 Enviar Pedido</button>
   </section>
 
-  <dialog id="modalInfoProducto">
-    <article>
-      <header style="padding: 10px 20px; display: flex; justify-content: space-between; align-items: center;">
-        <strong id="detNombre" style="font-size: 1.2rem;">Detalles del Platillo</strong>
-        <a href="#close" aria-label="Close" class="close" onclick="document.getElementById('modalInfoProducto').close()" style="font-size:1.5rem;"></a>
-      </header>
-      
-      <img id="detImg" src="" class="detalle-img">
-      
-      <div class="detalle-cuerpo">
-          <div style="display:flex; justify-content:space-between; align-items:center;">
-              <span id="detCat" style="background:#eee; padding:2px 10px; border-radius:15px; font-size:0.8rem; color:#666;">Categoría</span>
-              <strong id="detPrecio" style="color:#10ad93; font-size:1.4rem;">$0.00</strong>
-          </div>
-          
-          <div id="detIngredientes" class="detalle-ingredientes">
-              Este platillo no tiene descripción adicional.
-          </div>
-          
-          <button onclick="agregarActualAModal(); document.getElementById('modalInfoProducto').close();" style="width:100%; background:#10ad93; border:none; margin-top:10px;">
-              ➕ Agregar a mi orden
-          </button>
-      </div>
+  <dialog id="modalConfirm">
+    <article style="text-align:center;">
+      <h3>✅ Pedido enviado para aprobación</h3>
+      <p>Tu orden ha sido enviada al encargado para confirmación.<br>Te avisaremos cuando sea aceptada.</p>
+      <footer><button onclick="document.getElementById('modalConfirm').close()">Cerrar</button></footer>
     </article>
-  </dialog>
-
-  <dialog id="modalMenuFotos">
-      <article style="max-width: 95vw; width: 600px;">
-          <header>
-            <strong>Menú Visual</strong>
-            <a href="#close" aria-label="Close" class="close" onclick="document.getElementById('modalMenuFotos').close()"></a>
-          </header>
-          <div class="carousel-container">
-              <button class="c-btn c-prev" onclick="event.stopPropagation(); cambiarSlide(-1)">❮</button>
-              <img id="imgSlide" class="carousel-img" src="">
-              <button class="c-btn c-next" onclick="event.stopPropagation(); cambiarSlide(1)">❯</button>
-          </div>
-          <footer style="text-align:center;"><span id="contadorSlide">1 / 1</span></footer>
-      </article>
   </dialog>
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="js/supabase-client.js"></script>
   <script>
     const params = new URLSearchParams(window.location.search);
-   // decodeURIComponent asegura que "Para%20Recoger" se lea como "Para Recoger"
-const mesaParam = decodeURIComponent(params.get("mesa") || "Mesa Sin Número");
+    const mesaParam = params.get("mesa") || "Mesa";
     const ridParam = params.get("rid");
 
-    document.getElementById("nombreMesa").textContent = "📍 " + mesaParam;
+    document.getElementById("nombreMesa").textContent = mesaParam;
 
     let carrito = [];
     let productos = [];
-    let productoSeleccionadoParaModal = null; 
-    let fotosMenu = [];
-    let indiceFoto = 0;
 
-    // --- CERRAR MODALES AL TOCAR FUERA ---
-    document.querySelectorAll('dialog').forEach(modal => {
-        modal.addEventListener('click', (e) => {
-            if (e.target === modal) modal.close();
-        });
-    });
-
-    async function cargarDatosRestaurante() {
-      if (!ridParam) return alert("ID de restaurante no válido");
-
-      const { data: resto } = await db.from("restaurantes").select("galeria_menu, menu_digital_url").eq("id", ridParam).single();
-      if (resto) {
-          if (resto.galeria_menu && Array.isArray(resto.galeria_menu) && resto.galeria_menu.length > 0) {
-              fotosMenu = resto.galeria_menu;
-          } else if (resto.menu_digital_url) {
-              fotosMenu = [resto.menu_digital_url];
-          }
-          
-          if (fotosMenu.length > 0) document.getElementById("btnMenuDigital").style.display = "block";
+    async function cargarProductos() {
+      if (!ridParam) {
+        alert("Error: restaurante no encontrado");
+        return;
       }
-
       const { data, error } = await db.from("productos").select("*").eq("restaurante_id", ridParam);
+      if (error) { console.error(error); return; }
       productos = data || [];
       renderizarProductos();
     }
-
-    window.verDetalles = (id) => {
-        const p = productos.find(item => item.id === id);
-        if(!p) return;
-        
-        productoSeleccionadoParaModal = p;
-        document.getElementById("detNombre").textContent = p.nombre;
-        document.getElementById("detPrecio").textContent = "$" + parseFloat(p.precio).toFixed(2);
-        document.getElementById("detImg").src = p.imagen_url || "https://via.placeholder.com/150";
-        document.getElementById("detCat").textContent = p.categoria || "General";
-        
-        const info = p.ingredientes || p.descripcion || "Sin descripción disponible.";
-        document.getElementById("detIngredientes").innerHTML = `<b>Ingredientes:</b><br>${info}`;
-        
-        document.getElementById("modalInfoProducto").showModal();
-    };
-
-    window.agregarActualAModal = () => {
-        if(productoSeleccionadoParaModal) agregarAlCarrito(productoSeleccionadoParaModal);
-    };
 
     function renderizarProductos() {
       const cont = document.getElementById("productosCliente");
@@ -248,31 +210,50 @@ const mesaParam = decodeURIComponent(params.get("mesa") || "Mesa Sin Número");
       });
 
       cont.innerHTML = "";
+      if (filtrados.length === 0) {
+        cont.innerHTML = `<p style="grid-column:1/-1; text-align:center; color:#999;">No hay productos encontrados</p>`;
+        return;
+      }
+
       filtrados.forEach(p => {
-        const tieneInfo = (p.ingredientes && p.ingredientes.trim() !== "") || (p.descripcion && p.descripcion.trim() !== "");
         const card = document.createElement("article");
         card.className = "producto-card";
         card.innerHTML = `
-          ${tieneInfo ? `<button class="btn-info-detalle" onclick="verDetalles('${p.id}')">i</button>` : ''}
-          <img src="${p.imagen_url || "https://via.placeholder.com/150"}" onclick="verDetalles('${p.id}')">
+          <img src="${p.imagen_url || "https://via.placeholder.com/150"}" alt="${p.nombre}">
           <div class="producto-info">
             <h4>${p.nombre}</h4>
             <p>$${parseFloat(p.precio).toFixed(2)}</p>
-            <button class="btn-agregar-rapido" onclick="agregarAlCarritoById('${p.id}')">➕ Agregar</button>
           </div>`;
+        // 🔥 CAMBIO: Llamamos a agregarAlCarrito
+        card.onclick = () => agregarAlCarrito(p);
         cont.appendChild(card);
       });
     }
 
-    window.agregarAlCarritoById = (id) => {
-        const p = productos.find(i => i.id === id);
-        if(p) agregarAlCarrito(p);
-    };
-
+    // 🔥 LÓGICA DE CARRITO NUEVA: Permite items individuales
     function agregarAlCarrito(prod) {
-      const itemUnico = { ...prod, cantidad: 1, comentario: "", tempId: Date.now() + Math.random() };
+      // Creamos un ID temporal único para distinguir cada item (aunque sean el mismo platillo)
+      // Esto permite tener 2 "Hamburguesas" separadas con notas distintas.
+      const itemUnico = { 
+        ...prod, 
+        cantidad: 1, 
+        comentario: "", 
+        tempId: Date.now() + Math.random() // ID único para el carrito
+      };
       carrito.push(itemUnico);
       renderizarCarrito();
+    }
+
+    function quitarDelCarrito(tempId) {
+      // Borramos usando el ID temporal
+      carrito = carrito.filter(i => i.tempId !== tempId);
+      renderizarCarrito();
+    }
+
+    function actualizarComentario(tempId, texto) {
+      // Actualizamos nota específica de ese item
+      const item = carrito.find(i => i.tempId === tempId);
+      if (item) item.comentario = texto;
     }
 
     function renderizarCarrito() {
@@ -280,105 +261,89 @@ const mesaParam = decodeURIComponent(params.get("mesa") || "Mesa Sin Número");
       const totalSpan = document.getElementById("totalCliente");
       const carritoSec = document.getElementById("carritoCliente");
 
-      if (carrito.length === 0) { carritoSec.hidden = true; return; }
+      if (carrito.length === 0) {
+        carritoSec.hidden = true;
+        return;
+      }
 
       carritoSec.hidden = false;
       cont.innerHTML = carrito.map(i => `
         <div class="item-carrito">
           <div class="item-top">
-            <strong>${i.nombre}</strong>
+            <small>${i.cantidad}x ${i.nombre}</small>
             <div>
-              <span>$${i.precio.toFixed(2)}</span>
-              <button style="background:none; border:none; color:red; padding:0 5px;" onclick="quitarDelCarrito(${i.tempId})">✖</button>
+              <small>$${(i.cantidad * i.precio).toFixed(2)}</small>
+              <button class="btnQuitar" onclick="quitarDelCarrito(${i.tempId})">✖</button>
             </div>
           </div>
-          <input type="text" class="item-comentario" placeholder="Nota..." value="${i.comentario}" oninput="actualizarComentario(${i.tempId}, this.value)">
+          <textarea class="item-comentario" placeholder="Nota (ej: Sin cebolla, término medio)..." 
+            oninput="actualizarComentario(${i.tempId}, this.value)">${i.comentario || ""}</textarea>
         </div>`).join("");
 
       const total = carrito.reduce((acc, i) => acc + i.precio * i.cantidad, 0);
       totalSpan.textContent = `$${total.toFixed(2)}`;
     }
 
-    window.quitarDelCarrito = (tempId) => { carrito = carrito.filter(i => i.tempId !== tempId); renderizarCarrito(); };
-    window.actualizarComentario = (tempId, texto) => { const item = carrito.find(i => i.tempId === tempId); if (item) item.comentario = texto; };
-
-// ============================================
-    // MODIFICACIÓN PRINCIPAL AQUÍ (ENVIO DE PEDIDO)
-    // ============================================
+    // 🔥 ENVÍO OPTIMIZADO PARA COCINA.JS
     document.getElementById("btnEnviarPedido").onclick = async () => {
-      const btn = document.getElementById("btnEnviarPedido");
-      btn.disabled = true; 
-      btn.textContent = "Procesando orden...";
+      if (carrito.length === 0) return alert("Agrega productos primero.");
 
-      // 1. Intentar obtener la sesión, pero SIN RESTRINGIR
-      const { data: { user } } = await db.auth.getUser();
-      
-      // Valores por defecto si es un Invitado (sin cuenta)
-      let emailCliente = "Invitado";
-      let nombreCliente = "Cliente Invitado";
+      // 1. Preparar lista de productos con sus notas incrustadas
+      // Se reemplazan comas en los comentarios por puntos para no romper la lista de cocina.js
+      const productosTexto = carrito.map(i => {
+         const notaLimpia = i.comentario.replace(/,/g, '.'); 
+         return `${i.cantidad}x ${i.nombre}${notaLimpia ? " [" + notaLimpia + "]" : ""}`;
+      }).join(", ");
 
-      // 2. Si el usuario SÍ está logueado, usamos su información real
-      if (user) {
-          emailCliente = user.email;
-          nombreCliente = user.email.split('@')[0];
-          try {
-              const { data: perfil } = await db.from('perfiles_clientes').select('nombre').eq('id', user.id).single();
-              if (perfil && perfil.nombre) nombreCliente = perfil.nombre;
-          } catch(e) { 
-              console.log("Usando email como nombre por defecto"); 
-          }
-      }
+      // 2. Extraer notas individuales para el "Cuadro Amarillo" de cocina
+      const notasDePlatos = carrito
+        .filter(i => i.comentario.trim() !== "")
+        .map(i => `🔹${i.nombre}: ${i.comentario}`)
+        .join(" | ");
 
-      // 3. Formatear los productos y el total
-      const productosTexto = carrito.map(i => `${i.cantidad}x ${i.nombre}${i.comentario ? " ["+i.comentario+"]" : ""}`).join(", ");
+      const comentarioGeneral = document.getElementById("comentarioCliente").value.trim();
+
+      // 3. Unir todo para el campo 'comentarios' de la BD
+      // Esto asegura que en el cuadro amarillo se vea TODO (platos + general)
+      let comentarioFinal = "";
+      if (notasDePlatos) comentarioFinal += notasDePlatos;
+      if (notasDePlatos && comentarioGeneral) comentarioFinal += " --- ";
+      if (comentarioGeneral) comentarioFinal += `GENERAL: ${comentarioGeneral}`;
+
       const total = carrito.reduce((a, b) => a + b.precio * b.cantidad, 0);
-      const comentarioGeneral = document.getElementById("comentarioCliente").value;
-
-      // 4. Determinar si es "Para Recoger" o "Pedido en Mesa"
-      const esParaRecoger = (mesaParam === "Para Recoger");
-      const estadoPedido = esParaRecoger ? "por_pagar" : "por_confirmar";
 
       try {
-        // 5. Insertar en la tabla ordenes usando las variables seguras
         const { error } = await db.from("ordenes").insert([{
-          restaurante_id: ridParam, 
-          mesa: mesaParam, 
-          productos: productosTexto,
-          total: total, 
-          comentarios: comentarioGeneral, 
-          estado: estadoPedido,
-          usuario_email: emailCliente,       // 🆕 Usa el correo o "Invitado"
-          cliente_nombre: nombreCliente      // 🆕 Usa el nombre o "Cliente Invitado"
+          restaurante_id: ridParam,
+          mesa: mesaParam,
+          productos: productosTexto, // Va a la lista de items
+          total,
+          comentarios: comentarioFinal, // Va al cuadro amarillo de alerta
+          estado: "por_confirmar"
         }]);
         
         if (error) throw error;
-        
-        // 6. REDIRECCIÓN INTELIGENTE
-        if (esParaRecoger) {
-            // Si es para recoger, lo mandamos a su perfil o inicio
-            // (Si no tiene cuenta, lo mandamos al index para que no choque con perfil)
-            window.location.href = user ? 'perfil.html' : 'index.html';
-        } else {
-            // Si es en mesa, le mostramos la pantalla verde de éxito estática
-            document.body.innerHTML = `
-                <div style="min-height: 100vh; display: flex; flex-direction: column; justify-content: center; align-items: center; padding: 20px; text-align: center; background: #f6f8f9; font-family: 'Inter', sans-serif;">
-                    <div style="background: white; padding: 40px 30px; border-radius: 20px; box-shadow: 0 10px 25px rgba(0,0,0,0.1); max-width: 400px; width: 100%;">
-                        <div style="background:#dcfce7; color:#166534; width:80px; height:80px; border-radius:50%; display:flex; align-items:center; justify-content:center; margin:0 auto 20px auto; font-size:40px;">
-                            <i class="fa-solid fa-check"></i>
-                        </div>
-                        <h2 style="color: #333; margin: 0 0 10px 0; font-size: 1.8rem;">¡Pedido Enviado a Cocina!</h2>
-                        <p style="color: #666; margin-bottom: 20px;">En breve llevaremos tu orden a la ${mesaParam}.</p>
-                        <a href="index.html" style="text-decoration: none;">
-                            <button style="background: #10ad93; color: white; border: none; padding: 16px 20px; border-radius: 12px; font-weight: bold; width: 100%; cursor: pointer;">Volver al inicio</button>
-                        </a>
-                    </div>
-                </div>
-            `;
-        }
 
-      } catch (err) { 
-          alert("Error de conexión: " + err.message); 
-          btn.disabled = false; 
-          btn.textContent = "🚀 Confirmar y Enviar Pedido"; 
+        carrito = [];
+        renderizarCarrito();
+        document.getElementById("comentarioCliente").value = "";
+        const modal = document.getElementById("modalConfirm");
+        modal.showModal();
+
+        setTimeout(() => {
+          modal.close();
+          window.close();
+        }, 4000);
+      } catch (err) {
+        alert("Error al enviar pedido: " + err.message);
       }
     };
+
+    // Eventos del buscador y filtro
+    document.getElementById("buscarProducto").addEventListener("input", renderizarProductos);
+    document.getElementById("filtroCategoria").addEventListener("change", renderizarProductos);
+
+    cargarProductos();
+  </script>
+</body>
+</html>
