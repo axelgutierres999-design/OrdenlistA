@@ -199,4 +199,53 @@ document.addEventListener('DOMContentLoaded', () => {
     // Al cargar la página por primera vez, dibujamos lo que app.js ya descargó.
     setTimeout(renderizarOrdenes, 500); 
   }
+  // --- 🛰️ CONEXIÓN REALTIME AISLADA PARA ÓRDENES ---
+   function iniciarRealtimeOrdenes() {
+    const sesion = JSON.parse(localStorage.getItem('sesion_activa'));
+    
+    // Verificación de seguridad
+    if (!sesion || typeof db === 'undefined') {
+        console.warn("No hay sesión o DB no disponible para Realtime");
+        return;
+    }
+
+    console.log("🚀 Iniciando monitor exclusivo para Órdenes...");
+
+    // Canal único con nombre diferente para evitar conflictos con otros módulos
+    db.channel('canal-ordenes-local')
+        .on(
+            'postgres_changes', 
+            { 
+                event: '*', 
+                schema: 'public', 
+                table: 'ordenes' 
+                // ⚠️ NO ponemos filtro aquí. El filtro lo haremos manualmente abajo.
+            }, 
+            (payload) => {
+                // Obtenemos los datos (funciona para INSERT, UPDATE o DELETE)
+                const data = payload.new || payload.old;
+
+                // FILTRADO MANUAL: Solo si pertenece a este restaurante
+                if (data && data.restaurante_id === sesion.restaurante_id) {
+                    console.log("🔔 Cambio en órdenes detectado (ID):", data.id);
+                    
+                    // Si tienes una función que carga y renderiza, la llamamos aquí
+                    // Asegúrate de que esta función refresque tus datos desde la DB
+                    if (typeof cargarOrdenes === 'function') {
+                        cargarOrdenes(); 
+                    } else if (typeof renderizarOrdenes === 'function') {
+                        // O simplemente renderiza si ya tienes los datos en memoria
+                        renderizarOrdenes();
+                    }
+                }
+            }
+        )
+        .subscribe((status) => {
+            console.log("✅ Estado de conexión órdenes:", status);
+        });
+}
+
+// Ejecutar al cargar la página
+iniciarRealtimeOrdenes();
+
 });

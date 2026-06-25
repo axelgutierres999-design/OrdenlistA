@@ -107,40 +107,6 @@ const App = (function() {
     style.textContent = `@keyframes aparecerNoti { from { opacity: 0; transform: translateY(-10px); } to { opacity: 1; transform: translateY(0); } } dialog#modalTicketApp::backdrop { background: rgba(0,0,0,0.6); backdrop-filter: blur(4px); }`;
     document.head.appendChild(style);
 
-    // === SUSCRIPCIÓN REALTIME ===
-    const activarSuscripcionRealtime = () => {
-        const restoId = getRestoId();
-        if (!restoId || typeof db === 'undefined') return;
-
-        // Le cambiamos el nombre al canal para limpiar la caché del navegador
-        db.channel('global-restaurant-monitor')
-            .on('postgres_changes', { 
-                event: '*', 
-                schema: 'public', 
-                table: 'ordenes' 
-                // ⚠️ Quitamos el filtro UUID problemático
-            }, payload => {
-                // Filtramos manualmente aquí por seguridad para la notificación
-                if (payload.eventType === 'INSERT' && payload.new.restaurante_id === restoId) {
-                    mostrarNotificacionNuevaOrden(payload.new);
-                }
-                // Recargamos los datos (cargarDatosIniciales ya filtra por ID de forma segura)
-                cargarDatosIniciales();
-            })
-            .on('postgres_changes', { 
-                event: '*', 
-                schema: 'public', 
-                table: 'suministros' 
-            }, () => cargarDatosIniciales())
-            .on('postgres_changes', { 
-                event: '*', 
-                schema: 'public', 
-                table: 'restaurantes' 
-            }, () => cargarDatosIniciales())
-            .subscribe((status) => {
-                console.log("📡 Estado de conexión Global (App.js):", status);
-            });
-    };
     // === MODAL DE PAGO ===
     const mostrarModalPago = (orden, callbackPago) => {
         const total = parseFloat(orden.total);
