@@ -335,10 +335,6 @@ ialog id="modalConfirm">
         const modal = document.getElementById("modalConfirm");
         modal.showModal();
 
-        setTimeout(() => {
-          modal.close();
-          window.close();
-        }, 4000);
       } catch (err) {
         alert("Error al enviar pedido: " + err.message);
       }
