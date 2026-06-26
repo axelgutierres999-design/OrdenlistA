@@ -339,41 +339,37 @@
 
     let todasLasOrdenes = [];
 
-    // ─── Datos del establecimiento (se cargan desde Supabase tabla "config") ──
-    // Si no tienes tabla config, edita estos valores directamente aquí:
-    let configRestaurante = {
-        nombre:              "OrdenLista Café",
-        direccion:           "Calle Principal #123, Col. Centro",
-        telefono:            "55 1234 5678",
-        instagram:           "ordenlista.cafe",
-        wifi:                "RedCafe / Pass: cafe2024",
-        mensaje_ticket:      "¡GRACIAS POR SU COMPRA!",
-        iva_incluido:        true   // true = el precio ya incluye IVA del 16%
-    };
 
-    // ─── Cargar config del restaurante desde Supabase (tabla "config") ─
+    // ─── Datos del establecimiento ──────────────────────────────────────
+    // Misma lógica que mesas.js: lee de la tabla "restaurantes" con el restaurante_id de la sesión
+    let configRestaurante = {};
+
     async function cargarConfig() {
-    try {
-        // Obtenemos el ID de la sesión para saber qué restaurante cargar
-        const sesion = JSON.parse(localStorage.getItem('sesion_activa'));
-        if (!sesion || !sesion.restaurante_id) return;
+        try {
+            const sesion = JSON.parse(localStorage.getItem('sesion_activa'));
+            if (!sesion || !sesion.restaurante_id) return;
 
-        // Ahora pedimos los datos de la tabla 'restaurantes' filtrando por el ID
-        const { data, error } = await db
-            .from('restaurantes')
-            .select('*')
-            .eq('id', sesion.restaurante_id)
-            .single();
+            const { data, error } = await db
+                .from('restaurantes')
+                .select('nombre, direccion, telefono, instagram, wifi, mensaje_ticket')
+                .eq('id', sesion.restaurante_id)
+                .single();
 
-        if (!error && data) {
-            // Actualizamos el objeto global con los datos de la BD
-            configRestaurante = { ...configRestaurante, ...data };
-            console.log("Configuración cargada:", configRestaurante);
+            if (!error && data) {
+                configRestaurante = {
+                    nombre:         data.nombre         || "Mi Restaurante",
+                    direccion:      data.direccion      || "",
+                    telefono:       data.telefono       || "",
+                    instagram:      data.instagram      || "",
+                    wifi:           data.wifi           || "",
+                    mensaje_ticket: data.mensaje_ticket || "¡GRACIAS POR SU COMPRA!",
+                    iva_incluido:   true
+                };
+            }
+        } catch (err) {
+            console.warn("No se pudo cargar config del restaurante:", err.message);
         }
-    } catch (e) {
-        console.error("Error al cargar config:", e);
     }
-}
 
     // ─── Carga inicial ──────────────────────────────────────────────────
     async function cargarOrdenes() {
@@ -483,41 +479,16 @@
     }
 
     // CAMBIO 2: Confirmar pago y enviar directo a cocina (estado "preparando")
-    // CAMBIO 2: Confirmar pago, enviar a cocina Y REGISTRAR EN VENTAS (ESTADÍSTICAS)
     async function pagoOkACocina(id) {
-        // 1. Buscamos los datos completos de la orden actual
-        const orden = todasLasOrdenes.find(o => o.id == id);
-        if (!orden) return alert("No se encontró la orden.");
-
         const updates = {
             estado: 'preparando', // Va directo a cocina
             tiempo_aceptacion: new Date().toISOString()
         };
-
-        // 2. Actualizamos el estado de la orden
         const { error } = await db.from('ordenes').update(updates).eq('id', id);
-        
         if (error) {
-            alert("Error al actualizar la orden: " + error.message);
+            alert("Error: " + error.message);
         } else {
-            // 3. ¡NUEVO! Registrar la ganancia en la tabla de VENTAS para el Corte de Caja
-            const nuevaVenta = {
-                restaurante_id: orden.restaurante_id,
-                mesa: orden.mesa || 'Para Recoger',
-                productos: orden.productos,
-                total: orden.total,
-                metodo_pago: 'transferencia' // Etiqueta clave para tus estadísticas
-            };
-
-            // Insertamos la venta silenciosamente
-            const { error: errorVentas } = await db.from('ventas').insert([nuevaVenta]);
-            
-            if (errorVentas) {
-                console.error("Error sumando a estadísticas:", errorVentas.message);
-                // No detenemos el flujo si la estadística falla, pero lo marcamos en consola
-            }
-
-            // 4. Animación visual de confirmación antes de cambiar de columna
+            // Animación visual de confirmación antes de desaparecer
             const fila = document.querySelector(`tr[data-id="${id}"]`);
             if (fila) {
                 fila.style.background = '#e6fffa';
@@ -665,7 +636,7 @@
                       ind.style.borderColor = "#fc8181";
                   }
               });
-          }); 
+          });
     }
 
     // ─── Arranque ───────────────────────────────────────────────────────
