@@ -167,11 +167,16 @@
     <button id="btnEnviarPedido">🚀 Enviar Pedido</button>
   </section>
 
-  <dialog id="modalConfirm">
+ialog id="modalConfirm">
     <article style="text-align:center;">
       <h3>✅ Pedido enviado para aprobación</h3>
       <p>Tu orden ha sido enviada al encargado para confirmación.<br>Te avisaremos cuando sea aceptada.</p>
-      <footer><button onclick="document.getElementById('modalConfirm').close()">Cerrar</button></footer>
+      <footer style="display: flex; flex-direction: column; gap: 0.5rem; margin-top: 1rem;">
+        <!-- Botón nuevo hacia tu aplicación -->
+        <a href="https://aplicacionordenlista.vercel.app/" target="_blank" role="button" style="background-color: #10ad93; border-color: #10ad93; width: 100%;">📱 Abrir App OrdenLista</a>
+        <!-- Botón para cerrar la ventana manualmente -->
+        <button class="secondary" onclick="window.close()" style="width: 100%;">Cerrar esta ventana</button>
+      </footer>
     </article>
   </dialog>
 

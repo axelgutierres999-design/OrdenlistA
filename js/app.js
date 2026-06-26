@@ -1,9 +1,9 @@
 // js/app.js - NÚCLEO CENTRALIZADO (V9.0 - Notificaciones + Badges integrados)
 const App = (function() {
-   let ordenes = [];
+    let ordenes = [];
     let suministros = [];
     let config = { num_mesas: 10 };
-    let hayReservasPendientes = false;
+
     // ── SESIÓN ─────────────────────────────────────────────────────
     const getRestoId = () => {
         const sesion = JSON.parse(localStorage.getItem('sesion_activa'));
@@ -16,17 +16,7 @@ const App = (function() {
     };
 
     const renderCallbacks = {};
-      let sonidoNotificacion = null;
-
-      // Desbloqueo seguro de audio al primer clic del usuario
-       const desbloquearAudio = () => {
-         if (!sonidoNotificacion) {
-              sonidoNotificacion = new Audio("https://cdn.pixabay.com/download/audio/2022/03/15/audio_8b3c3b9ad9.mp3?filename=notification-106557.mp3");
-          } 
-           sonidoNotificacion.play().catch(() => {});
-           document.removeEventListener('click', desbloquearAudio);
-    };
-    document.addEventListener('click', desbloquearAudio);
+    const sonidoNotificacion = new Audio("https://cdn.pixabay.com/download/audio/2022/03/15/audio_8b3c3b9ad9.mp3?filename=notification-106557.mp3");
 
     // ── CSS GLOBAL (toasts + badges) inyectado una sola vez ────────
     const _inyectarCSS = () => {
@@ -108,13 +98,7 @@ const App = (function() {
         if (!roles.includes(getRol())) return;
 
         // Sonido
-       // Sonido
-        try {
-            if (sonidoNotificacion) {
-                sonidoNotificacion.currentTime = 0;
-                sonidoNotificacion.play().catch(() => {});
-            }
-        } catch(e) {}
+        try { sonidoNotificacion.play().catch(() => {}); } catch(e) {}
 
         // Contenedor
         let cont = document.getElementById('notifContenedor');
@@ -160,7 +144,7 @@ const App = (function() {
                     (o.mesa?.toUpperCase().includes('LLEVAR') ||
                      o.mesa?.toUpperCase().includes('RECOGER'))
                 ),
-            'reservaciones.html': hayReservasPendientes // NUEVO: Lee el estado real
+            'reservaciones.html': false  // se activa por canal de reservaciones
         };
 
         Object.entries(reglas).forEach(([href, tieneBadge]) => {
@@ -304,7 +288,6 @@ const App = (function() {
                 event: 'INSERT', schema: 'public', table: 'reservaciones',
                 filter: `restaurante_id=eq.${restoId}`
             }, payload => {
-                hayReservasPendientes = true; // Activa la persistencia
                 const r = payload.new;
                 mostrarToast('reserva',
                     'Nueva reservación',
