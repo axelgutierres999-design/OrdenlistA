@@ -16,19 +16,7 @@ const App = (function() {
     };
 
     const renderCallbacks = {};
-    
-    let sonidoNotificacion = null;
-
-// Desbloquea el audio al primer clic del usuario en la pantalla
-const desbloquearAudio = () => {
-    if (!sonidoNotificacion) {
-        sonidoNotificacion = new Audio("https://cdn.pixabay.com/download/audio/2022/03/15/audio_8b3c3b9ad9.mp3?filename=notification-106557.mp3");
-    }
-    sonidoNotificacion.play().catch(() => {});
-    document.removeEventListener('click', desbloquearAudio);
-};
-document.addEventListener('click', desbloquearAudio);
-
+    const sonidoNotificacion = new Audio("https://cdn.pixabay.com/download/audio/2022/03/15/audio_8b3c3b9ad9.mp3?filename=notification-106557.mp3");
 
     // ── CSS GLOBAL (toasts + badges) inyectado una sola vez ────────
     const _inyectarCSS = () => {
@@ -110,12 +98,7 @@ document.addEventListener('click', desbloquearAudio);
         if (!roles.includes(getRol())) return;
 
         // Sonido
-       try { 
-           if (sonidoNotificacion) {
-               sonidoNotificacion.currentTime = 0; // Reinicia el audio por si suenan dos seguidos
-               sonidoNotificacion.play().catch(() => {}); 
-           }   
-       } catch(e) {}
+        try { sonidoNotificacion.play().catch(() => {}); } catch(e) {}
 
         // Contenedor
         let cont = document.getElementById('notifContenedor');
@@ -161,6 +144,7 @@ document.addEventListener('click', desbloquearAudio);
                     (o.mesa?.toUpperCase().includes('LLEVAR') ||
                      o.mesa?.toUpperCase().includes('RECOGER'))
                 ),
+            'reservaciones.html': false  // se activa por canal de reservaciones
         };
 
         Object.entries(reglas).forEach(([href, tieneBadge]) => {
