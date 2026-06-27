@@ -722,6 +722,19 @@
           });
     }
 
+ // ─── Escuchar notificaciones de otras páginas vía localStorage ──────
+    window.addEventListener('storage', (e) => {
+        if (e.key !== '_notiPendiente') return;
+        if (!e.newValue) return;
+        try {
+            const { tipo, titulo, subtitulo, urlDestino, origen } = JSON.parse(e.newValue);
+            const paginaActual = window.location.pathname.split('/').pop();
+            if (origen === paginaActual) return;
+            _sonidoPR();
+            mostrarToastPR(titulo, subtitulo || '');
+        } catch(err) {}
+    });
+
     // ─── Arranque ───────────────────────────────────────────────────────
     cargarConfig();       // Carga datos del establecimiento
     cargarOrdenes();      // Carga órdenes activas

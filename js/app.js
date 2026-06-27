@@ -122,21 +122,7 @@ const App = (function() {
         document.addEventListener('click', _desbloquearAudio);
         document.addEventListener('touchstart', _desbloquearAudio);
 
-        // ── Escuchar notificaciones cross-página vía localStorage ──
-        window.addEventListener('storage', (e) => {
-            if (e.key !== '_notiPendiente') return;
-            if (!e.newValue) return;
-            try {
-                const { tipo, titulo, subtitulo, urlDestino, origen } = JSON.parse(e.newValue);
-                // No mostrar si esta misma página fue la que generó la notificación
-                const paginaActual = window.location.pathname.split('/').pop();
-                if (origen === paginaActual) return;
-                // Mostrar el toast en esta página
-                _mostrarToastLocal(tipo, titulo, subtitulo, urlDestino);
-                _crearSonidoNotificacion();
-            } catch(err) {}
-        });
-    };
+    }; 
 
 // ── TOAST INTERNO (solo dibuja, no avisa a otras páginas) ──────
     const _mostrarToastLocal = (tipo, titulo, subtitulo = '', urlDestino = '') => {
@@ -188,8 +174,20 @@ const App = (function() {
         localStorage.setItem('_notiPendiente', payload);
         setTimeout(() => localStorage.removeItem('_notiPendiente'), 100);
     };
+    // ── Escuchar notificaciones cross-página — se registra inmediatamente ──
+    window.addEventListener('storage', (e) => {
+        if (e.key !== '_notiPendiente') return;
+        if (!e.newValue) return;
+        try {
+            const { tipo, titulo, subtitulo, urlDestino, origen } = JSON.parse(e.newValue);
+            const paginaActual = window.location.pathname.split('/').pop();
+            if (origen === paginaActual) return;
+            _mostrarToastLocal(tipo, titulo, subtitulo, urlDestino);
+            _crearSonidoNotificacion();
+        } catch(err) {}
+    });
 
-    // ── BADGES ─────────────────────────────────────────────────────
+    // ── BADGES ──────────────────────
 const actualizarBadges = () => {
     const reglas = {
         'cocina.html':
