@@ -121,25 +121,25 @@ const App = (function() {
         };
         document.addEventListener('click', _desbloquearAudio);
         document.addEventListener('touchstart', _desbloquearAudio);
+
+        // ── Escuchar notificaciones cross-página vía localStorage ──
+        window.addEventListener('storage', (e) => {
+            if (e.key !== '_notiPendiente') return;
+            if (!e.newValue) return;
+            try {
+                const { tipo, titulo, subtitulo, urlDestino, origen } = JSON.parse(e.newValue);
+                // No mostrar si esta misma página fue la que generó la notificación
+                const paginaActual = window.location.pathname.split('/').pop();
+                if (origen === paginaActual) return;
+                // Mostrar el toast en esta página
+                _mostrarToastLocal(tipo, titulo, subtitulo, urlDestino);
+                _crearSonidoNotificacion();
+            } catch(err) {}
+        });
     };
 
-    // ── TOAST ──────────────────────────────────────────────────────
-    // tipo: 'orden' | 'reserva' | 'listo' | 'recoger'
-    const mostrarToast = (tipo, titulo, subtitulo = '', urlDestino = '') => {
-        const roles = ["mesero","encargado","dueño","administrador","cocinero"];
-        if (!roles.includes(getRol())) return;
-
-        // Sonido
-       try { _crearSonidoNotificacion(); } catch(e) {}
-
-        // Notificación nativa del SO (funciona en cualquier pestaña)
-        if ('serviceWorker' in navigator && Notification.permission === 'granted') {
-            navigator.serviceWorker.ready.then(reg => {
-                reg.active?.postMessage({ tipo, titulo, subtitulo, url: urlDestino });
-            }).catch(() => {});
-        }
-
-        // Contenedor
+// ── TOAST INTERNO (solo dibuja, no avisa a otras páginas) ──────
+    const _mostrarToastLocal = (tipo, titulo, subtitulo = '', urlDestino = '') => {
         let cont = document.getElementById('notifContenedor');
         if (!cont) {
             cont = document.createElement('div');
@@ -165,6 +165,28 @@ const App = (function() {
 
         cont.appendChild(div);
         setTimeout(() => { if (div.parentElement) div.remove(); }, 8000);
+    };
+
+    // ── TOAST PÚBLICO (dibuja + avisa a todas las páginas abiertas) ─
+    const mostrarToast = (tipo, titulo, subtitulo = '', urlDestino = '') => {
+        const roles = ["mesero","encargado","dueño","administrador","cocinero"];
+        if (!roles.includes(getRol())) return;
+
+        // Sonido en esta página
+        try { _crearSonidoNotificacion(); } catch(e) {}
+
+        // Toast en esta página
+        _mostrarToastLocal(tipo, titulo, subtitulo, urlDestino);
+
+        // ── Avisar a TODAS las demás páginas abiertas ──────────────
+        // El evento 'storage' se dispara en todas las pestañas EXCEPTO
+        // en la que escribe, por eso incluimos 'origen' para filtrar.
+        const paginaActual = window.location.pathname.split('/').pop();
+        const payload = JSON.stringify({ tipo, titulo, subtitulo, urlDestino, origen: paginaActual });
+
+        // Escribir y limpiar inmediatamente para que el próximo evento funcione
+        localStorage.setItem('_notiPendiente', payload);
+        setTimeout(() => localStorage.removeItem('_notiPendiente'), 100);
     };
 
     // ── BADGES ─────────────────────────────────────────────────────
