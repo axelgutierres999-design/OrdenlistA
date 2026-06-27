@@ -12,6 +12,11 @@ document.addEventListener('DOMContentLoaded', () => {
   // 1️⃣ CARGA INICIAL DE DATOS
   // =====================================================
   async function cargarReservaciones() {
+    // Limpiar badge al entrar a la página de reservaciones
+    if (typeof App !== 'undefined' && App.limpiarBadgeReservas) {
+        App.limpiarBadgeReservas();
+    }
+
     const sesion = JSON.parse(localStorage.getItem('sesion_activa'));
     if (!sesion || !db) return;
 

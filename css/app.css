@@ -265,3 +265,11 @@ background:white;
     from { opacity: 0; transform: translateX(50px); } 
     to { opacity: 1; transform: translateX(0); } 
 }
+/* Añadir al bloque <style> de pedidos_recoger.html */
+@media (min-width: 769px) {
+    #menuNavegacion { display: flex !important; }
+}
+@media (max-width: 768px) {
+    #menuNavegacion { display: none; }
+    #menuNavegacion.show { display: flex !important; }
+}

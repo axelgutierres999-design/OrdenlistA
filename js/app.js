@@ -3,6 +3,7 @@ const App = (function() {
     let ordenes = [];
     let suministros = [];
     let config = { num_mesas: 10 };
+    let _badgeReservaActivo = false;
 
     // ── SESIÓN ─────────────────────────────────────────────────────
     const getRestoId = () => {
@@ -16,7 +17,21 @@ const App = (function() {
     };
 
     const renderCallbacks = {};
-    const sonidoNotificacion = new Audio("https://cdn.pixabay.com/download/audio/2022/03/15/audio_8b3c3b9ad9.mp3?filename=notification-106557.mp3");
+    const _crearSonidoNotificacion = () => {
+    try {
+        const ctx = new (window.AudioContext || window.webkitAudioContext)();
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+        osc.frequency.setValueAtTime(880, ctx.currentTime);
+        osc.frequency.setValueAtTime(660, ctx.currentTime + 0.1);
+        gain.gain.setValueAtTime(0.3, ctx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.4);
+        osc.start(ctx.currentTime);
+        osc.stop(ctx.currentTime + 0.4);
+    } catch(e) {}
+};
 
     // ── CSS GLOBAL (toasts + badges) inyectado una sola vez ────────
     const _inyectarCSS = () => {
@@ -98,7 +113,7 @@ const App = (function() {
         if (!roles.includes(getRol())) return;
 
         // Sonido
-        try { sonidoNotificacion.play().catch(() => {}); } catch(e) {}
+        try { _crearSonidoNotificacion(); } catch(e) {}
 
         // Contenedor
         let cont = document.getElementById('notifContenedor');
@@ -129,37 +144,34 @@ const App = (function() {
     };
 
     // ── BADGES ─────────────────────────────────────────────────────
-    const actualizarBadges = () => {
-        // Reglas: qué página tiene badge según estado actual de órdenes en memoria
-        const reglas = {
-            'cocina.html':
-                ordenes.some(o => o.estado === 'pendiente'),
-            'ordenes.html':
-                ordenes.some(o => ['pendiente','por_confirmar','terminado'].includes(o.estado)),
-            'mesas.html':
-                ordenes.some(o => o.estado === 'terminado'),
-            'pedidos_recoger.html':
-                ordenes.some(o =>
-                    ['pendiente','por_pagar','preparando'].includes(o.estado) &&
-                    (o.mesa?.toUpperCase().includes('LLEVAR') ||
-                     o.mesa?.toUpperCase().includes('RECOGER'))
-                ),
-            'reservaciones.html': false  // se activa por canal de reservaciones
-        };
-
-        Object.entries(reglas).forEach(([href, tieneBadge]) => {
-            const link = document.querySelector(`#menuNavegacion a[href="${href}"]`);
-            if (!link) return;
-
-            link.querySelector('.nav-badge-punto')?.remove();
-
-            if (tieneBadge) {
-                const punto = document.createElement('span');
-                punto.className = 'nav-badge-punto';
-                link.appendChild(punto);
-            }
-        });
+const actualizarBadges = () => {
+    const reglas = {
+        'cocina.html':
+            ordenes.some(o => o.estado === 'pendiente'),
+        'ordenes.html':
+            ordenes.some(o => ['pendiente','por_confirmar','terminado'].includes(o.estado)),
+        'mesas.html':
+            ordenes.some(o => o.estado === 'terminado'),
+        'pedidos_recoger.html':
+            ordenes.some(o =>
+                ['pendiente','por_pagar','preparando'].includes(o.estado) &&
+                (o.mesa?.toUpperCase().includes('LLEVAR') ||
+                 o.mesa?.toUpperCase().includes('RECOGER'))
+            ),
+        'reservaciones.html': _badgeReservaActivo  // ← usa bandera propia
     };
+
+    Object.entries(reglas).forEach(([href, tieneBadge]) => {
+        const link = document.querySelector(`#menuNavegacion a[href="${href}"]`);
+        if (!link) return;
+        link.querySelector('.nav-badge-punto')?.remove();
+        if (tieneBadge) {
+            const punto = document.createElement('span');
+            punto.className = 'nav-badge-punto';
+            link.appendChild(punto);
+        }
+    });
+};
 
     // ── CARGA INICIAL ──────────────────────────────────────────────
     const cargarDatosIniciales = async () => {
@@ -295,14 +307,8 @@ const App = (function() {
                     'reservaciones.html'
                 );
                 // Badge manual para reservaciones
-                const link = document.querySelector(
-                    '#menuNavegacion a[href="reservaciones.html"]'
-                );
-                if (link && !link.querySelector('.nav-badge-punto')) {
-                    const punto = document.createElement('span');
-                    punto.className = 'nav-badge-punto';
-                    link.appendChild(punto);
-                }
+               _badgeReservaActivo = true;
+                App.notifyUpdate();
             })
             .subscribe();
     };
@@ -498,7 +504,13 @@ const App = (function() {
                 if (typeof cb === 'function') cb();
             });
             actualizarBadges();
-        }
+        },
+        limpiarBadgeReservas: () => {
+             _badgeReservaActivo = false;
+             actualizarBadges();
+        },
+        mostrarToast,
+        
     };
 })();
 

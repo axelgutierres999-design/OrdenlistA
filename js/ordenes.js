@@ -69,13 +69,23 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Notificación sonora
     const nuevas = ordenesLocales.filter(
-      o => o.estado === 'pendiente' || o.estado === 'por_confirmar'
+    o => o.estado === 'pendiente' || o.estado === 'por_confirmar'
     );
-    if (nuevas.length > ultimaCantidadPendientes && audio) {
-      audio.currentTime = 0;
-      audio.play().catch(() => {});
+    if (nuevas.length > ultimaCantidadPendientes) {
+       // Sonido (el audio tag local como respaldo)
+      if (audio) { audio.currentTime = 0; audio.play().catch(() => {}); }
+         // Toast visual
+      if (typeof App !== 'undefined' && App.mostrarToast) {
+          const nueva = nuevas[nuevas.length - 1];
+          const tipo = nueva?.estado === 'por_confirmar' ? 'orden' : 'orden';
+          App.mostrarToast('orden',
+              'Nueva orden recibida',
+               nueva?.mesa ? `Mesa ${nueva.mesa}` : 'Para llevar',
+              'ordenes.html'
+          );
+      }
     }
-    ultimaCantidadPendientes = nuevas.length;
+ultimaCantidadPendientes = nuevas.length;
 
     // Filtros
     const estadoSel = filtroEstado?.value || 'todos';
