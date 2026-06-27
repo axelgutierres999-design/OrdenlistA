@@ -107,11 +107,15 @@ const App = (function() {
         document.head.appendChild(st);
 
         // Desbloquear AudioContext con primera interacción del usuario
-        const _desbloquearAudio = () => {
+         const _desbloquearAudio = () => {
             try {
                 const ctx = new (window.AudioContext || window.webkitAudioContext)();
                 ctx.resume();
             } catch(e) {}
+            // Pedir permiso de notificaciones nativas
+            if ('Notification' in window && Notification.permission === 'default') {
+                Notification.requestPermission();
+            }
             document.removeEventListener('click', _desbloquearAudio);
             document.removeEventListener('touchstart', _desbloquearAudio);
         };
@@ -126,7 +130,14 @@ const App = (function() {
         if (!roles.includes(getRol())) return;
 
         // Sonido
-        try { _crearSonidoNotificacion(); } catch(e) {}
+       try { _crearSonidoNotificacion(); } catch(e) {}
+
+        // Notificación nativa del SO (funciona en cualquier pestaña)
+        if ('serviceWorker' in navigator && Notification.permission === 'granted') {
+            navigator.serviceWorker.ready.then(reg => {
+                reg.active?.postMessage({ tipo, titulo, subtitulo, url: urlDestino });
+            }).catch(() => {});
+        }
 
         // Contenedor
         let cont = document.getElementById('notifContenedor');
@@ -599,6 +610,13 @@ async function cerrarSesionApp() {
             window.location.href = 'login.html';
         }
     }
+}
+
+// ── Registrar Service Worker ───────────────────────────────────────
+if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.register('/sw.js', { scope: '/' })
+        .then(reg => console.log('[SW] Registrado:', reg.scope))
+        .catch(err => console.warn('[SW] Error:', err));
 }
 
 document.addEventListener('DOMContentLoaded', () => {
