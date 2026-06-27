@@ -12,7 +12,7 @@ document.addEventListener('DOMContentLoaded', () => {
   // 1️⃣ CARGA INICIAL DE DATOS
   // =====================================================
   async function cargarReservaciones() {
-    // Limpiar badge al entrar a la página de reservaciones
+    // Limpiar badge al entrar a la página
     if (typeof App !== 'undefined' && App.limpiarBadgeReservas) {
         App.limpiarBadgeReservas();
     }

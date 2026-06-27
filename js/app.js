@@ -3,7 +3,8 @@ const App = (function() {
     let ordenes = [];
     let suministros = [];
     let config = { num_mesas: 10 };
-    let _badgeReservaActivo = false;
+    const _getBadgeReserva = () => localStorage.getItem('_badgeReserva') === 'true';
+    const _setBadgeReserva = (val) => localStorage.setItem('_badgeReserva', val ? 'true' : 'false');
 
     // ── SESIÓN ─────────────────────────────────────────────────────
     const getRestoId = () => {
@@ -104,6 +105,18 @@ const App = (function() {
             }
         `;
         document.head.appendChild(st);
+
+        // Desbloquear AudioContext con primera interacción del usuario
+        const _desbloquearAudio = () => {
+            try {
+                const ctx = new (window.AudioContext || window.webkitAudioContext)();
+                ctx.resume();
+            } catch(e) {}
+            document.removeEventListener('click', _desbloquearAudio);
+            document.removeEventListener('touchstart', _desbloquearAudio);
+        };
+        document.addEventListener('click', _desbloquearAudio);
+        document.addEventListener('touchstart', _desbloquearAudio);
     };
 
     // ── TOAST ──────────────────────────────────────────────────────
@@ -158,7 +171,7 @@ const actualizarBadges = () => {
                 (o.mesa?.toUpperCase().includes('LLEVAR') ||
                  o.mesa?.toUpperCase().includes('RECOGER'))
             ),
-        'reservaciones.html': _badgeReservaActivo  // ← usa bandera propia
+         'reservaciones.html': _getBadgeReserva() // ← usa bandera propia
     };
 
     Object.entries(reglas).forEach(([href, tieneBadge]) => {
@@ -307,7 +320,7 @@ const actualizarBadges = () => {
                     'reservaciones.html'
                 );
                 // Badge manual para reservaciones
-               _badgeReservaActivo = true;
+               _setBadgeReserva(true);
                 App.notifyUpdate();
             })
             .subscribe();
@@ -506,7 +519,7 @@ const actualizarBadges = () => {
             actualizarBadges();
         },
         limpiarBadgeReservas: () => {
-             _badgeReservaActivo = false;
+             _setBadgeReserva(false);
              actualizarBadges();
         },
         mostrarToast,

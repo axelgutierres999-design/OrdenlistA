@@ -72,18 +72,19 @@ document.addEventListener('DOMContentLoaded', () => {
     o => o.estado === 'pendiente' || o.estado === 'por_confirmar'
     );
     if (nuevas.length > ultimaCantidadPendientes) {
-       // Sonido (el audio tag local como respaldo)
-      if (audio) { audio.currentTime = 0; audio.play().catch(() => {}); }
-         // Toast visual
-      if (typeof App !== 'undefined' && App.mostrarToast) {
-          const nueva = nuevas[nuevas.length - 1];
-          const tipo = nueva?.estado === 'por_confirmar' ? 'orden' : 'orden';
-          App.mostrarToast('orden',
-              'Nueva orden recibida',
-               nueva?.mesa ? `Mesa ${nueva.mesa}` : 'Para llevar',
-              'ordenes.html'
-          );
-      }
+        // Toast visual (que también dispara el sonido Web Audio de app.js)
+        if (typeof App !== 'undefined' && App.mostrarToast) {
+            const nueva = nuevas[nuevas.length - 1];
+            App.mostrarToast('orden',
+                'Nueva orden recibida',
+                nueva?.mesa ? `Mesa ${nueva.mesa}` : 'Para llevar',
+                'ordenes.html'
+            );
+        } else if (audio) {
+            // Fallback solo si App no está disponible
+            audio.currentTime = 0;
+            audio.play().catch(() => {});
+        }
     }
 ultimaCantidadPendientes = nuevas.length;
 

@@ -387,6 +387,17 @@
       cont.appendChild(div);
        setTimeout(() => { if (div.parentElement) div.remove(); }, 8000);
      }
+     // ─── Desbloquear AudioContext con primera interacción ───────────────
+    const _desbloquearAudioPR = () => {
+        try {
+            const ctx = new (window.AudioContext || window.webkitAudioContext)();
+            ctx.resume();
+        } catch(e) {}
+        document.removeEventListener('click', _desbloquearAudioPR);
+        document.removeEventListener('touchstart', _desbloquearAudioPR);
+    };
+    document.addEventListener('click', _desbloquearAudioPR);
+    document.addEventListener('touchstart', _desbloquearAudioPR);
 
     // ─── Conexión Supabase ──────────────────────────────────────────────
     const SUPABASE_URL = "https://cpveuexgxwxjejurtwro.supabase.co";
