@@ -244,7 +244,7 @@
         const card = document.createElement("article");
         card.className = "producto-card";
         card.innerHTML = `
-          <img src="${p.imagen_url || "https://via.placeholder.com/150"}" alt="${p.nombre}">
+          <img src="${p.imagen_url || "https://via.placeholder.com/150"}" alt="${p.nombre}" loading="lazy">
           <div class="producto-info">
             <h4>${p.nombre}</h4>
             <p>$${parseFloat(p.precio).toFixed(2)}</p>
