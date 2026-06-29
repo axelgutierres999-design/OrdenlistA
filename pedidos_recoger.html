@@ -21,9 +21,10 @@
     
     .nav-inicio {
         display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; 
-        padding: 0.8rem 2rem; position: sticky; top: 0; z-index: 1000; 
+        padding: 0.8rem 2rem; z-index: 1000; 
         background: #000000 !important;
         border-bottom: 3px solid var(--color-primario);
+        /* Se eliminó position: sticky y top: 0 para evitar cortes en el menú móvil */
     }
     .brand-group { display: flex; align-items: center; gap: 10px; }
     .brand-group a { text-decoration: none; font-size: 1.4rem; color: var(--color-primario); font-weight: 800; letter-spacing: -0.5px; }
