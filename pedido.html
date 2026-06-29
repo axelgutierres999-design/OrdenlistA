@@ -167,11 +167,36 @@
     <button id="btnEnviarPedido">🚀 Enviar Pedido</button>
   </section>
 
-  <dialog id="modalConfirm">
-    <article style="text-align:center;">
-      <h3>✅ Pedido enviado para aprobación</h3>
-      <p>Tu orden ha sido enviada al encargado para confirmación.<br>Te avisaremos cuando sea aceptada.</p>
-      <footer><button onclick="document.getElementById('modalConfirm').close()">Cerrar</button></footer>
+ <dialog id="modalConfirm">
+    <article style="text-align:center;max-width:340px;padding:0;border-radius:20px;overflow:hidden;">
+      <!-- Cabecera visual -->
+      <div style="background:linear-gradient(135deg,#10ad93,#0d8a76);padding:28px 20px 20px;color:white;">
+        <div style="font-size:3rem;margin-bottom:8px;">✅</div>
+        <h3 style="margin:0;color:white;font-size:1.3rem;">¡Pedido enviado!</h3>
+        <p style="margin:8px 0 0;opacity:0.9;font-size:0.9rem;">Tu orden está siendo preparada</p>
+      </div>
+      <!-- Barra de progreso -->
+      <div style="height:4px;background:#e0e0e0;">
+        <div id="barraProgreso" style="height:100%;background:#10ad93;width:100%;transition:width 20s linear;"></div>
+      </div>
+      <!-- Cuerpo -->
+      <div style="padding:20px;">
+        <p style="color:#555;font-size:0.95rem;margin-bottom:20px;">
+          El encargado confirmará tu orden en un momento. ¡Gracias por tu preferencia!
+        </p>
+        <!-- Botón app -->
+        <a href="https://aplicacionordenlista.vercel.app/index.html" target="_blank"
+           style="display:block;background:#10ad93;color:white;text-decoration:none;
+                  padding:12px 20px;border-radius:12px;font-weight:700;font-size:0.9rem;
+                  margin-bottom:10px;transition:all 0.2s;">
+          📱 Descarga nuestra app para una mejor experiencia
+        </a>
+        <button onclick="document.getElementById('modalConfirm').close()"
+                style="background:none;border:1px solid #ddd;color:#888;padding:10px 20px;
+                       border-radius:12px;width:100%;font-size:0.85rem;cursor:pointer;">
+          Cerrar
+        </button>
+      </div>
     </article>
   </dialog>
 
@@ -330,10 +355,16 @@
         const modal = document.getElementById("modalConfirm");
         modal.showModal();
 
+        // Animar barra de progreso (empieza llena, va vaciándose en 20s)
         setTimeout(() => {
-          modal.close();
-          window.close();
-        }, 4000);
+            const barra = document.getElementById('barraProgreso');
+            if (barra) barra.style.width = '0%';
+        }, 100);
+
+        // Cerrar automáticamente a los 20 segundos
+        setTimeout(() => {
+            if (modal.open) modal.close();
+        }, 20000);
       } catch (err) {
         alert("Error al enviar pedido: " + err.message);
       }

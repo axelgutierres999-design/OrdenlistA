@@ -56,6 +56,7 @@ async function cargarConfigRestaurante() {
             // ==========================================
             // VISTA 1: INICIAR MAPA VISUAL CON KONVA
             // ==========================================
+            document.getElementById('contenedorPlanoVisual').style.display = 'flex'; // ← mostrar solo si hay plano
             if (stageMonitor) stageMonitor.destroy();
             
             stageMonitor = Konva.Node.create(planoActual.visual, 'canvasMesas');

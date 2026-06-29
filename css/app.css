@@ -273,3 +273,22 @@ background:white;
     #menuNavegacion { display: none; }
     #menuNavegacion.show { display: flex !important; }
 }
+/* Menú móvil tipo app */
+@media (max-width: 768px) {
+    #menuNavegacion {
+        gap: 2px !important;
+        padding: 8px 0 !important;
+    }
+    #menuNavegacion li {
+        width: 100%;
+    }
+    #menuNavegacion li a {
+        padding: 10px 16px !important;
+        border-radius: 10px !important;
+        margin: 1px 8px !important;
+        width: calc(100% - 16px) !important;
+    }
+    #menuNavegacion li a.activo {
+        box-shadow: 0 2px 8px rgba(16,173,147,0.3);
+    }
+}

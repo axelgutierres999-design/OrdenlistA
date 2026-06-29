@@ -604,21 +604,26 @@ function renderizarMenuSeguro() {
     }
 
     // Los badges se agregan después por actualizarBadges() vía notifyUpdate()
-    navContenedor.innerHTML = menuItems.map(item => `
+navContenedor.innerHTML = menuItems.map(item => `
         <li>
             <a href="${item.h}" class="${rutaActual === item.h ? 'activo' : ''}"
-               style="display:flex;align-items:center;gap:8px;padding:8px 12px;
-                      border-radius:8px;text-decoration:none;
+               style="display:flex;align-items:center;gap:10px;padding:10px 16px;
+                      border-radius:10px;text-decoration:none;transition:all 0.15s;
                       ${rutaActual === item.h
-                          ? 'background:#10ad93;color:white;'
-                          : 'color:#555;'}">
-                <span>${item.i}</span>
-                <span class="nav-text" style="font-weight:600;">${item.t}</span>
+                          ? 'background:#10ad93;color:white;font-weight:700;'
+                          : 'color:rgba(255,255,255,0.85);font-weight:500;'}">
+                <span style="font-size:1.1rem;min-width:24px;text-align:center;">${item.i}</span>
+                <span class="nav-text" style="font-size:0.95rem;">${item.t}</span>
             </a>
         </li>`).join('') + `
-        <li>
-            <button onclick="cerrarSesionApp()" class="outline contrast"
-                    style="padding:5px 15px;border-radius:8px;width:100%;">Salir</button>
+        <li style="margin-top:8px;border-top:1px solid rgba(255,255,255,0.1);padding-top:8px;">
+            <button onclick="cerrarSesionApp()"
+                    style="width:100%;padding:10px 16px;border-radius:10px;
+                           background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.15);
+                           color:rgba(255,255,255,0.7);font-weight:500;cursor:pointer;
+                           display:flex;align-items:center;gap:10px;">
+                <span style="font-size:1.1rem;">🚪</span> Cerrar sesión
+            </button>
         </li>`;
 }
 
