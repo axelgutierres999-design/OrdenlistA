@@ -316,24 +316,22 @@ background:white;
 }
 
 /* ═══════════════════════════════════════════
-   MENÚ DESKTOP — una sola línea compacta
+   MENÚ DESKTOP — Ajuste dinámico sin cortes
 ═══════════════════════════════════════════ */
 @media (min-width: 769px) {
-
     #menuNavegacion {
-        flex-wrap: nowrap !important;
-        overflow: visible !important;
-        gap: 1px !important;
+        flex-wrap: wrap !important; /* Permite que los botones bajen si no caben */
+        justify-content: center; /* Centra los botones si saltan de línea */
+        gap: 5px !important;
     }
 
     #menuNavegacion li a {
-        padding: 5px 7px !important;
-        font-size: 0.78rem !important;
+        padding: 6px 10px !important;
+        font-size: 0.85rem !important;
         white-space: nowrap !important;
     }
 
-    /* El nav en desktop no hace wrap */
     nav.nav-inicio {
-        flex-wrap: nowrap !important;
+        flex-wrap: wrap !important; /* Evita que el contenedor rompa la pantalla */
     }
 }
