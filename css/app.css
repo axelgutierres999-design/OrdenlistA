@@ -274,44 +274,19 @@ background:white;
     #menuNavegacion.show { display: flex !important; }
 }
 /* ═══════════════════════════════════════════
-   MENÚ MÓVIL — panel fijo que no hace scroll
-   junto con la página
+   MENÚ MÓVIL — scroll interno, sin romper layout
 ═══════════════════════════════════════════ */
 @media (max-width: 768px) {
 
-    /* El nav completo ocupa solo su altura natural */
-    nav.nav-inicio {
-        position: fixed !important;
-        top: 0;
-        left: 0;
-        right: 0;
-        z-index: 9999;
-        padding: 0.6rem 1rem !important;
-    }
-
-    /* Compensar el espacio que ocupa el nav fijo */
-    body {
-        padding-top: 60px;
-    }
-
-    /* Panel del menú desplegable: fijo, ocupa toda la pantalla
-       debajo del nav, con scroll interno propio */
+    /* El menú desplegable tiene scroll propio,
+       no interfiere con el scroll de la página */
     #menuNavegacion {
-        position: fixed !important;
-        top: 60px;           /* justo debajo del nav */
-        left: 0;
-        right: 0;
-        bottom: 0;           /* llega hasta el fondo */
+        max-height: 85vh !important;
+        overflow-y: auto !important;
+        -webkit-overflow-scrolling: touch !important;
         background: #111 !important;
-        overflow-y: auto;    /* scroll DENTRO del panel */
-        -webkit-overflow-scrolling: touch;
-        padding: 12px 8px 40px !important;
-        gap: 4px !important;
-        z-index: 9998;
-        flex-direction: column;
-
-        /* Oculto por defecto */
-        display: none;
+        gap: 3px !important;
+        padding: 8px 6px 24px !important;
     }
 
     #menuNavegacion.show {
@@ -323,109 +298,42 @@ background:white;
     }
 
     #menuNavegacion li a {
-        padding: 13px 18px !important;
+        padding: 12px 16px !important;
         border-radius: 10px !important;
-        margin: 2px 4px !important;
-        width: calc(100% - 8px) !important;
-        font-size: 1rem !important;
+        font-size: 0.95rem !important;
+        width: 100% !important;
     }
 
     #menuNavegacion li a.activo {
-        box-shadow: 0 2px 10px rgba(16,173,147,0.35);
+        box-shadow: 0 2px 8px rgba(16,173,147,0.3);
     }
 
-    /* Botón cerrar sesión al fondo */
     #menuNavegacion li:last-child {
-        margin-top: 12px;
+        margin-top: 6px;
+        border-top: 1px solid rgba(255,255,255,0.1);
+        padding-top: 6px;
     }
 }
 
 /* ═══════════════════════════════════════════
-   MENÚ MÓVIL — panel fijo que no hace scroll
-   junto con la página
-═══════════════════════════════════════════ */
-@media (max-width: 768px) {
-
-    /* El nav completo ocupa solo su altura natural */
-    nav.nav-inicio {
-        position: fixed !important;
-        top: 0;
-        left: 0;
-        right: 0;
-        z-index: 9999;
-        padding: 0.6rem 1rem !important;
-    }
-
-    /* Compensar el espacio que ocupa el nav fijo */
-    body {
-        padding-top: 60px;
-    }
-
-    /* Panel del menú desplegable: fijo, ocupa toda la pantalla
-       debajo del nav, con scroll interno propio */
-    #menuNavegacion {
-        position: fixed !important;
-        top: 60px;           /* justo debajo del nav */
-        left: 0;
-        right: 0;
-        bottom: 0;           /* llega hasta el fondo */
-        background: #111 !important;
-        overflow-y: auto;    /* scroll DENTRO del panel */
-        -webkit-overflow-scrolling: touch;
-        padding: 12px 8px 40px !important;
-        gap: 4px !important;
-        z-index: 9998;
-        flex-direction: column;
-
-        /* Oculto por defecto */
-        display: none;
-    }
-
-    #menuNavegacion.show {
-        display: flex !important;
-    }
-
-    #menuNavegacion li {
-        width: 100%;
-    }
-
-    #menuNavegacion li a {
-        padding: 13px 18px !important;
-        border-radius: 10px !important;
-        margin: 2px 4px !important;
-        width: calc(100% - 8px) !important;
-        font-size: 1rem !important;
-    }
-
-    #menuNavegacion li a.activo {
-        box-shadow: 0 2px 10px rgba(16,173,147,0.35);
-    }
-
-    /* Botón cerrar sesión al fondo */
-    #menuNavegacion li:last-child {
-        margin-top: 12px;
-    }
-}
-
-/* ═══════════════════════════════════════════
-   MENÚ DESKTOP — una sola línea sin wrap
+   MENÚ DESKTOP — una sola línea compacta
 ═══════════════════════════════════════════ */
 @media (min-width: 769px) {
 
-    nav.nav-inicio {
-        flex-wrap: nowrap !important;
-    }
-
     #menuNavegacion {
-        display: flex !important;
-        flex-wrap: nowrap !important;    /* una sola línea */
-        gap: 2px !important;
-        overflow: visible;
+        flex-wrap: nowrap !important;
+        overflow: visible !important;
+        gap: 1px !important;
     }
 
     #menuNavegacion li a {
-        padding: 6px 8px !important;
-        font-size: 0.8rem !important;    /* ligeramente más pequeño para que quepan */
-        white-space: nowrap;
+        padding: 5px 7px !important;
+        font-size: 0.78rem !important;
+        white-space: nowrap !important;
+    }
+
+    /* El nav en desktop no hace wrap */
+    nav.nav-inicio {
+        flex-wrap: nowrap !important;
     }
 }
