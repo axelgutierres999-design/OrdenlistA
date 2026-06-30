@@ -108,16 +108,31 @@
             flex-direction: column;
             order: 3;
             border-top: 1px solid #eee;
-            padding: 10px 0;
+            padding: 8px 6px 24px;
             margin-top: 8px;
-            gap: 2px;
+            gap: 3px;
+            background: #111 !important;
+            max-height: 85vh !important;
+            overflow-y: auto !important;
+            -webkit-overflow-scrolling: touch !important;
         }
         #menuNavegacion.show { display: flex !important; }
         #menuNavegacion li { width: 100%; text-align: center; }
         #menuNavegacion li a {
             justify-content: center;
-            padding: 10px;
+            padding: 12px 16px;
             width: 100%;
+            color: #fff;
+            border-radius: 10px;
+            font-size: 0.95rem;
+        }
+        #menuNavegacion li a.activo {
+            box-shadow: 0 2px 8px rgba(16,173,147,0.3);
+        }
+        #menuNavegacion li:last-child {
+            margin-top: 6px;
+            border-top: 1px solid rgba(255,255,255,0.1);
+            padding-top: 6px;
         }
     }
     </style>

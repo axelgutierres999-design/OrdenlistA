@@ -140,14 +140,32 @@
         #menuNavegacion { 
             display: none; width: 100%; flex-direction: column; order: 3; 
             border-top: 1px solid #333;
-            padding: 15px 0; margin-top: 10px; background: #000;
+            padding: 12px 6px 24px; margin-top: 10px; background: #000;
+            max-height: 85vh !important;
+            overflow-y: auto !important;
+            -webkit-overflow-scrolling: touch !important;
+            gap: 3px;
         }
         #menuNavegacion.show { display: flex !important; }
         #menuNavegacion li { width: 100%; text-align: center; }
-        #menuNavegacion li a { justify-content: center; }
+        #menuNavegacion li a {
+            justify-content: center;
+            padding: 12px 16px;
+            border-radius: 10px;
+            font-size: 0.95rem;
+        }
+        #menuNavegacion li a.activo {
+            box-shadow: 0 2px 8px rgba(16,173,147,0.3);
+        }
+        #menuNavegacion li:last-child {
+            margin-top: 6px;
+            border-top: 1px solid rgba(255,255,255,0.1);
+            padding-top: 6px;
+        }
         .tabla-ordenes-wrapper { display: block; overflow-x: auto; border-radius: 0; }
         .btn-tabla { padding: 10px; width: 100%; margin-bottom: 8px; }
     }
+
     
     @keyframes _entrarToastPR {
          from { opacity:0; transform:translateX(30px); }
