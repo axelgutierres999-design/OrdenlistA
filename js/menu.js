@@ -494,16 +494,9 @@ async function descontarStock(productosVendidos) {
         if (id) {
           await db.from("productos").update(datos).eq("id", id);
         } else {
-          const {data: newProd} = await db.from("productos").insert([datos]).select().single();
-          // Intentar crear suministro automáticamente
-          if(newProd) {
-             await db.from("suministros").insert([{ 
-                restaurante_id: restoIdActivo,
-                nombre: datos.nombre,
-                cantidad: 50,
-                unidad: "Pz"
-             }]);
-          }
+          await db.from("productos").insert([datos]).select().single();
+          // Se eliminó la creación automática de suministro porque los ingredientes
+          // reales se gestionan desde stock.html → el dueño los carga manualmente
         }
         modalEditar.close();
         cargarDatosMenu(); 
