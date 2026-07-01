@@ -115,11 +115,9 @@ async function cargarConfigRestaurante() {
                 document.getElementById('canvasMesas').style.display = 'block';
 
                 stageMonitor.batchDraw();
-                renderizarMesas(); // Llamar de nuevo para pintar colores
+                renderizarMesas(); // Llamar de nuevo para pintar colores — esto internamente llama verificarMesasConRetraso
 
             }, 150);
-               // Alerta visual + sonido para mesas con más de 30 min
-                verificarMesasConRetraso(ordenes);
 
             // Clic en el fondo del mapa cierra el panel
             stageMonitor.on('click tap', (e) => {
@@ -243,6 +241,9 @@ async function renderizarMesas() {
 
         // Refrescar el lienzo para aplicar los cambios de color
         stageMonitor.batchDraw();
+
+        // ← AQUÍ sí existe 'ordenes' porque estamos dentro de renderizarMesas()
+        verificarMesasConRetraso(ordenes);
     } 
     // =====================================================
     // CASO B: NO HAY PLANO (SISTEMA DE BLOQUES PROVISIONAL)
@@ -318,6 +319,9 @@ async function renderizarMesas() {
 
             grid.appendChild(mesaDiv);
         }
+        
+        // Alerta para mesas con retraso en vista de cuadrícula
+        verificarMesasConRetraso(ordenes);
 
         // Clic fuera de los bloques para cerrar el panel
         document.body.onclick = (e) => {
@@ -805,7 +809,7 @@ async function mostrarTicket(orden) {
          // ─── Alerta de mesas sin cobrar más de 30 minutos ───────────────────
        const alertasMesasDisparadas = new Set();
 
-       function verificarMesasConRetraso(ordenes) {
+        function verificarMesasConRetraso(ordenes) {
         ordenes.forEach(o => {
             if (['pagado', 'cancelado', 'entregado'].includes(o.estado)) return;
             const minutos = (Date.now() - new Date(o.created_at).getTime()) / 60000;

@@ -365,13 +365,14 @@ window.imprimirTicketIndividual = (idVenta) => {
         // 1. Obtener el teléfono del dueño desde la tabla restaurantes
         const { data: resto } = await db
             .from('restaurantes')
-            .select('telefono, nombre')
+            .select('telefono, nombre, whatsapp_dueno')
             .eq('id', sesion.restaurante_id)
             .single();
 
-        const telefono = (resto?.telefono || '').replace(/\D/g, '');
+        // Primero intenta el WhatsApp específico del dueño, luego el teléfono del negocio como respaldo
+        const telefono = (resto?.whatsapp_dueno || resto?.telefono || '').replace(/\D/g, '');
         if (!telefono) {
-            console.warn('No hay teléfono configurado para el dueño.');
+            alert('⚠️ El corte se realizó, pero no hay número de WhatsApp configurado.\n\nVe a Ajustes → Pagos y Transferencias → "WhatsApp del Dueño" para configurarlo.');
             return;
         }
 

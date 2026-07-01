@@ -88,6 +88,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                 inMensajeTicket.value = data.mensaje_ticket || '¡GRACIAS POR SU COMPRA!';
                 inWifi.value = data.wifi || '';
                 inInstagram.value = data.instagram || '';
+                document.getElementById('inputWhatsappDueno').value = data.whatsapp_dueno || '';
 
                 // Imágenes simples
                 mostrarImagenDesdeUrl(data.logo_url, imgLogo);
@@ -266,6 +267,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                 mensaje_ticket: inMensajeTicket.value,
                 wifi: inWifi.value,
                 instagram: inInstagram.value,
+                 whatsapp_dueno: document.getElementById('inputWhatsappDueno').value.replace(/\D/g, ''),
                 
                 // Guardamos el array como JSONB. 
                 // IMPORTANTE: Asegúrate de crear la columna 'galeria_menu' tipo JSONB en Supabase
