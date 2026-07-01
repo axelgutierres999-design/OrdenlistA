@@ -507,10 +507,19 @@
             else if (o.estado === 'preparando') tr.className = "fila-proceso";
             else if (o.estado === 'terminado') tr.className = "fila-terminado";
 
-            // Tiempo
+           // Tiempo — cronómetro regresivo de 7 min para por_pagar, 
+            // con 2 min de tolerancia antes de cancelar automáticamente
             let celdaTiempo = "";
-            if (o.estado === 'por_pagar' && o.limite_pago) {
-                celdaTiempo = `<span class="tiempo-cronometro tiempo-alerta" data-limite="${o.limite_pago}" data-id="${o.id}">Calculando...</span>`;
+            if (o.estado === 'por_pagar') {
+                // Si no tiene limite_pago lo calculamos desde created_at + 7 minutos
+                const limiteMs = o.limite_pago
+                    ? new Date(o.limite_pago).getTime()
+                    : new Date(o.created_at).getTime() + (7 * 60 * 1000);
+                celdaTiempo = `<span class="tiempo-cronometro tiempo-alerta" 
+                    data-limite="${limiteMs}" 
+                    data-id="${o.id}"
+                    data-tolerancia="${limiteMs + (2 * 60 * 1000)}">
+                    Calculando...</span>`;
             } else {
                 const hora = new Date(o.created_at).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
                 celdaTiempo = `<span class="tiempo-cronometro" style="background:transparent; color:#4a5568;">${hora}</span>`;
@@ -668,22 +677,118 @@
     }
 
     // ─── Cronómetro de cuenta regresiva ────────────────────────────────
+    // ─── Sonido de alarma REAL (más audible que el anterior) ────────────
+    function sonarAlarma() {
+        try {
+            const ctx = new (window.AudioContext || window.webkitAudioContext)();
+            
+            // Tono 1 — agudo urgente
+            const secuencia = [
+                { freq: 1047, inicio: 0,    duracion: 0.15 },
+                { freq: 0,    inicio: 0.15, duracion: 0.05 },
+                { freq: 1047, inicio: 0.20, duracion: 0.15 },
+                { freq: 0,    inicio: 0.35, duracion: 0.05 },
+                { freq: 1047, inicio: 0.40, duracion: 0.15 },
+                { freq: 880,  inicio: 0.60, duracion: 0.40 },
+            ];
+
+            secuencia.forEach(({ freq, inicio, duracion }) => {
+                if (freq === 0) return;
+                const osc  = ctx.createOscillator();
+                const gain = ctx.createGain();
+                osc.connect(gain);
+                gain.connect(ctx.destination);
+                osc.type = 'square'; // más penetrante que 'sine'
+                osc.frequency.setValueAtTime(freq, ctx.currentTime + inicio);
+                gain.gain.setValueAtTime(0.6, ctx.currentTime + inicio);
+                gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + inicio + duracion);
+                osc.start(ctx.currentTime + inicio);
+                osc.stop(ctx.currentTime + inicio + duracion);
+            });
+        } catch(e) { console.warn('Audio no disponible:', e); }
+    }
+
+    // ─── Registro de órdenes ya alertadas (para no repetir la alarma) ───
+    const alertasDisparadas = new Set();
+    const cancelacionesPendientes = new Set(); // evita doble cancelación
+
+    // ─── Cancelar orden automáticamente ─────────────────────────────────
+    async function cancelarOrdenAutomatica(id) {
+        if (cancelacionesPendientes.has(id)) return;
+        cancelacionesPendientes.add(id);
+
+        const { error } = await db.from('ordenes').delete().eq('id', id);
+        if (error) {
+            console.error('Error al cancelar:', error.message);
+            cancelacionesPendientes.delete(id);
+        } else {
+            mostrarToastPR('⏱️ Orden cancelada', 'El tiempo de pago expiró');
+            sonarAlarma();
+        }
+    }
+
+    // ─── Cronómetro principal ────────────────────────────────────────────
     setInterval(() => {
         document.querySelectorAll(".tiempo-cronometro[data-limite]").forEach(el => {
-            const limite = new Date(el.getAttribute("data-limite")).getTime();
-            const ahora = new Date().getTime();
-            const distancia = limite - ahora;
+            const limiteMs     = parseInt(el.getAttribute("data-limite"));
+            const toleranciaMs = parseInt(el.getAttribute("data-tolerancia"));
+            const idOrden      = el.getAttribute("data-id");
+            const ahora        = Date.now();
+            const distancia    = limiteMs - ahora;
+            const enTolerancia = ahora > limiteMs && ahora < toleranciaMs;
+            const expirado     = ahora >= toleranciaMs;
 
-            if (distancia < 0) {
-                el.textContent = "Expirado";
-                el.style.animation = "none";
-                el.style.background = "#fff5f5";
-                el.style.color = "#c53030";
-                el.style.border = "1px solid #fc8181";
-            } else {
-                const minutos = Math.floor((distancia % (1000 * 60 * 60)) / (1000 * 60));
+            if (expirado) {
+                // Cancelar automáticamente
+                el.textContent = "Cancelando...";
+                el.style.background = "#1a1a1a";
+                el.style.color = "white";
+                cancelarOrdenAutomatica(idOrden);
+                return;
+            }
+
+            if (enTolerancia) {
+                // Tolerancia: 2 min extra en rojo parpadeante
+                const segsTolerancia = Math.ceil((toleranciaMs - ahora) / 1000);
+                const m = Math.floor(segsTolerancia / 60);
+                const s = segsTolerancia % 60;
+                el.textContent = `+${m}:${s.toString().padStart(2,'0')} TOLERANCIA`;
+                el.style.background = "#7b2d00";
+                el.style.color = "white";
+                el.style.border = "2px solid #ff4d00";
+
+                // Alarma al entrar en tolerancia (solo una vez)
+                if (!alertasDisparadas.has(`tol_${idOrden}`)) {
+                    alertasDisparadas.add(`tol_${idOrden}`);
+                    sonarAlarma();
+                    mostrarToastPR('⚠️ Tiempo límite', '2 min de tolerancia — si no paga se cancela');
+                }
+                return;
+            }
+
+            if (distancia > 0) {
+                const minutos  = Math.floor((distancia % (1000 * 60 * 60)) / (1000 * 60));
                 const segundos = Math.floor((distancia % (1000 * 60)) / 1000);
-                el.textContent = `${minutos.toString().padStart(2, '0')}:${segundos.toString().padStart(2, '0')}`;
+                el.textContent = `${minutos.toString().padStart(2,'0')}:${segundos.toString().padStart(2,'0')}`;
+
+                // Alarma a 1 minuto restante (solo una vez)
+                if (distancia < 60000 && !alertasDisparadas.has(`min_${idOrden}`)) {
+                    alertasDisparadas.add(`min_${idOrden}`);
+                    sonarAlarma();
+                    mostrarToastPR('🔔 1 minuto restante', 'El cliente debe pagar pronto');
+                }
+
+                // Color según urgencia
+                if (distancia < 120000) {
+                    el.style.background = "#e53935";
+                    el.style.color = "white";
+                } else if (distancia < 300000) {
+                    el.style.background = "#f39c12";
+                    el.style.color = "white";
+                } else {
+                    el.style.background = "#edf2f7";
+                    el.style.color = "#2d3748";
+                }
             }
         });
     }, 1000);

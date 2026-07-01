@@ -261,16 +261,21 @@ window.filtrarVentas = () => {
             // 4. Éxito en Base de Datos
             localStorage.setItem(`ultimo_corte_${sesion.restaurante_id}`, fechaCorte);
             
-            // 5. INTENTO DE IMPRESIÓN (Separado para que si falla no muestre error de corte)
+            // 5. INTENTO DE IMPRESIÓN
             try {
                 window.imprimirCorteCaja();
             } catch (printErr) {
                 console.warn("Error interno de impresión:", printErr);
             }
 
-            alert("✅ Corte realizado exitosamente.");
-            
-            // Recargar para limpiar pantalla
+            // 6. ENVIAR RESUMEN AL WHATSAPP DEL DUEÑO
+            try {
+                await enviarCorteWhatsApp({ total, efectivo, tarjeta, numVentas: ventasHoy.length, fechaCorte });
+            } catch (waErr) {
+                console.warn("WhatsApp no disponible:", waErr);
+            }
+
+            alert("✅ Corte realizado. Se ha enviado el resumen por WhatsApp.");
             cargarEstadisticas();
 
         } catch (err) {
@@ -354,6 +359,115 @@ window.imprimirTicketIndividual = (idVenta) => {
         ventana.document.close();
     } catch (e) {
         console.error(e);
+    }
+    // ─── Enviar resumen de corte por WhatsApp ───────────────────────────
+    async function enviarCorteWhatsApp({ total, efectivo, tarjeta, numVentas, fechaCorte }) {
+        // 1. Obtener el teléfono del dueño desde la tabla restaurantes
+        const { data: resto } = await db
+            .from('restaurantes')
+            .select('telefono, nombre')
+            .eq('id', sesion.restaurante_id)
+            .single();
+
+        const telefono = (resto?.telefono || '').replace(/\D/g, '');
+        if (!telefono) {
+            console.warn('No hay teléfono configurado para el dueño.');
+            return;
+        }
+
+        // 2. Generar imagen del ticket de corte para compartir
+        const fmt = new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN' });
+        const fechaStr = new Date(fechaCorte).toLocaleString('es-MX', {
+            day: '2-digit', month: 'short', year: 'numeric',
+            hour: '2-digit', minute: '2-digit'
+        });
+
+        // Crear div temporal con el ticket visual
+        const ticketDiv = document.createElement('div');
+        ticketDiv.style = `
+            position:fixed; top:-9999px; left:-9999px;
+            width:300px; background:white; padding:20px;
+            font-family:'Courier New',monospace; color:black; font-size:13px;
+        `;
+        ticketDiv.innerHTML = `
+            <div style="text-align:center; margin-bottom:10px;">
+                <h2 style="margin:0; font-size:16px; text-transform:uppercase;">${resto?.nombre || 'Mi Restaurante'}</h2>
+                <p style="margin:4px 0; font-size:11px;">CORTE DE CAJA</p>
+                <p style="margin:4px 0; font-size:11px;">${fechaStr}</p>
+            </div>
+            <hr style="border:1px dashed #000; margin:10px 0;">
+            <div style="display:flex; justify-content:space-between; margin:4px 0;">
+                <span>TOTAL:</span><strong>${fmt.format(total)}</strong>
+            </div>
+            <div style="display:flex; justify-content:space-between; margin:4px 0;">
+                <span>Efectivo:</span><span>${fmt.format(efectivo)}</span>
+            </div>
+            <div style="display:flex; justify-content:space-between; margin:4px 0;">
+                <span>Tarjeta/Digital:</span><span>${fmt.format(tarjeta)}</span>
+            </div>
+            <div style="display:flex; justify-content:space-between; margin:4px 0;">
+                <span>Núm. ventas:</span><span>${numVentas}</span>
+            </div>
+            <div style="display:flex; justify-content:space-between; margin:4px 0;">
+                <span>Ticket promedio:</span><span>${fmt.format(numVentas ? total / numVentas : 0)}</span>
+            </div>
+            <hr style="border:1px dashed #000; margin:10px 0;">
+            <p style="text-align:center; font-size:10px; margin:0;">OrdenLista · orden-list.vercel.app</p>
+        `;
+        document.body.appendChild(ticketDiv);
+
+        // 3. Convertir a imagen con html2canvas (si está disponible)
+        if (typeof html2canvas !== 'undefined') {
+            try {
+                const canvas = await html2canvas(ticketDiv, { scale: 3, backgroundColor: '#ffffff' });
+                document.body.removeChild(ticketDiv);
+
+                canvas.toBlob(async (blob) => {
+                    const file = new File([blob], `Corte_${fechaStr.replace(/[/:, ]/g,'_')}.png`, { type: 'image/png' });
+
+                    // En móvil: compartir imagen directamente
+                    if (navigator.canShare && navigator.canShare({ files: [file] })) {
+                        await navigator.share({
+                            files: [file],
+                            title: `Corte de caja — ${fechaStr}`,
+                            text: `Corte de caja de ${resto?.nombre || 'Mi Restaurante'}: ${fmt.format(total)}`
+                        });
+                    } else {
+                        // En PC: descargar imagen Y abrir WhatsApp Web con texto
+                        const link = document.createElement('a');
+                        link.download = `Corte_${fechaStr.replace(/[/:, ]/g,'_')}.png`;
+                        link.href = canvas.toDataURL('image/png');
+                        link.click();
+
+                        const mensaje = encodeURIComponent(
+                            `🧾 *CORTE DE CAJA — ${fechaStr}*\n` +
+                            `📍 ${resto?.nombre || 'Mi Restaurante'}\n\n` +
+                            `💰 Total: ${fmt.format(total)}\n` +
+                            `💵 Efectivo: ${fmt.format(efectivo)}\n` +
+                            `💳 Tarjeta/Digital: ${fmt.format(tarjeta)}\n` +
+                            `🧾 Ventas: ${numVentas}\n` +
+                            `📊 Ticket prom.: ${fmt.format(numVentas ? total/numVentas : 0)}\n\n` +
+                            `_(Imagen del ticket descargada en tu dispositivo)_`
+                        );
+                        window.open(`https://wa.me/${telefono}?text=${mensaje}`, '_blank');
+                    }
+                }, 'image/png');
+            } catch (e) {
+                document.body.removeChild(ticketDiv);
+                throw e;
+            }
+        } else {
+            // Sin html2canvas: solo mensaje de texto por WhatsApp
+            document.body.removeChild(ticketDiv);
+            const mensaje = encodeURIComponent(
+                `🧾 *CORTE DE CAJA — ${fechaStr}*\n` +
+                `💰 Total: ${fmt.format(total)}\n` +
+                `💵 Efectivo: ${fmt.format(efectivo)}\n` +
+                `💳 Tarjeta: ${fmt.format(tarjeta)}\n` +
+                `🧾 Ventas: ${numVentas}`
+            );
+            window.open(`https://wa.me/${telefono}?text=${mensaje}`, '_blank');
+        }
     }
 };
 });

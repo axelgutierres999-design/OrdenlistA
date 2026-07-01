@@ -118,6 +118,8 @@ async function cargarConfigRestaurante() {
                 renderizarMesas(); // Llamar de nuevo para pintar colores
 
             }, 150);
+               // Alerta visual + sonido para mesas con más de 30 min
+                verificarMesasConRetraso(ordenes);
 
             // Clic en el fondo del mapa cierra el panel
             stageMonitor.on('click tap', (e) => {
@@ -193,19 +195,27 @@ async function renderizarMesas() {
             const totalMesa = ordenesMesa.reduce((acc, orden) => acc + parseFloat(orden.total), 0);
             const hayListas = ordenesMesa.some(o => o.estado === 'terminado');
 
-            // Actualizar Color (Semáforo)
+            // Detectar si lleva más de 30 min ocupada sin cobrar
+            const masaDe30Min = ordenesMesa.length > 0 && ordenesMesa.some(o => {
+                const minutos = (Date.now() - new Date(o.created_at).getTime()) / 60000;
+                return minutos > 30 && o.estado !== 'terminado';
+            });
+
             const shapeBase = mesaGroup.findOne('Rect') || mesaGroup.findOne('Circle') || mesaGroup.findOne('Line');
             if (shapeBase) {
                 if (hayListas) {
-                    shapeBase.fill('#10ec91'); // 🟢 verde: Comida lista
+                    shapeBase.fill('#e74c3c');   // 🔴 ROJO: Lista para entregar — más urgente
+                    shapeBase.stroke('#c0392b');
+                } else if (masaDe30Min) {
+                    shapeBase.fill('#8e44ad');   // 🟣 MORADO: Lleva más de 30 min
+                    shapeBase.stroke('#6c3483');
                 } else if (ocupada) {
-                    shapeBase.fill('#f1c40f'); // 🟡 AMARILLO: Ocupada
+                    shapeBase.fill('#f1c40f');   // 🟡 AMARILLO: En proceso normal
+                    shapeBase.stroke('#d4ac0d');
                 } else {
-                    shapeBase.fill('#ffffff'); // ⚪ BLANCO: Libre
+                    shapeBase.fill('#ffffff');   // ⚪ BLANCO: Libre
+                    shapeBase.stroke('#10ad93');
                 }
-                
-                // Borde para resaltar
-                shapeBase.stroke('#10ad93');
                 shapeBase.strokeWidth(3);
             }
 
@@ -260,15 +270,20 @@ async function renderizarMesas() {
             const totalMesa = ordenesMesa.reduce((acc, orden) => acc + parseFloat(orden.total), 0);
             const hayListas = ordenesMesa.some(o => o.estado === 'terminado');
 
-            // Colores del Semáforo
-            let bgColor = '#ffffff';
-            let textColor = '#333';
-            if (hayListas) { 
-                bgColor = '#e74c3c'; 
-                textColor = '#fff'; 
-            } else if (ocupada) { 
-                bgColor = '#f1c40f'; 
-                textColor = '#000'; 
+            // Detectar mesa con más de 30 min sin cobrar
+            const masaDe30Min = ordenesMesa.length > 0 && ordenesMesa.some(o => {
+                const minutos = (Date.now() - new Date(o.created_at).getTime()) / 60000;
+                return minutos > 30 && o.estado !== 'terminado';
+            });
+
+            // Colores unificados (igual que en el plano Konva)
+            let bgColor = '#ffffff', textColor = '#333', borderColor = '#10ad93';
+            if (hayListas) {
+                bgColor = '#e74c3c'; textColor = '#fff'; borderColor = '#c0392b';
+            } else if (masaDe30Min) {
+                bgColor = '#8e44ad'; textColor = '#fff'; borderColor = '#6c3483';
+            } else if (ocupada) {
+                bgColor = '#f1c40f'; textColor = '#000'; borderColor = '#d4ac0d';
             }
 
             // Crear el bloque HTML
@@ -277,7 +292,7 @@ async function renderizarMesas() {
             mesaDiv.style = `
                 background: ${bgColor}; 
                 color: ${textColor}; 
-                border: 3px solid #10ad93; 
+                border: 3px solid ${borderColor};
                 border-radius: 12px; 
                 padding: 25px 10px; 
                 text-align: center; 
@@ -787,6 +802,45 @@ async function mostrarTicket(orden) {
         console.log(`[Realtime Mesas] ${status}`);
       });
   }
+         // ─── Alerta de mesas sin cobrar más de 30 minutos ───────────────────
+       const alertasMesasDisparadas = new Set();
+
+       function verificarMesasConRetraso(ordenes) {
+        ordenes.forEach(o => {
+            if (['pagado', 'cancelado', 'entregado'].includes(o.estado)) return;
+            const minutos = (Date.now() - new Date(o.created_at).getTime()) / 60000;
+            const clave = `alerta_30_${o.id}`;
+
+            if (minutos > 30 && !alertasMesasDisparadas.has(clave)) {
+                alertasMesasDisparadas.add(clave);
+
+                // Sonido de alerta
+                try {
+                    const ctx = new (window.AudioContext || window.webkitAudioContext)();
+                    [440, 550, 440].forEach((freq, i) => {
+                        const osc = ctx.createOscillator();
+                        const gain = ctx.createGain();
+                        osc.connect(gain); gain.connect(ctx.destination);
+                        osc.frequency.value = freq;
+                        osc.type = 'triangle';
+                        gain.gain.setValueAtTime(0.4, ctx.currentTime + i * 0.3);
+                        gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + i * 0.3 + 0.25);
+                        osc.start(ctx.currentTime + i * 0.3);
+                        osc.stop(ctx.currentTime + i * 0.3 + 0.25);
+                    });
+                } catch(e) {}
+
+                // Toast visual
+                if (typeof App !== 'undefined' && App.mostrarToast) {
+                    App.mostrarToast('listo',
+                        `⏰ ${o.mesa} lleva más de 30 min`,
+                        'Considera cobrar o revisar la mesa',
+                        'mesas.html'
+                    );
+                }
+            }
+        });
+    }
  
   iniciarRealtimeMesas();
 });
