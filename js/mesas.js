@@ -184,34 +184,40 @@ async function renderizarMesas() {
             const idMesa = mesaGroup.id(); 
             const nombreMesaCompleto = `Mesa ${idMesa}`; 
             
-            // Filtrar órdenes de esta mesa
+            // Solo estados que indican actividad real en la mesa
             const ordenesMesa = ordenes.filter(o =>
-                o.mesa === nombreMesaCompleto && !['pagado', 'cancelado', 'entregado'].includes(o.estado)
+                o.mesa === nombreMesaCompleto &&
+                ['por_confirmar', 'pendiente', 'preparando', 'proceso', 'terminado', 'archivado_cocina'].includes(o.estado)
             );
 
             const ocupada = ordenesMesa.length > 0;
             const totalMesa = ordenesMesa.reduce((acc, orden) => acc + parseFloat(orden.total), 0);
-            const hayListas = ordenesMesa.some(o => o.estado === 'terminado');
 
-            // Detectar si lleva más de 30 min ocupada sin cobrar
-            const masaDe30Min = ordenesMesa.length > 0 && ordenesMesa.some(o => {
+            // Estados por prioridad (una mesa puede tener órdenes en distintos estados)
+            const hayPorConfirmar  = ordenesMesa.some(o => o.estado === 'por_confirmar');
+            const hayEnCocina      = ordenesMesa.some(o => ['pendiente', 'preparando', 'proceso'].includes(o.estado));
+            const hayListasCocina  = ordenesMesa.some(o => ['terminado', 'archivado_cocina'].includes(o.estado));
+            const masaDe30Min      = ocupada && ordenesMesa.some(o => {
                 const minutos = (Date.now() - new Date(o.created_at).getTime()) / 60000;
-                return minutos > 30 && o.estado !== 'terminado';
+                return minutos > 30 && !['terminado', 'archivado_cocina', 'pagado'].includes(o.estado);
             });
 
             const shapeBase = mesaGroup.findOne('Rect') || mesaGroup.findOne('Circle') || mesaGroup.findOne('Line');
             if (shapeBase) {
-                if (hayListas) {
-                    shapeBase.fill('#e74c3c');   // 🔴 ROJO: Lista para entregar — más urgente
-                    shapeBase.stroke('#c0392b');
-                } else if (masaDe30Min) {
-                    shapeBase.fill('#8e44ad');   // 🟣 MORADO: Lleva más de 30 min
+                if (masaDe30Min) {
+                    shapeBase.fill('#8e44ad');  // 🟣 MORADO: Más de 30 min sin resolver
                     shapeBase.stroke('#6c3483');
-                } else if (ocupada) {
-                    shapeBase.fill('#f1c40f');   // 🟡 AMARILLO: En proceso normal
+                } else if (hayPorConfirmar) {
+                    shapeBase.fill('#e74c3c');  // 🔴 ROJO: Ordenando desde QR, falta aceptar
+                    shapeBase.stroke('#c0392b');
+                } else if (hayListasCocina) {
+                    shapeBase.fill('#27ae60');  // 🟢 VERDE: Comida entregada, están comiendo
+                    shapeBase.stroke('#1e8449');
+                } else if (hayEnCocina) {
+                    shapeBase.fill('#f1c40f');  // 🟡 AMARILLO: En preparación
                     shapeBase.stroke('#d4ac0d');
                 } else {
-                    shapeBase.fill('#ffffff');   // ⚪ BLANCO: Libre
+                    shapeBase.fill('#ffffff');  // ⚪ BLANCO: Libre
                     shapeBase.stroke('#10ad93');
                 }
                 shapeBase.strokeWidth(3);
@@ -266,24 +272,33 @@ async function renderizarMesas() {
             const nombreMesaCompleto = `Mesa ${i}`;
             
             // Filtrar órdenes
-            const ordenesMesa = ordenes.filter(o => o.mesa === nombreMesaCompleto && !['pagado', 'cancelado', 'entregado'].includes(o.estado));
+            const ordenesMesa = ordenes.filter(o =>
+                o.mesa === nombreMesaCompleto &&
+                ['por_confirmar', 'pendiente', 'preparando', 'proceso', 'terminado', 'archivado_cocina'].includes(o.estado)
+            );
             const ocupada = ordenesMesa.length > 0;
             const totalMesa = ordenesMesa.reduce((acc, orden) => acc + parseFloat(orden.total), 0);
             const hayListas = ordenesMesa.some(o => o.estado === 'terminado');
 
-            // Detectar mesa con más de 30 min sin cobrar
-            const masaDe30Min = ordenesMesa.length > 0 && ordenesMesa.some(o => {
-                const minutos = (Date.now() - new Date(o.created_at).getTime()) / 60000;
-                return minutos > 30 && o.estado !== 'terminado';
-            });
 
             // Colores unificados (igual que en el plano Konva)
+            // Mismos estados que en el plano Konva
+            const hayPorConfirmar  = ordenesMesa.some(o => o.estado === 'por_confirmar');
+            const hayEnCocina      = ordenesMesa.some(o => ['pendiente', 'preparando', 'proceso'].includes(o.estado));
+            const hayListasCocina  = ordenesMesa.some(o => ['terminado', 'archivado_cocina'].includes(o.estado));
+            const masaDe30Min      = ocupada && ordenesMesa.some(o => {
+                const minutos = (Date.now() - new Date(o.created_at).getTime()) / 60000;
+                return minutos > 30 && !['terminado', 'archivado_cocina', 'pagado'].includes(o.estado);
+            });
+
             let bgColor = '#ffffff', textColor = '#333', borderColor = '#10ad93';
-            if (hayListas) {
-                bgColor = '#e74c3c'; textColor = '#fff'; borderColor = '#c0392b';
-            } else if (masaDe30Min) {
+            if (masaDe30Min) {
                 bgColor = '#8e44ad'; textColor = '#fff'; borderColor = '#6c3483';
-            } else if (ocupada) {
+            } else if (hayPorConfirmar) {
+                bgColor = '#e74c3c'; textColor = '#fff'; borderColor = '#c0392b';
+            } else if (hayListasCocina) {
+                bgColor = '#27ae60'; textColor = '#fff'; borderColor = '#1e8449';
+            } else if (hayEnCocina) {
                 bgColor = '#f1c40f'; textColor = '#000'; borderColor = '#d4ac0d';
             }
 
@@ -319,7 +334,7 @@ async function renderizarMesas() {
 
             grid.appendChild(mesaDiv);
         }
-        
+
         // Alerta para mesas con retraso en vista de cuadrícula
         verificarMesasConRetraso(ordenes);
 
@@ -513,10 +528,22 @@ async function renderizarMesas() {
         }
       }
 
-      // Éxito
+      // Éxito — cerrar modal y ocultar panel inmediatamente
       alert("✅ Pago registrado correctamente.");
       if(modalCobro.open) modalCobro.close();
-      renderizarMesas();
+
+      // Ocultar panel de acciones
+      const panelAcciones = document.getElementById('panelAccionesMesa');
+      if (panelAcciones) panelAcciones.style.display = 'none';
+
+      // Forzar recarga de datos en app.js para que getOrdenes() esté actualizado
+      // antes de redibujar — sin esto el mapa sigue mostrando la mesa ocupada
+      if (typeof App !== 'undefined' && App.notifyUpdate) {
+          await new Promise(resolve => setTimeout(resolve, 600)); // espera que Supabase propague
+          App.notifyUpdate(); // esto dispara cargarDatosIniciales() en app.js → luego renderizarMesas()
+      } else {
+          renderizarMesas();
+      }
 
       // GENERAR TICKET AUTOMÁTICO
       mostrarTicket({

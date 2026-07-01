@@ -69,6 +69,9 @@
           /* En móviles hacemos que el mapa tome un poco más de alto */
           .mapa-wrapper { height: calc(100vh - 100px); }
       }
+        /* Espacio para que el panel fijo no tape contenido */
+         main.container { padding-bottom: 100px; 
+      }
     </style>
 </head>
 <body>
@@ -98,7 +101,7 @@
     
     <div id="gridMesas" style="display: none;"></div>
     
-    <div id="panelAccionesMesa" style="display: none; margin-top: 15px; padding: 15px; background: white; border-radius: 8px; border: 2px solid #10ad93; flex-wrap: wrap; gap: 15px; align-items: center; justify-content: space-between; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
+<div id="panelAccionesMesa" style="display: none; position: fixed; bottom: 0; left: 0; right: 0; z-index: 500; padding: 15px 20px; background: white; border-top: 3px solid #10ad93; flex-wrap: wrap; gap: 12px; align-items: center; justify-content: space-between; box-shadow: 0 -4px 20px rgba(0,0,0,0.15);">
         <div>
             <h4 id="panelTituloMesa" style="margin: 0; color: #10ad93; font-weight: bold;">Mesa Seleccionada</h4>
             <span id="panelTotalMesa" style="font-weight: bold; font-size: 1.2em; color: #333;"></span>
@@ -110,6 +113,14 @@
             <button id="btnPanelTicket" class="outline" style="padding: 10px; font-size: 0.9em;">🎫 Ver Ticket</button> 
             <button id="btnPanelCobrar" style="padding: 10px; font-size: 0.9em; background: #10ad93; border: none; color: white;">💸 Cobrar</button>
         </div>
+    </div>
+    <!-- Leyenda de colores -->
+    <div style="display:flex; gap:10px; flex-wrap:wrap; padding:8px 0 12px; font-size:0.8rem;">
+      <span style="display:flex; align-items:center; gap:5px;"><span style="width:14px;height:14px;border-radius:3px;background:#e74c3c;display:inline-block;"></span>Ordenando (QR)</span>
+      <span style="display:flex; align-items:center; gap:5px;"><span style="width:14px;height:14px;border-radius:3px;background:#f1c40f;display:inline-block;"></span>En cocina</span>
+      <span style="display:flex; align-items:center; gap:5px;"><span style="width:14px;height:14px;border-radius:3px;background:#27ae60;display:inline-block;"></span>Comiendo</span>
+      <span style="display:flex; align-items:center; gap:5px;"><span style="width:14px;height:14px;border-radius:3px;background:#8e44ad;display:inline-block;"></span>+30 min</span>
+      <span style="display:flex; align-items:center; gap:5px;"><span style="width:14px;height:14px;border-radius:3px;background:#fff;border:2px solid #10ad93;display:inline-block;"></span>Libre</span>
     </div>
     
     <section id="config-rapida" style="margin-bottom: 20px; padding: 15px; background: #f4f4f4; border-radius: 10px; border: 1px solid #ddd;">
