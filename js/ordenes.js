@@ -93,7 +93,8 @@ ultimaCantidadPendientes = nuevas.length;
     const texto     = inputBusqueda?.value.toLowerCase() || '';
 
     const filtradas = ordenesLocales.filter(o => {
-      if (o.estado === 'entregado' || o.estado === 'cancelado') return false;
+      if (['entregado', 'cancelado'].includes(o.estado)) return false;
+      // 'en_mesa' sí aparece en la lista — comida entregada pero aún sin cobrar
       const pasaEstado = estadoSel === 'todos' || o.estado === estadoSel;
       const pasaTexto  = o.mesa.toLowerCase().includes(texto);
       return pasaEstado && pasaTexto;
@@ -133,8 +134,14 @@ ultimaCantidadPendientes = nuevas.length;
           break;
         case 'terminado':
           claseFila     = 'fila-terminado';
-          botonesAccion = `<button onclick="App.cambiarEstadoOrden('${orden.id}','entregado')"
+          botonesAccion = `<button onclick="App.cambiarEstadoOrden('${orden.id}','en_mesa')"
                             class="secondary">✅ Entregar</button>`;
+          break;
+        case 'en_mesa':
+          // Comida entregada físicamente — esperando que el mesero cobre en mesas.html
+          claseFila     = 'fila-terminado';
+          botonesAccion = `<span style="color:#27ae60; font-weight:700; font-size:0.85rem;">
+                            🍽️ En mesa — pendiente cobro</span>`;
           break;
         case 'pagado':
           claseFila     = 'fila-pagado';

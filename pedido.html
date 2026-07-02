@@ -140,7 +140,18 @@
     <p id="nombreMesa" style="margin:0; color:#888;">Mesa</p>
     <h1>☕ OrdenLista</h1>
     <p style="margin:0;">Elige tus platillos favoritos</p>
-  </header>
+
+  <header>
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:0.5rem;">
+        <h1 style="margin:0;"><!-- el título que ya tenías --></h1>
+        <button onclick="abrirGaleriaMenu()"
+          style="background:#10ad93; border:none; color:white; border-radius:10px;
+                 padding:8px 14px; cursor:pointer; font-size:0.85rem; font-weight:700;
+                 white-space:nowrap;">
+          🖼️ Ver menú
+        </button>
+      </div>
+    </header>
 
   <section class="buscador-container">
     <input type="search" id="buscarProducto" placeholder="Buscar platillo o bebida...">
@@ -185,13 +196,15 @@
           El encargado confirmará tu orden en un momento. ¡Gracias por tu preferencia!
         </p>
         <!-- Botón app -->
+        <!-- Botón app -->
         <a href="https://aplicacionordenlista.vercel.app/index.html" target="_blank"
+           onclick="setTimeout(cerrarPedido, 800)"
            style="display:block;background:#10ad93;color:white;text-decoration:none;
                   padding:12px 20px;border-radius:12px;font-weight:700;font-size:0.9rem;
                   margin-bottom:10px;transition:all 0.2s;">
           📱 Descarga nuestra app para una mejor experiencia
         </a>
-        <button onclick="document.getElementById('modalConfirm').close()"
+        <button onclick="document.getElementById('modalConfirm').close(); cerrarPedido();"
                 style="background:none;border:1px solid #ddd;color:#888;padding:10px 20px;
                        border-radius:12px;width:100%;font-size:0.85rem;cursor:pointer;">
           Cerrar
@@ -361,9 +374,12 @@
             if (barra) barra.style.width = '0%';
         }, 100);
 
-        // Cerrar automáticamente a los 20 segundos
+        // Cerrar automáticamente a los 20 segundos → redirigir a pantalla limpia
         setTimeout(() => {
-            if (modal.open) modal.close();
+            if (modal.open) {
+                modal.close();
+                cerrarPedido();
+            }
         }, 20000);
       } catch (err) {
         alert("Error al enviar pedido: " + err.message);
@@ -375,6 +391,105 @@
     document.getElementById("filtroCategoria").addEventListener("change", renderizarProductos);
 
     cargarProductos();
+    function cerrarPedido() {
+        // Intentar cerrar la pestaña (solo funciona si fue abierta por JS/QR en algunos navegadores)
+        window.close();
+        // Si el navegador bloqueó el cierre (lo más común desde QR directo),
+        // mostrar pantalla de "gracias" limpia en la misma pestaña
+        setTimeout(() => {
+            document.body.innerHTML = `
+                <div style="
+                    min-height:100vh; display:flex; flex-direction:column;
+                    align-items:center; justify-content:center;
+                    background:#f6f8f9; font-family:system-ui,sans-serif;
+                    text-align:center; padding:30px;
+                ">
+                    <div style="font-size:72px; margin-bottom:16px;">✅</div>
+                    <h2 style="color:#10ad93; margin-bottom:8px;">¡Pedido enviado!</h2>
+                    <p style="color:#555; font-size:1rem; max-width:260px; line-height:1.5;">
+                        Tu orden está siendo preparada.<br>Puedes cerrar esta pestaña.
+                    </p>
+                    <p style="color:#bbb; font-size:0.8rem; margin-top:24px;">
+                        Esta página no tiene más funciones activas.
+                    </p>
+                </div>`;
+        }, 400);
+    }
+    // ─── Galería visual del menú ──────────────────────────────────
+    async function abrirGaleriaMenu() {
+      const { data: prods, error } = await db
+        .from('productos')
+        .select('id, nombre, imagen_url, precio, categoria')
+        .eq('restaurante_id', ridParam)
+        .eq('activo', true)
+        .not('imagen_url', 'is', null)
+        .order('categoria');
+
+      if (error || !prods?.length) {
+        alert('No hay imágenes de productos en el menú.');
+        return;
+      }
+
+      // Agrupar por categoría
+      const porCat = prods.reduce((acc, p) => {
+        const cat = p.categoria || 'General';
+        if (!acc[cat]) acc[cat] = [];
+        acc[cat].push(p);
+        return acc;
+      }, {});
+
+      let modal = document.getElementById('modalGaleria');
+      if (!modal) {
+        modal = document.createElement('dialog');
+        modal.id = 'modalGaleria';
+        modal.style.cssText = 'border:none;border-radius:20px;padding:0;width:min(96vw,560px);max-height:85vh;overflow:hidden;';
+        modal.addEventListener('click', e => { if (e.target === modal) modal.close(); });
+        document.body.appendChild(modal);
+      }
+
+      const fmt = v => '$' + parseFloat(v).toFixed(2);
+
+      modal.innerHTML = `
+        <div style="background:linear-gradient(135deg,#10ad93,#0d8a76);color:white;
+                    padding:16px 20px;display:flex;justify-content:space-between;align-items:center;">
+          <span style="font-weight:800;font-size:1rem;">🖼️ Menú Visual</span>
+          <button onclick="document.getElementById('modalGaleria').close()"
+            style="background:rgba(255,255,255,0.2);border:none;color:white;
+                   border-radius:8px;padding:5px 12px;cursor:pointer;font-size:0.9rem;">✕</button>
+        </div>
+        <div style="overflow-y:auto;max-height:calc(85vh - 56px);padding:16px;">
+          ${Object.entries(porCat).map(([cat, items]) => `
+            <p style="font-size:0.75rem;font-weight:700;text-transform:uppercase;
+                      letter-spacing:1px;color:#888;margin:0 0 8px;">${cat}</p>
+            <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));
+                        gap:10px;margin-bottom:18px;">
+              ${items.map(p => `
+                <div onclick="elegirDeGaleria('${p.id}')"
+                  style="border-radius:12px;overflow:hidden;background:white;cursor:pointer;
+                         box-shadow:0 2px 8px rgba(0,0,0,0.08);transition:transform 0.15s;"
+                  onmouseover="this.style.transform='scale(1.04)'"
+                  onmouseout="this.style.transform='scale(1)'">
+                  <img src="${p.imagen_url}" alt="${p.nombre}" loading="lazy"
+                       style="width:100%;height:90px;object-fit:cover;">
+                  <div style="padding:7px 9px;">
+                    <div style="font-size:0.76rem;font-weight:700;color:#1d1d1f;line-height:1.2;">${p.nombre}</div>
+                    <div style="font-size:0.75rem;color:#10ad93;font-weight:700;margin-top:2px;">${fmt(p.precio)}</div>
+                  </div>
+                </div>
+              `).join('')}
+            </div>
+          `).join('')}
+        </div>`;
+
+      modal.showModal();
+    }
+
+    function elegirDeGaleria(id) {
+      document.getElementById('modalGaleria')?.close();
+      // 'productos' es la variable donde ya tienes el catálogo cargado en pedido.html
+      const prod = productos.find(p => String(p.id) === String(id));
+      if (prod) agregarAlCarrito(prod);
+    }
   </script>
 </body>
 </html>
