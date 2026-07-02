@@ -35,21 +35,18 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // 🔑 FIX: bloquear borrado de órdenes en_mesa / pagado
     App.eliminarOrden = async (id) => {
-      const orden = ordenesLocales.find(o => o.id === id);
-      if (orden && ['en_mesa', 'pagado'].includes(orden.estado)) {
-        alert(
-          '⚠️ Esta orden ya fue entregada o está pagada.\n\n' +
-          'Para cerrarla ve a "Mesas" → botón "💸 Cobrar".\n' +
-          'Esto evita perder la cuenta del cliente.'
-        );
-        return;
-      }
-      if (!confirm('¿Eliminar esta orden?')) return;
-      try {
-        await db.from('ordenes').delete().eq('id', id);
-        cargarOrdenesLocales();
-      } catch (err) { alert('Error al eliminar: ' + err.message); }
-    };
+  const orden = ordenesLocales.find(o => o.id === id);
+  if (orden && ['en_mesa', 'pagado'].includes(orden.estado)) {
+    alert('⚠️ Esta orden ya está en mesa o pagada. Para no perder la cuenta, ciérrala desde "Mesas → Cobrar" en lugar de eliminarla aquí.');
+    return;
+  }
+  if (!confirm('¿Seguro que deseas eliminar esta orden?')) return;
+  try {
+    await db.from('ordenes').delete().eq('id', id);
+    alert('🗑️ Orden eliminada');
+    cargarOrdenesLocales();
+  } catch (err) { alert('Error al eliminar: ' + err.message); }
+};
   }
 
   // ════════════════════════════════════════════════════════
