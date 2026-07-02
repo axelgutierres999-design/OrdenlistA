@@ -204,7 +204,7 @@ async function renderizarMesas() {
             // Estados por prioridad (una mesa puede tener órdenes en distintos estados)
             const hayPorConfirmar  = ordenesMesa.some(o => o.estado === 'por_confirmar');
             const hayEnCocina      = ordenesMesa.some(o => ['pendiente', 'preparando', 'proceso'].includes(o.estado));
-            const hayListasCocina  = ordenesMesa.some(o => ['terminado', 'archivado_cocina'].includes(o.estado));
+            const hayListasCocina = ordenesMesa.some(o => ['terminado', 'archivado_cocina', 'listo', 'en_mesa'].includes(o.estado));
             const masaDe30Min      = ocupada && ordenesMesa.some(o => {
                 const minutos = (Date.now() - new Date(o.created_at).getTime()) / 60000;
                 return minutos > 30 && !['terminado', 'archivado_cocina', 'pagado'].includes(o.estado);
@@ -310,7 +310,7 @@ async function renderizarMesas() {
             // Mismos estados que en el plano Konva
             const hayPorConfirmar  = ordenesMesa.some(o => o.estado === 'por_confirmar');
             const hayEnCocina      = ordenesMesa.some(o => ['pendiente', 'preparando', 'proceso'].includes(o.estado));
-            const hayListasCocina  = ordenesMesa.some(o => ['terminado', 'archivado_cocina'].includes(o.estado));
+            const hayListasCocina = ordenesMesa.some(o => ['terminado', 'archivado_cocina', 'listo', 'en_mesa'].includes(o.estado));
             // Morado evalúa todos los estados, sin excluir terminado
             const masaDe30MinV2 = ocupada && ordenesMesa.some(o => {
                 const minutos = (Date.now() - new Date(o.created_at).getTime()) / 60000;

@@ -166,27 +166,32 @@
         </header>
 
         <section class="stats-grid">
-            <div class="card-stat">
-                <small style="color: #888;">TOTAL HOY</small>
-                <h2 id="totalDia" style="color: #10ad93;">$0.00</h2>
-            </div>
-            <div class="card-stat" style="border-bottom-color: #2ecc71;">
-                <small style="color: #888;">EFECTIVO</small>
-                <h2 id="totalEfectivo" style="color: #2ecc71;">$0.00</h2>
-            </div>
-            <div class="card-stat" style="border-bottom-color: #3498db;">
-                <small style="color: #888;">TARJETA</small>
-                <h2 id="totalTarjeta" style="color: #3498db;">$0.00</h2>
-            </div>
-            <div class="card-stat" style="border-bottom-color: #9b59b6;">
-                <small style="color: #888;"># VENTAS</small>
-                <h2 id="numVentasDia" style="color: #333;">0</h2>
-            </div>
-             <div class="card-stat" style="border-bottom-color: #f39c12;">
-                <small style="color: #888;">TICKET PROM.</small>
-                <h2 id="ticketPromedio" style="color: #f39c12;">$0.00</h2>
-            </div>
-        </section>
+    <div class="card-stat">
+        <small style="color: #888;">TOTAL HOY</small>
+        <h2 id="totalDia" style="color: #10ad93;">$0.00</h2>
+    </div>
+    <div class="card-stat" style="border-bottom-color: #2ecc71;">
+        <small style="color: #888;">EFECTIVO</small>
+        <h2 id="totalEfectivo" style="color: #2ecc71;">$0.00</h2>
+    </div>
+    <div class="card-stat" style="border-bottom-color: #3498db;">
+        <small style="color: #888;">TARJETA / QR</small>
+        <h2 id="totalTarjeta" style="color: #3498db;">$0.00</h2>
+    </div>
+    <!-- 🆕 CARD DE TRANSFERENCIAS -->
+    <div class="card-stat" style="border-bottom-color: #8e44ad;">
+        <small style="color: #888;">TRANSFERENCIA</small>
+        <h2 id="totalTransferencia" style="color: #8e44ad;">$0.00</h2>
+    </div>
+    <div class="card-stat" style="border-bottom-color: #9b59b6;">
+        <small style="color: #888;"># VENTAS</small>
+        <h2 id="numVentasDia" style="color: #333;">0</h2>
+    </div>
+    <div class="card-stat" style="border-bottom-color: #f39c12;">
+        <small style="color: #888;">TICKET PROM.</small>
+        <h2 id="ticketPromedio" style="color: #f39c12;">$0.00</h2>
+    </div>
+</section>
 
         <div class="grid main-grid">
             <div class="panel-blanco">
@@ -208,13 +213,15 @@
     <figure style="max-height: 400px; overflow: auto;">
         <table role="grid">
             <thead style="position: sticky; top: 0; background: white; z-index: 1;">
-                <tr>
-                    <th>#</th>
-                    <th>Mesa</th>
-                    <th>Total</th>
-                    <th>Pago</th>
-                    <th>Hora</th> <th>Ticket</th> </tr>
-            </thead>
+               <tr>
+                  <th>#</th>
+                 <th>Mesa / Origen</th>
+                 <th>Total</th>
+                  <th>Método</th>
+                <th>Hora</th>
+                 <th>Ticket</th>
+              </tr>
+        </thead>
             <tbody id="listaUltimasVentas">
                 <tr>
                     <td colspan="6" style="text-align:center; color: #888; padding: 2rem;">

@@ -136,22 +136,19 @@
 </head>
 <body>
 
-  <header>
+  <header style="text-align:center; margin-bottom: 1rem;">
     <p id="nombreMesa" style="margin:0; color:#888;">Mesa</p>
-    <h1>☕ OrdenLista</h1>
-    <p style="margin:0;">Elige tus platillos favoritos</p>
-
-  <header>
-      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:0.5rem;">
-        <h1 style="margin:0;"><!-- el título que ya tenías --></h1>
+    <div style="display:flex; justify-content:center; align-items:center; gap:12px; flex-wrap:wrap; margin: 0.3rem 0;">
+        <h1 style="margin:0;">☕ OrdenLista</h1>
         <button onclick="abrirGaleriaMenu()"
-          style="background:#10ad93; border:none; color:white; border-radius:10px;
-                 padding:8px 14px; cursor:pointer; font-size:0.85rem; font-weight:700;
-                 white-space:nowrap;">
-          🖼️ Ver menú
+            style="background:#10ad93; border:none; color:white; border-radius:10px;
+                   padding:8px 14px; cursor:pointer; font-size:0.85rem; font-weight:700;
+                   white-space:nowrap; box-shadow:0 2px 6px rgba(16,173,147,0.3);">
+            🖼️ Ver menú
         </button>
-      </div>
-    </header>
+    </div>
+    <p style="margin:0;">Elige tus platillos favoritos</p>
+  </header>
 
   <section class="buscador-container">
     <input type="search" id="buscarProducto" placeholder="Buscar platillo o bebida...">
@@ -417,72 +414,81 @@
     }
     // ─── Galería visual del menú ──────────────────────────────────
     async function abrirGaleriaMenu() {
-      const { data: prods, error } = await db
+    // 🔑 FIX: removemos .eq('activo', true) — columna no existe en BD
+    const { data: prods, error } = await db
         .from('productos')
         .select('id, nombre, imagen_url, precio, categoria')
         .eq('restaurante_id', ridParam)
-        .eq('activo', true)
+        // Filtramos solo los que tienen imagen (los sin imagen no sirven para galería)
         .not('imagen_url', 'is', null)
         .order('categoria');
-
-      if (error || !prods?.length) {
-        alert('No hay imágenes de productos en el menú.');
+ 
+    if (error) {
+        console.error('Error al cargar galería:', error.message);
+        alert('Error al cargar el menú. Intenta de nuevo.');
         return;
-      }
-
-      // Agrupar por categoría
-      const porCat = prods.reduce((acc, p) => {
+    }
+ 
+    if (!prods || prods.length === 0) {
+        alert('📷 Aún no hay imágenes en el menú.\nAgrega fotos a tus productos desde el panel de administración.');
+        return;
+    }
+ 
+    // Agrupar por categoría
+    const porCat = prods.reduce((acc, p) => {
         const cat = p.categoria || 'General';
         if (!acc[cat]) acc[cat] = [];
         acc[cat].push(p);
         return acc;
-      }, {});
-
-      let modal = document.getElementById('modalGaleria');
-      if (!modal) {
+    }, {});
+ 
+    // Crear o reutilizar el modal
+    let modal = document.getElementById('modalGaleria');
+    if (!modal) {
         modal = document.createElement('dialog');
         modal.id = 'modalGaleria';
         modal.style.cssText = 'border:none;border-radius:20px;padding:0;width:min(96vw,560px);max-height:85vh;overflow:hidden;';
         modal.addEventListener('click', e => { if (e.target === modal) modal.close(); });
         document.body.appendChild(modal);
-      }
-
-      const fmt = v => '$' + parseFloat(v).toFixed(2);
-
-      modal.innerHTML = `
+    }
+ 
+    const fmt = v => '$' + parseFloat(v).toFixed(2);
+ 
+    modal.innerHTML = `
         <div style="background:linear-gradient(135deg,#10ad93,#0d8a76);color:white;
                     padding:16px 20px;display:flex;justify-content:space-between;align-items:center;">
-          <span style="font-weight:800;font-size:1rem;">🖼️ Menú Visual</span>
-          <button onclick="document.getElementById('modalGaleria').close()"
-            style="background:rgba(255,255,255,0.2);border:none;color:white;
-                   border-radius:8px;padding:5px 12px;cursor:pointer;font-size:0.9rem;">✕</button>
+            <span style="font-weight:800;font-size:1rem;">🖼️ Menú Visual</span>
+            <button onclick="document.getElementById('modalGaleria').close()"
+                style="background:rgba(255,255,255,0.2);border:none;color:white;
+                       border-radius:8px;padding:5px 12px;cursor:pointer;font-size:0.9rem;">✕ Cerrar</button>
         </div>
         <div style="overflow-y:auto;max-height:calc(85vh - 56px);padding:16px;">
-          ${Object.entries(porCat).map(([cat, items]) => `
-            <p style="font-size:0.75rem;font-weight:700;text-transform:uppercase;
-                      letter-spacing:1px;color:#888;margin:0 0 8px;">${cat}</p>
-            <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));
-                        gap:10px;margin-bottom:18px;">
-              ${items.map(p => `
-                <div onclick="elegirDeGaleria('${p.id}')"
-                  style="border-radius:12px;overflow:hidden;background:white;cursor:pointer;
-                         box-shadow:0 2px 8px rgba(0,0,0,0.08);transition:transform 0.15s;"
-                  onmouseover="this.style.transform='scale(1.04)'"
-                  onmouseout="this.style.transform='scale(1)'">
-                  <img src="${p.imagen_url}" alt="${p.nombre}" loading="lazy"
-                       style="width:100%;height:90px;object-fit:cover;">
-                  <div style="padding:7px 9px;">
-                    <div style="font-size:0.76rem;font-weight:700;color:#1d1d1f;line-height:1.2;">${p.nombre}</div>
-                    <div style="font-size:0.75rem;color:#10ad93;font-weight:700;margin-top:2px;">${fmt(p.precio)}</div>
-                  </div>
+            ${Object.entries(porCat).map(([cat, items]) => `
+                <p style="font-size:0.75rem;font-weight:700;text-transform:uppercase;
+                          letter-spacing:1px;color:#888;margin:0 0 8px;">${cat}</p>
+                <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));
+                            gap:10px;margin-bottom:18px;">
+                    ${items.map(p => `
+                        <div onclick="elegirDeGaleria('${p.id}')"
+                            style="border-radius:12px;overflow:hidden;background:white;cursor:pointer;
+                                   box-shadow:0 2px 8px rgba(0,0,0,0.08);transition:transform 0.15s;"
+                            onmouseover="this.style.transform='scale(1.04)'"
+                            onmouseout="this.style.transform='scale(1)'">
+                            <img src="${p.imagen_url}" alt="${p.nombre}" loading="lazy"
+                                 style="width:100%;height:90px;object-fit:cover;"
+                                 onerror="this.style.display='none'">
+                            <div style="padding:7px 9px;">
+                                <div style="font-size:0.76rem;font-weight:700;color:#1d1d1f;line-height:1.2;">${p.nombre}</div>
+                                <div style="font-size:0.75rem;color:#10ad93;font-weight:700;margin-top:2px;">${fmt(p.precio)}</div>
+                            </div>
+                        </div>
+                    `).join('')}
                 </div>
-              `).join('')}
-            </div>
-          `).join('')}
+            `).join('')}
         </div>`;
-
-      modal.showModal();
-    }
+ 
+    modal.showModal();
+}
 
     function elegirDeGaleria(id) {
       document.getElementById('modalGaleria')?.close();

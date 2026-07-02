@@ -31,13 +31,26 @@ document.addEventListener('DOMContentLoaded', () => {
     };
 
     App.eliminarOrden = async (id) => {
-      if (!confirm('¿Seguro que deseas eliminar esta orden?')) return;
-      try {
+    // Buscar la orden en los datos locales
+    const orden = ordenesLocales.find(o => o.id === id);
+ 
+    // 🚫 Bloquear si ya está en mesa o pagada — para no perder la cuenta
+    if (orden && ['en_mesa', 'pagado'].includes(orden.estado)) {
+        alert(
+            '⚠️ Esta orden ya fue entregada o está pagada.\n\n' +
+            'Para cerrarla correctamente, ve a "Mesas" y usa el botón "💸 Cobrar".\n\n' +
+            'Esto evita perder la cuenta del cliente.'
+        );
+        return;
+    }
+ 
+    if (!confirm('¿Seguro que deseas eliminar esta orden?')) return;
+    try {
         await db.from('ordenes').delete().eq('id', id);
         alert('🗑️ Orden eliminada');
         cargarOrdenesLocales();
-      } catch (err) { alert('Error al eliminar: ' + err.message); }
-    };
+    } catch (err) { alert('Error al eliminar: ' + err.message); }
+     };
   }
 
   // ================================================================
