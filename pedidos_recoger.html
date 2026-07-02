@@ -3,17 +3,15 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>OrdenLista | Monitor de Órdenes</title>
+  <title>OrdenLista | Pedidos por Recoger</title>
   
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@picocss/pico@1/css/pico.min.css" />
   
   <style>
     :root {
         --color-primario: #10ad93;
-        --color-secundario: #1a1a1a;
         --color-fondo: #f4f7f6;
         --sombra-suave: 0 4px 15px rgba(0, 0, 0, 0.05);
-        --sombra-hover: 0 8px 25px rgba(0, 0, 0, 0.1);
         --borde-redondeado: 12px;
     }
 
@@ -24,29 +22,25 @@
         padding: 0.8rem 2rem; z-index: 1000; 
         background: #000000 !important;
         border-bottom: 3px solid var(--color-primario);
-        /* Se eliminó position: sticky y top: 0 para evitar cortes en el menú móvil */
     }
     .brand-group { display: flex; align-items: center; gap: 10px; }
-    .brand-group a { text-decoration: none; font-size: 1.4rem; color: var(--color-primario); font-weight: 800; letter-spacing: -0.5px; }
-    .brand-group span.hide-mobile { color: #ffffff !important; opacity: 0.8; font-weight: normal; }
+    .brand-group a { text-decoration: none; font-size: 1.4rem; color: var(--color-primario); font-weight: 800; }
+    .brand-group span.hide-mobile { color: #ffffff !important; opacity: 0.8; }
     
     .btn-ajustes-manual { 
         border: 1px solid var(--color-primario) !important; color: var(--color-primario) !important; 
         padding: 6px 16px !important; font-size: 0.9rem !important; border-radius: 8px; 
-        text-decoration: none; font-weight: bold; transition: all 0.2s ease; background: transparent;
+        text-decoration: none; font-weight: bold; background: transparent;
     }
-    .btn-ajustes-manual:hover { background: var(--color-primario) !important; color: white !important; }
-    
     .hamburger { display: none; background: none; border: none; font-size: 1.8rem; color: #ffffff; cursor: pointer; padding: 0; }
     
     #menuNavegacion { display: flex; list-style: none; margin: 0; padding: 0; gap: 0.5rem; align-items: center; }
     #menuNavegacion li a {
         color: #ffffff; text-decoration: none; padding: 8px 12px; border-radius: 8px;
-        font-size: 0.85rem; font-weight: 600; display: flex; align-items: center; gap: 6px;
-        transition: background 0.2s; text-transform: capitalize;
+        font-size: 0.85rem; font-weight: 600; display: flex; align-items: center; gap: 6px; transition: background 0.2s;
     }
     #menuNavegacion li a:hover { background: rgba(255,255,255,0.15); }
-    #menuNavegacion li a.activo { background: var(--color-primario); color: #ffffff; }
+    #menuNavegacion li a.activo { background: var(--color-primario); }
 
     .panel-control-header { background: white; padding: 20px; border-radius: var(--borde-redondeado); box-shadow: var(--sombra-suave); margin-bottom: 20px; }
     
@@ -54,152 +48,69 @@
     .tabla-ordenes { margin: 0; font-size: 0.95rem; width: 100%; border-collapse: collapse; }
     .tabla-ordenes th { background: #f8f9fa; color: #4a5568; padding: 16px; text-align: left; font-weight: 700; text-transform: uppercase; font-size: 0.8rem; letter-spacing: 0.5px; border-bottom: 2px solid #edf2f7; }
     .tabla-ordenes td { vertical-align: middle; padding: 16px; border-bottom: 1px solid #edf2f7; color: #2d3748; }
-    .tabla-ordenes tr:hover { background-color: #f7fafc !important; }
     
-    .badge-estado { padding: 6px 14px; border-radius: 20px; font-weight: bold; font-size: 0.75rem; text-transform: uppercase; display: inline-block; text-align: center; letter-spacing: 0.5px; }
-    .state-por_pagar { background-color: #ebf8ff; color: #3182ce; border: 1px solid #90cdf4; }
-    .state-pendiente { background-color: #fff5f5; color: #e53935; border: 1px solid #feb2b2; }
-    .state-preparando { background-color: #fffff0; color: #d69e2e; border: 1px solid #f6e05e; }
-    .state-terminado { background-color: #e6fffa; color: #319795; border: 1px solid #81e6d9; }
+    .badge-estado { padding: 6px 14px; border-radius: 20px; font-weight: bold; font-size: 0.75rem; text-transform: uppercase; display: inline-block; }
+    .state-por_pagar  { background: #ebf8ff; color: #3182ce; border: 1px solid #90cdf4; }
+    .state-pendiente  { background: #fff5f5; color: #e53935; border: 1px solid #feb2b2; }
+    .state-preparando { background: #fffff0; color: #d69e2e; border: 1px solid #f6e05e; }
+    .state-terminado  { background: #e6fffa; color: #319795; border: 1px solid #81e6d9; }
 
-    .fila-por_pagar { border-left: 4px solid #3182ce; }
-    .fila-urgente { border-left: 4px solid #e53935; background-color: #fffafa !important; }
-    .fila-proceso { border-left: 4px solid #d69e2e; }
-    .fila-terminado { border-left: 4px solid #319795; background-color: #f0fff4 !important; }
+    .fila-por_pagar  { border-left: 4px solid #3182ce; }
+    .fila-urgente    { border-left: 4px solid #e53935; background-color: #fffafa !important; }
+    .fila-proceso    { border-left: 4px solid #d69e2e; }
+    .fila-terminado  { border-left: 4px solid #319795; background-color: #f0fff4 !important; }
 
     .tiempo-cronometro { font-family: 'Courier New', monospace; font-weight: 800; font-size: 1.1rem; color: #2d3748; background: #edf2f7; padding: 4px 8px; border-radius: 6px; }
     .tiempo-alerta { color: white; background: #e53935; animation: pulse 1.5s infinite; }
+    @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.8; } }
 
-    @keyframes pulse { 0% { transform: scale(1); opacity: 1; } 50% { transform: scale(1.05); opacity: 0.8; } 100% { transform: scale(1); opacity: 1; } }
-
-    /* Animación de desvanecimiento al eliminar fila */
-    @keyframes fadeOut {
-        from { opacity: 1; transform: translateX(0); }
-        to   { opacity: 0; transform: translateX(40px); }
-    }
-    .fila-eliminando {
-        animation: fadeOut 0.5s ease forwards;
-        pointer-events: none;
-    }
+    @keyframes fadeOut { from { opacity: 1; } to { opacity: 0; transform: translateX(40px); } }
+    .fila-eliminando { animation: fadeOut 0.5s ease forwards; pointer-events: none; }
 
     .btn-tabla { padding: 8px 14px; font-size: 0.85rem; border-radius: 8px; border: none; cursor: pointer; font-weight: bold; margin-right: 6px; transition: all 0.2s; }
-    .btn-tabla:hover { transform: translateY(-2px); box-shadow: 0 4px 8px rgba(0,0,0,0.1); }
-    .btn-tabla:active { transform: translateY(0); }
-    .btn-principal { background-color: var(--color-primario); color: white; }
+    .btn-principal  { background-color: var(--color-primario); color: white; }
     .btn-secundario { background-color: #e2e8f0; color: #4a5568; }
-    .btn-secundario:hover { background-color: #cbd5e0; color: #2d3748; }
-    .btn-peligro { background-color: transparent; color: #e53935; border: 1px solid #e53935; padding: 8px 10px; }
+    .btn-peligro    { background-color: transparent; color: #e53935; border: 1px solid #e53935; padding: 8px 10px; }
     .btn-peligro:hover { background-color: #e53935; color: white; }
 
-    select, input[type="search"] { border: 1px solid #e2e8f0; border-radius: 8px; padding: 10px; background: #f7fafc; transition: border 0.2s; box-shadow: none; margin-bottom: 0 !important; }
-    select:focus, input[type="search"]:focus { border-color: var(--color-primario); background: white; outline: none; }
+    /* Toast notifications */
+    @keyframes _entrarToastPR { from { opacity:0; transform:translateX(30px); } to { opacity:1; transform:translateX(0); } }
+    #notifContenedorPR { position:fixed; top:70px; right:16px; display:flex; flex-direction:column; gap:10px; z-index:99999; max-width:300px; }
+    .toast-pr { background:#fff; border-radius:12px; padding:14px 40px 14px 16px; box-shadow:0 6px 24px rgba(0,0,0,0.18); font-size:0.88rem; position:relative; animation:_entrarToastPR 0.3s ease; border-left:5px solid #3498db; color:#333; }
+    .toast-pr .t-cerrar { position:absolute; top:8px; right:10px; background:none; border:none; color:#bbb; font-size:1rem; cursor:pointer; }
 
-    /* ── Modal ticket estilo comanda térmica ── */
-    #modalTicket article {
-        max-width: 360px; width: 100%;
-        font-family: 'Courier New', Courier, monospace;
-        color: #000; background: #fff;
-        padding: 24px 20px;
-        border-radius: 8px;
-        box-shadow: 0 10px 30px rgba(0,0,0,0.2);
-    }
-    .ticket-logo { font-size: 2rem; margin-bottom: 4px; }
-    .ticket-nombre-rest { font-size: 1.25rem; font-weight: 900; letter-spacing: 1px; margin: 0; }
-    .ticket-info-rest { font-size: 0.78rem; color: #555; line-height: 1.6; margin: 6px 0 0 0; }
-    .ticket-separador { border: none; border-top: 2px dashed #bbb; margin: 12px 0; }
-    .ticket-kv { display: flex; justify-content: space-between; font-size: 0.82rem; margin: 3px 0; }
-    .ticket-kv strong { color: #333; }
-    .ticket-metodo-badge {
-        display: inline-block; background: #ebf8ff; color: #3182ce;
-        border: 1px solid #90cdf4; border-radius: 20px;
-        padding: 2px 10px; font-size: 0.75rem; font-weight: 700;
-        margin-top: 4px;
-    }
-    .ticket-tabla { width: 100%; border-collapse: collapse; font-size: 0.85rem; margin: 8px 0; }
-    .ticket-tabla th { text-align: left; font-size: 0.72rem; color: #666; padding: 4px 0; border-bottom: 1px solid #ddd; text-transform: uppercase; }
-    .ticket-tabla td { padding: 5px 0; border-bottom: 1px dashed #eee; vertical-align: top; }
-    .ticket-tabla td:last-child { text-align: right; white-space: nowrap; }
-    .ticket-totales { width: 100%; font-size: 0.82rem; margin-top: 4px; }
-    .ticket-totales td { padding: 2px 0; }
-    .ticket-totales td:last-child { text-align: right; }
-    .ticket-total-final { font-size: 1.1rem; font-weight: 900; }
-    .ticket-footer-msg { font-size: 0.8rem; font-weight: 700; letter-spacing: 1px; margin: 0; }
-    .ticket-footer-sub { font-size: 0.73rem; color: #666; margin: 4px 0 0 0; }
-    
-    @media print {
-      body * { visibility: hidden; }
-      #modalTicket, #modalTicket * { visibility: visible; }
-      #modalTicket { position: fixed; left: 0; top: 0; width: 100%; margin: 0; padding: 0; box-shadow: none; }
-      .no-print { display: none !important; }
-    }
+    /* Modal ticket */
+    #modalTicket article { max-width:360px; width:100%; font-family:'Courier New',Courier,monospace; color:#000; background:#fff; padding:24px 20px; border-radius:8px; box-shadow:0 10px 30px rgba(0,0,0,0.2); }
+    .ticket-separador { border:none; border-top:2px dashed #bbb; margin:12px 0; }
+    .ticket-kv { display:flex; justify-content:space-between; font-size:0.82rem; margin:3px 0; }
+    .ticket-metodo-badge { display:inline-block; background:#ebf8ff; color:#3182ce; border:1px solid #90cdf4; border-radius:20px; padding:2px 10px; font-size:0.75rem; font-weight:700; }
+    .ticket-tabla { width:100%; border-collapse:collapse; font-size:0.85rem; margin:8px 0; }
+    .ticket-tabla th { text-align:left; font-size:0.72rem; color:#666; padding:4px 0; border-bottom:1px solid #ddd; }
+    .ticket-tabla td { padding:5px 0; border-bottom:1px dashed #eee; }
+    .ticket-totales td { padding:2px 0; }
+    .ticket-total-final { font-size:1.1rem; font-weight:900; }
+    @media print { body * { visibility:hidden; } #modalTicket, #modalTicket * { visibility:visible; } #modalTicket { position:fixed; left:0; top:0; width:100%; } .no-print { display:none !important; } }
 
     @media (max-width: 768px) {
         .hamburger { display: block; }
         .hide-mobile { display: none !important; }
         .nav-inicio { padding: 0.8rem 1rem; }
-        #menuNavegacion { 
-            display: none; width: 100%; flex-direction: column; order: 3; 
-            border-top: 1px solid #333;
-            padding: 12px 6px 24px; margin-top: 10px; background: #000;
-            max-height: 85vh !important;
-            overflow-y: auto !important;
-            -webkit-overflow-scrolling: touch !important;
-            gap: 3px;
-        }
+        #menuNavegacion { display:none; width:100%; flex-direction:column; order:3; border-top:1px solid #333; padding:12px 6px 24px; margin-top:10px; background:#000; }
         #menuNavegacion.show { display: flex !important; }
-        #menuNavegacion li { width: 100%; text-align: center; }
-        #menuNavegacion li a {
-            justify-content: center;
-            padding: 12px 16px;
-            border-radius: 10px;
-            font-size: 0.95rem;
-        }
-        #menuNavegacion li a.activo {
-            box-shadow: 0 2px 8px rgba(16,173,147,0.3);
-        }
-        #menuNavegacion li:last-child {
-            margin-top: 6px;
-            border-top: 1px solid rgba(255,255,255,0.1);
-            padding-top: 6px;
-        }
-        .tabla-ordenes-wrapper { display: block; overflow-x: auto; border-radius: 0; }
-        .btn-tabla { padding: 10px; width: 100%; margin-bottom: 8px; }
+        #menuNavegacion li { width:100%; text-align:center; }
+        #menuNavegacion li a { justify-content:center; padding:12px 16px; border-radius:10px; }
+        .tabla-ordenes-wrapper { overflow-x: auto; }
     }
-
-    
-    @keyframes _entrarToastPR {
-         from { opacity:0; transform:translateX(30px); }
-         to   { opacity:1; transform:translateX(0); }
-    }
-         #notifContenedorPR {
-         position:fixed; top:70px; right:16px;
-         display:flex; flex-direction:column; gap:10px;
-         z-index:99999; max-width:300px;
-    }
-         .toast-pr {
-         background:#fff; border-radius:12px;
-         padding:14px 40px 14px 16px;
-         box-shadow:0 6px 24px rgba(0,0,0,0.18);
-         font-family:system-ui,sans-serif; font-size:0.88rem;
-         position:relative; animation:_entrarToastPR 0.3s ease;
-         cursor:pointer; border-left:5px solid #3498db; color:#333;
-    }
-         .toast-pr .t-cerrar {
-         position:absolute; top:8px; right:10px;
-         background:none; border:none; color:#bbb;
-        font-size:1rem; cursor:pointer;
-    }
-
-</style>
+  </style>
 </head>
 <body>
 
   <audio id="audioNotificacion" src="https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3" preload="auto"></audio>
 
-<nav class="nav-inicio">
+  <nav class="nav-inicio">
     <div class="brand-group">
       <a href="index.html">☕ OrdenLista</a>
-      <span class="hide-mobile">| Monitor de Despacho</span>
+      <span class="hide-mobile">| Pedidos por Recoger</span>
     </div>
 
     <ul id="menuNavegacion" class="nav-botones">
@@ -209,40 +120,40 @@
         <li><a href="cocina.html">👨‍🍳 Cocina</a></li>
         <li><a href="stock.html">📦 Stock</a></li>
         <li><a href="reservaciones.html">📅 Reservaciones</a></li>
-        <li><a href="pedidosrecoger.html" class="activo">🚶 Pedidos por recoger</a></li> 
+        <li><a href="pedidosrecoger.html" class="activo">🚶 Pedidos por recoger</a></li>
         <li><a href="ventas.html">📊 Ventas</a></li>
     </ul>
 
-    <div style="display: flex; align-items: center; gap: 15px;">
-      <span id="indicadorRealtime" class="badge-estado hide-mobile" style="background:#0d8a75; color:white; border: none;">● Activo</span>
+    <div style="display:flex;align-items:center;gap:15px;">
+      <span id="indicadorRealtime" class="badge-estado hide-mobile" style="background:#0d8a75;color:white;border:none;">● Activo</span>
       <a href="ajustes.html" role="button" class="btn-ajustes-manual hide-mobile">⚙️ Ajustes</a>
       <button class="hamburger" onclick="toggleNav()">☰</button>
     </div>
   </nav>
 
-  <main class="container-fluid" style="padding: 20px;">
+  <main class="container-fluid" style="padding:20px;">
     
     <header class="panel-control-header grid">
         <div>
-            <h1 style="margin-bottom: 5px; font-size: 1.8rem; color: #2d3748;">Panel de Control</h1>
-            <p style="color: #718096; margin-bottom: 0;">Gestiona el flujo de órdenes y pagos en tiempo real.</p>
+            <h1 style="margin-bottom:5px;font-size:1.8rem;color:#2d3748;">🚶 Pedidos por Recoger</h1>
+            <p style="color:#718096;margin-bottom:0;">
+              Solo pedidos para llevar / recoger. El pago es por <strong>transferencia</strong> antes de preparar.
+            </p>
         </div>
-        
-        <div style="display:flex; gap:15px; align-items:flex-end; justify-content:flex-end; flex-wrap: wrap;">
+        <div style="display:flex;gap:15px;align-items:flex-end;justify-content:flex-end;flex-wrap:wrap;">
             <div>
-                <small style="color: #718096; font-weight: 600;">Filtrar por Estado:</small>
-                <!-- CAMBIO 4: Se eliminaron "Entregados" y "Cancelados" del filtro -->
+                <small style="color:#718096;font-weight:600;">Filtrar Estado:</small>
                 <select id="filtroEstado" onchange="filtrarYRenderizar()">
                     <option value="todos">👁️ Ver Todos</option>
-                    <option value="por_pagar">🔔 Por Pagar (Cuenta regresiva)</option>
-                    <option value="pendiente" selected>🔥 Pendientes (Cocina)</option>
+                    <option value="por_pagar" selected>🔔 Por Pagar</option>
+                    <option value="pendiente">🔥 Pendientes</option>
                     <option value="preparando">👨‍🍳 En Preparación</option>
-                    <option value="terminado">🛎️ Listos para Entrega</option>
+                    <option value="terminado">🛎️ Listos para Entregar</option>
                 </select>
             </div>
             <div>
-                <small style="color: #718096; font-weight: 600;">Buscar Orden:</small>
-                <input type="search" id="inputBusqueda" placeholder="Cliente o Mesa..." oninput="filtrarYRenderizar()" />
+                <small style="color:#718096;font-weight:600;">Buscar:</small>
+                <input type="search" id="inputBusqueda" placeholder="Nombre cliente..." oninput="filtrarYRenderizar()" style="border:1px solid #e2e8f0;border-radius:8px;padding:10px;" />
             </div>
         </div>
     </header>
@@ -251,134 +162,75 @@
       <table role="grid" class="tabla-ordenes">
         <thead>
           <tr>
-            <th style="width: 80px;">Folio</th>
-            <th>Mesa / Cliente</th>
-            <th>Detalle del Pedido</th>
+            <th style="width:80px;">Folio</th>
+            <th>Cliente / Mesa</th>
+            <th>Pedido</th>
             <th>Total</th>
-            <th style="text-align: center;">Estado</th>
+            <th style="text-align:center;">Estado</th>
             <th>Tiempo</th>
-            <th style="text-align: center; width: 280px;">Acciones Rápidas</th>
+            <th style="text-align:center;width:280px;">Acciones</th>
           </tr>
         </thead>
         <tbody id="tablaBodyOrdenes">
-           <tr><td colspan="7" style="text-align:center; padding: 4rem; color: #a0aec0;">Conectando con el servidor... ⏳</td></tr>
+           <tr><td colspan="7" style="text-align:center;padding:4rem;color:#a0aec0;">Cargando pedidos... ⏳</td></tr>
         </tbody>
       </table>
     </div>
   </main>
-     
-<!-- ══════════════════════════════════════════
-     MODAL TICKET — Comanda con datos del negocio
-     ══════════════════════════════════════════ -->
-<dialog id="modalTicket">
-  <article>
 
-    <!-- CABECERA DEL NEGOCIO -->
-    <div style="text-align:center; padding-bottom: 10px;">
-      <div class="ticket-logo">☕</div>
-      <p class="ticket-nombre-rest" id="t-nombre-rest">Mi Restaurante</p>
-      <p class="ticket-info-rest">
-        <span id="t-direccion"></span><br>
-        <span id="t-telefono"></span><br>
-        <span id="t-redes" style="color: var(--color-primario); font-weight:700;"></span>
-      </p>
-    </div>
-
-    <hr class="ticket-separador">
-
-    <!-- DATOS DE LA ORDEN -->
-    <div>
-      <div class="ticket-kv">
-        <strong>Folio:</strong>
-        <span>#<span id="t-folio"></span></span>
+  <!-- MODAL TICKET -->
+  <dialog id="modalTicket">
+    <article>
+      <div style="text-align:center;padding-bottom:10px;">
+        <p style="font-size:1.25rem;font-weight:900;margin:0;" id="t-nombre-rest">Mi Restaurante</p>
+        <p style="font-size:0.78rem;color:#555;margin:4px 0;"><span id="t-direccion"></span><br><span id="t-telefono"></span></p>
       </div>
-      <div class="ticket-kv">
-        <strong>Fecha:</strong>
-        <span id="t-fecha"></span>
+      <hr class="ticket-separador">
+      <div>
+        <div class="ticket-kv"><strong>Folio:</strong><span>#<span id="t-folio"></span></span></div>
+        <div class="ticket-kv"><strong>Fecha:</strong><span id="t-fecha"></span></div>
+        <div class="ticket-kv"><strong>Cliente:</strong><span id="t-cliente"></span></div>
+        <div class="ticket-kv"><strong>Tipo:</strong><span id="t-mesa"></span></div>
+        <div class="ticket-kv"><strong>Método:</strong><span class="ticket-metodo-badge" id="t-metodo">TRANSFERENCIA</span></div>
       </div>
-      <div class="ticket-kv">
-        <strong>Cliente:</strong>
-        <span id="t-cliente"></span>
-      </div>
-      <div class="ticket-kv">
-        <strong>Entrega:</strong>
-        <span id="t-mesa"></span>
-      </div>
-      <div class="ticket-kv">
-        <strong>Método:</strong>
-        <span class="ticket-metodo-badge" id="t-metodo">TRANSFERENCIA</span>
-      </div>
-    </div>
-
-    <hr class="ticket-separador">
-
-    <!-- PRODUCTOS -->
-    <table class="ticket-tabla">
-      <thead>
-        <tr>
-          <th>Cant.</th>
-          <th>Producto</th>
-          <th>Precio</th>
+      <hr class="ticket-separador">
+      <table class="ticket-tabla">
+        <thead><tr><th>Cant.</th><th>Producto</th><th>Precio</th></tr></thead>
+        <tbody id="t-items"></tbody>
+      </table>
+      <hr class="ticket-separador">
+      <table class="ticket-totales">
+        <tr><td style="color:#555;">Subtotal:</td><td style="text-align:right;">$<span id="t-subtotal">0.00</span></td></tr>
+        <tr><td style="color:#555;">IVA (16%):</td><td style="text-align:right;">$<span id="t-iva">0.00</span></td></tr>
+        <tr style="border-top:2px solid #000;">
+          <td class="ticket-total-final" style="padding-top:6px;">TOTAL:</td>
+          <td class="ticket-total-final" style="text-align:right;padding-top:6px;">$<span id="t-total">0.00</span></td>
         </tr>
-      </thead>
-      <tbody id="t-items"></tbody>
-    </table>
-
-    <hr class="ticket-separador">
-
-    <!-- TOTALES -->
-    <table class="ticket-totales">
-      <tr>
-        <td style="color:#555;">Subtotal:</td>
-        <td>$<span id="t-subtotal">0.00</span></td>
-      </tr>
-      <tr>
-        <td style="color:#555;">IVA (16%):</td>
-        <td>$<span id="t-iva">0.00</span></td>
-      </tr>
-      <tr style="border-top: 2px solid #000; margin-top: 4px;">
-        <td class="ticket-total-final" style="padding-top:6px;">TOTAL:</td>
-        <td class="ticket-total-final" style="text-align:right; padding-top:6px;">$<span id="t-total">0.00</span></td>
-      </tr>
-    </table>
-
-    <hr class="ticket-separador">
-
-    <!-- PIE DEL TICKET -->
-    <div style="text-align:center;">
-      <p class="ticket-footer-msg" id="t-mensaje-agradecimiento">¡GRACIAS POR SU COMPRA!</p>
-      <p class="ticket-footer-sub" id="t-wifi"></p>
-      <p class="ticket-footer-sub" style="margin-top:8px; font-size:0.68rem; color:#aaa;">
-        Generado por OrdenLista · orden-list.vercel.app
-      </p>
-    </div>
-
-    <!-- ACCIONES (se ocultan al imprimir) -->
-    <div class="no-print" style="display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-top:20px;">
-      <button onclick="window.print()" class="btn-tabla btn-principal" style="width:100%; padding:12px; font-size:1rem;">
-        🖨️ Imprimir
-      </button>
-      <button onclick="document.getElementById('modalTicket').close()" class="btn-tabla btn-secundario" style="width:100%; padding:12px; font-size:1rem;">
-        Cerrar
-      </button>
-    </div>
-
-  </article>
-</dialog>
+      </table>
+      <hr class="ticket-separador">
+      <div style="text-align:center;font-size:0.8rem;">
+        <p id="t-mensaje-agradecimiento" style="font-weight:700;">¡GRACIAS POR SU PREFERENCIA!</p>
+        <p style="font-size:0.68rem;color:#aaa;">OrdenLista · orden-list.vercel.app</p>
+      </div>
+      <div class="no-print" style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:20px;">
+        <button onclick="window.print()" class="btn-tabla btn-principal" style="width:100%;padding:12px;">🖨️ Imprimir</button>
+        <button onclick="document.getElementById('modalTicket').close()" class="btn-tabla btn-secundario" style="width:100%;padding:12px;">Cerrar</button>
+      </div>
+    </article>
+  </dialog>
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   
   <script>
-    // ─── Toggle Menú Móvil ──────────────────────────────────────────────
     function toggleNav() {
-        const menu = document.getElementById('menuNavegacion');
-        menu.classList.toggle('show');
+      document.getElementById('menuNavegacion').classList.toggle('show');
     }
-    // ─── Sistema de notificaciones propio ──────────────────────────────
+
+    // ── Sonido y Toast ─────────────────────────────────────────────────────
     function _sonidoPR() {
-    try {
-        const ctx = new (window.AudioContext || window.webkitAudioContext)();
-        const osc = ctx.createOscillator();
+      try {
+        const ctx  = new (window.AudioContext || window.webkitAudioContext)();
+        const osc  = ctx.createOscillator();
         const gain = ctx.createGain();
         osc.connect(gain); gain.connect(ctx.destination);
         osc.frequency.setValueAtTime(880, ctx.currentTime);
@@ -386,483 +238,400 @@
         gain.gain.setValueAtTime(0.3, ctx.currentTime);
         gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.4);
         osc.start(); osc.stop(ctx.currentTime + 0.4);
-    } catch(e) {}
+      } catch(e) {}
     }
 
     function mostrarToastPR(titulo, subtitulo) {
-    let cont = document.getElementById('notifContenedorPR');
-    if (!cont) {
+      let cont = document.getElementById('notifContenedorPR');
+      if (!cont) {
         cont = document.createElement('div');
         cont.id = 'notifContenedorPR';
         document.body.appendChild(cont);
-    }
-    const div = document.createElement('div');
-    div.className = 'toast-pr';
-    div.innerHTML = `
+      }
+      const div = document.createElement('div');
+      div.className = 'toast-pr';
+      div.innerHTML = `
         <button class="t-cerrar" onclick="event.stopPropagation();this.parentElement.remove()">✕</button>
         <strong>🚶 ${titulo}</strong>
-        ${subtitulo ? `<small style="display:block;color:#666;margin-top:3px;">${subtitulo}</small>` : ''}
-    `;
+        ${subtitulo ? `<small style="display:block;color:#666;margin-top:3px;">${subtitulo}</small>` : ''}`;
       cont.appendChild(div);
-       setTimeout(() => { if (div.parentElement) div.remove(); }, 8000);
-     }
-     // ─── Desbloquear AudioContext con primera interacción ───────────────
-    const _desbloquearAudioPR = () => {
-        try {
-            const ctx = new (window.AudioContext || window.webkitAudioContext)();
-            ctx.resume();
-        } catch(e) {}
-        document.removeEventListener('click', _desbloquearAudioPR);
-        document.removeEventListener('touchstart', _desbloquearAudioPR);
-    };
-    document.addEventListener('click', _desbloquearAudioPR);
-    document.addEventListener('touchstart', _desbloquearAudioPR);
+      setTimeout(() => { if (div.parentElement) div.remove(); }, 8000);
+    }
 
-    // ─── Conexión Supabase ──────────────────────────────────────────────
+    // Desbloquear audio
+    const _desbloquearAudio = () => {
+      try { new (window.AudioContext || window.webkitAudioContext)().resume(); } catch(e) {}
+      document.removeEventListener('click', _desbloquearAudio);
+      document.removeEventListener('touchstart', _desbloquearAudio);
+    };
+    document.addEventListener('click', _desbloquearAudio);
+    document.addEventListener('touchstart', _desbloquearAudio);
+
+    // ── Supabase ───────────────────────────────────────────────────────────
     const SUPABASE_URL = "https://cpveuexgxwxjejurtwro.supabase.co";
     const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNwdmV1ZXhneHd4amVqdXJ0d3JvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjY2MTYxMzAsImV4cCI6MjA4MjE5MjEzMH0.I4FeC3dmtOXNqLWA-tRgxAb7JCe13HysOkqMGkXaUUc";
     const db = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
-    let todasLasOrdenes = [];
+    const sesion = JSON.parse(localStorage.getItem('sesion_activa'));
 
-
-    // ─── Datos del establecimiento ──────────────────────────────────────
-    // Misma lógica que mesas.js: lee de la tabla "restaurantes" con el restaurante_id de la sesión
+    let todasLasOrdenes  = [];
     let configRestaurante = {};
 
+    // ── Config del restaurante ─────────────────────────────────────────────
     async function cargarConfig() {
-        try {
-            const sesion = JSON.parse(localStorage.getItem('sesion_activa'));
-            if (!sesion || !sesion.restaurante_id) return;
-
-            const { data, error } = await db
-                .from('restaurantes')
-                .select('nombre, direccion, telefono, instagram, wifi, mensaje_ticket')
-                .eq('id', sesion.restaurante_id)
-                .single();
-
-            if (!error && data) {
-                configRestaurante = {
-                    nombre:         data.nombre         || "Mi Restaurante",
-                    direccion:      data.direccion      || "",
-                    telefono:       data.telefono       || "",
-                    instagram:      data.instagram      || "",
-                    wifi:           data.wifi           || "",
-                    mensaje_ticket: data.mensaje_ticket || "¡GRACIAS POR SU COMPRA!",
-                    iva_incluido:   true
-                };
-            }
-        } catch (err) {
-            console.warn("No se pudo cargar config del restaurante:", err.message);
+      try {
+        if (!sesion?.restaurante_id) return;
+        const { data, error } = await db
+          .from('restaurantes')
+          .select('nombre, direccion, telefono, instagram, wifi, mensaje_ticket')
+          .eq('id', sesion.restaurante_id)
+          .single();
+        if (!error && data) {
+          configRestaurante = {
+            nombre:         data.nombre         || 'Mi Restaurante',
+            direccion:      data.direccion       || '',
+            telefono:       data.telefono        || '',
+            instagram:      data.instagram       || '',
+            wifi:           data.wifi            || '',
+            mensaje_ticket: data.mensaje_ticket  || '¡GRACIAS POR SU PREFERENCIA!',
+            iva_incluido:   true
+          };
         }
+      } catch(e) { console.warn('Config no cargada:', e.message); }
     }
 
-    // ─── Carga inicial ──────────────────────────────────────────────────
+    // ── 🔑 CARGA — SOLO pedidos LLEVAR / RECOGER ──────────────────────────
     async function cargarOrdenes() {
-        try {
-            // CAMBIO 4: Solo cargamos estados activos, sin entregado/cancelado
-            const { data, error } = await db
-                .from('ordenes')
-                .select('*')
-                .not('estado', 'in', '("entregado","cancelado","cancelada")')
-                .order('created_at', { ascending: false });
+      try {
+        if (!sesion?.restaurante_id) return;
 
-            if (error) throw error;
-            todasLasOrdenes = data || [];
-            filtrarYRenderizar();
-        } catch (err) {
-            console.error("Error cargando órdenes:", err);
-            document.getElementById("tablaBodyOrdenes").innerHTML =
-                `<tr><td colspan="7" style="text-align:center; color:#e53935;">Error de conexión: ${err.message}</td></tr>`;
-        }
+        const { data, error } = await db
+          .from('ordenes')
+          .select('*')
+          .eq('restaurante_id', sesion.restaurante_id)
+          .not('estado', 'in', '("entregado","cancelado","cancelada")')
+          .order('created_at', { ascending: false });
+
+        if (error) throw error;
+
+        // 🔑 FIX: SOLO mostramos pedidos para llevar/recoger — nada de mesas
+        todasLasOrdenes = (data || []).filter(o => {
+          const mesa = (o.mesa || '').toUpperCase();
+          return mesa.includes('LLEVAR') || mesa.includes('RECOGER') || mesa.includes('PARA LLEVAR');
+        });
+
+        filtrarYRenderizar();
+      } catch(err) {
+        console.error('Error cargando pedidos por recoger:', err);
+        document.getElementById('tablaBodyOrdenes').innerHTML =
+          `<tr><td colspan="7" style="text-align:center;color:#e53935;">Error: ${err.message}</td></tr>`;
+      }
     }
 
-    // ─── Filtrado y renderizado ─────────────────────────────────────────
+    // ── Filtrado y renderizado ─────────────────────────────────────────────
     function filtrarYRenderizar() {
-        const filtro = document.getElementById("filtroEstado").value;
-        const busqueda = document.getElementById("inputBusqueda").value.toLowerCase();
-        const tbody = document.getElementById("tablaBodyOrdenes");
-        
-        tbody.innerHTML = "";
+      const filtro   = document.getElementById('filtroEstado').value;
+      const busqueda = document.getElementById('inputBusqueda').value.toLowerCase();
+      const tbody    = document.getElementById('tablaBodyOrdenes');
+      tbody.innerHTML = '';
 
-        const ordenesFiltradas = todasLasOrdenes.filter(o => {
-            const cumpleEstado = (filtro === "todos") || (o.estado === filtro);
-            const cliente = (o.cliente_nombre || "").toLowerCase();
-            const mesa = (o.mesa || "").toLowerCase();
-            const cumpleBusqueda = cliente.includes(busqueda) || mesa.includes(busqueda);
-            return cumpleEstado && cumpleBusqueda;
-        });
+      const filtradas = todasLasOrdenes.filter(o => {
+        const cumpleEstado   = filtro === 'todos' || o.estado === filtro;
+        const nombreCliente  = (o.cliente_nombre || '').toLowerCase();
+        const mesa           = (o.mesa || '').toLowerCase();
+        const cumpleBusqueda = nombreCliente.includes(busqueda) || mesa.includes(busqueda);
+        return cumpleEstado && cumpleBusqueda;
+      });
 
-        if (ordenesFiltradas.length === 0) {
-            tbody.innerHTML = `<tr><td colspan="7" style="text-align:center; padding: 4rem; color:#a0aec0; font-weight: 500;">No hay órdenes activas en este momento.</td></tr>`;
-            return;
+      if (filtradas.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="7" style="text-align:center;padding:4rem;color:#a0aec0;">No hay pedidos por recoger en este momento.</td></tr>`;
+        return;
+      }
+
+      filtradas.forEach(o => {
+        const tr = document.createElement('tr');
+        tr.setAttribute('data-id', o.id);
+
+        if      (o.estado === 'por_pagar')  tr.className = 'fila-por_pagar';
+        else if (o.estado === 'pendiente')   tr.className = 'fila-urgente';
+        else if (o.estado === 'preparando')  tr.className = 'fila-proceso';
+        else if (o.estado === 'terminado')   tr.className = 'fila-terminado';
+
+        // Tiempo / cronómetro
+        let celdaTiempo = '';
+        if (o.estado === 'por_pagar') {
+          const limiteMs = o.limite_pago
+            ? new Date(o.limite_pago).getTime()
+            : new Date(o.created_at).getTime() + (7 * 60 * 1000);
+          celdaTiempo = `<span class="tiempo-cronometro tiempo-alerta"
+              data-limite="${limiteMs}" data-id="${o.id}"
+              data-tolerancia="${limiteMs + (2 * 60 * 1000)}">Calculando...</span>`;
+        } else {
+          const hora = new Date(o.created_at).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'});
+          celdaTiempo = `<span class="tiempo-cronometro" style="background:transparent;color:#4a5568;">${hora}</span>`;
         }
 
-        ordenesFiltradas.forEach(o => {
-            const tr = document.createElement("tr");
-            tr.setAttribute('data-id', o.id);
-            
-            if (o.estado === 'por_pagar') tr.className = "fila-por_pagar";
-            else if (o.estado === 'pendiente') tr.className = "fila-urgente";
-            else if (o.estado === 'preparando') tr.className = "fila-proceso";
-            else if (o.estado === 'terminado') tr.className = "fila-terminado";
+        // Botones
+        let botonesAccion = '';
+        if (o.estado === 'por_pagar') {
+          // 🔑 FIX: Pago confirmado → guarda en ventas + pasa a preparando
+          botonesAccion += `<button class="btn-tabla btn-principal" onclick="confirmarPagoYCocina('${o.id}')">💳 Pago OK → Cocina</button>`;
+        } else if (o.estado === 'pendiente') {
+          botonesAccion += `<button class="btn-tabla btn-principal" onclick="cambiarEstado('${o.id}', 'preparando')">👨‍🍳 Preparar</button>`;
+        } else if (o.estado === 'preparando') {
+          botonesAccion += `<button class="btn-tabla btn-principal" onclick="cambiarEstado('${o.id}', 'terminado')">🛎️ Listo</button>`;
+        } else if (o.estado === 'terminado') {
+          // Entregar → guarda en ventas si no lo hizo antes + elimina del panel
+          botonesAccion += `<button class="btn-tabla btn-principal" onclick="entregarPedido('${o.id}')">📦 Entregar al Cliente</button>`;
+        }
 
-           // Tiempo — cronómetro regresivo de 7 min para por_pagar, 
-            // con 2 min de tolerancia antes de cancelar automáticamente
-            let celdaTiempo = "";
-            if (o.estado === 'por_pagar') {
-                // Si no tiene limite_pago lo calculamos desde created_at + 7 minutos
-                const limiteMs = o.limite_pago
-                    ? new Date(o.limite_pago).getTime()
-                    : new Date(o.created_at).getTime() + (7 * 60 * 1000);
-                celdaTiempo = `<span class="tiempo-cronometro tiempo-alerta" 
-                    data-limite="${limiteMs}" 
-                    data-id="${o.id}"
-                    data-tolerancia="${limiteMs + (2 * 60 * 1000)}">
-                    Calculando...</span>`;
-            } else {
-                const hora = new Date(o.created_at).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
-                celdaTiempo = `<span class="tiempo-cronometro" style="background:transparent; color:#4a5568;">${hora}</span>`;
-            }
+        botonesAccion += `<button class="btn-tabla btn-secundario" onclick="verTicket('${o.id}')">📋 Ticket</button>`;
+        if (o.estado !== 'terminado') {
+          botonesAccion += `<button class="btn-tabla btn-peligro" onclick="rechazarPedido('${o.id}')">✖</button>`;
+        }
 
-            // Botones de acción
-            let botonesAccion = "";
-            if (o.estado === 'por_pagar') {
-                // CAMBIO 2: Pago OK → pasa a "preparando" directamente (va a cocina)
-                botonesAccion += `<button class="btn-tabla btn-principal" onclick="pagoOkACocina('${o.id}')">👨‍🍳 Pago OK → Cocina</button>`;
-            } else if (o.estado === 'pendiente') {
-                botonesAccion += `<button class="btn-tabla btn-principal" onclick="cambiarEstado('${o.id}', 'preparando')">👨‍🍳 Cocinar</button>`;
-            } else if (o.estado === 'preparando') {
-                botonesAccion += `<button class="btn-tabla btn-principal" onclick="cambiarEstado('${o.id}', 'terminado')">🛎️ Terminar</button>`;
-            } else if (o.estado === 'terminado') {
-                // Entregar → elimina la orden directamente (pago ya fue por transferencia)
-                botonesAccion += `<button class="btn-tabla btn-principal" onclick="entregarYEliminar('${o.id}')">📦 Entregar</button>`;
-            }
-
-            botonesAccion += `<button class="btn-tabla btn-secundario" onclick="verTicket('${o.id}')">📋 Ticket</button>`;
-            
-            // CAMBIO 1: Cancelar ahora ELIMINA la orden de la BD en vez de solo cambiar estado
-            if (o.estado !== 'terminado') {
-                botonesAccion += `<button class="btn-tabla btn-peligro" onclick="rechazarYEliminar('${o.id}')">✖</button>`;
-            }
-
-            tr.innerHTML = `
-                <td><strong style="color:var(--color-primario); font-size:1.1rem;">#${o.id.toString().slice(-4)}</strong></td>
-                <td>
-                    <strong style="font-size: 1.05rem;">${o.cliente_nombre || 'Sin nombre'}</strong><br>
-                    <small style="color:#718096;">${o.usuario_email || ''}</small><br>
-                    <span style="font-size:0.8rem; background:#edf2f7; color:#4a5568; padding:3px 8px; border-radius:6px; font-weight:600; display:inline-block; margin-top:4px;">${o.mesa}</span>
-                </td>
-                <td style="max-width: 300px; font-size:0.9rem; line-height: 1.5;">${o.productos}</td>
-                <td><strong style="font-size: 1.1rem;">$${parseFloat(o.total).toFixed(2)}</strong></td>
-                <td style="text-align: center;"><span class="badge-estado state-${o.estado}">${o.estado.replace('_', ' ')}</span></td>
-                <td>${celdaTiempo}</td>
-                <td style="text-align: center;">${botonesAccion}</td>
-            `;
-            tbody.appendChild(tr);
-        });
+        tr.innerHTML = `
+          <td><strong style="color:var(--color-primario);font-size:1.1rem;">#${o.id.toString().slice(-4)}</strong></td>
+          <td>
+            <strong>${o.cliente_nombre || 'Sin nombre'}</strong><br>
+            <small style="color:#718096;">${o.usuario_email || ''}</small><br>
+            <span style="font-size:0.75rem;background:#ebf8ff;color:#3182ce;padding:2px 8px;border-radius:10px;font-weight:700;display:inline-block;margin-top:4px;">🚶 ${o.mesa}</span>
+          </td>
+          <td style="max-width:280px;font-size:0.9rem;line-height:1.5;">${o.productos}</td>
+          <td><strong style="font-size:1.1rem;">$${parseFloat(o.total).toFixed(2)}</strong></td>
+          <td style="text-align:center;"><span class="badge-estado state-${o.estado}">${o.estado.replace('_',' ')}</span></td>
+          <td>${celdaTiempo}</td>
+          <td style="text-align:center;">${botonesAccion}</td>`;
+        tbody.appendChild(tr);
+      });
     }
 
-    // ─── Cambios de estado ──────────────────────────────────────────────
+    // ── Cambiar estado simple ──────────────────────────────────────────────
     async function cambiarEstado(id, nuevoEstado) {
-        const updates = { estado: nuevoEstado };
-        if (nuevoEstado === 'pendiente' || nuevoEstado === 'preparando') {
-            updates.tiempo_aceptacion = new Date().toISOString();
-        }
-        const { error } = await db.from('ordenes').update(updates).eq('id', id);
-        if (error) alert("Error al cambiar estado: " + error.message);
+      const { error } = await db.from('ordenes').update({
+        estado: nuevoEstado,
+        tiempo_aceptacion: new Date().toISOString()
+      }).eq('id', id);
+      if (error) alert('Error: ' + error.message);
     }
 
-    // CAMBIO 2: Confirmar pago y enviar directo a cocina (estado "preparando")
-    async function pagoOkACocina(id) {
-        const updates = {
-            estado: 'preparando', // Va directo a cocina
-            tiempo_aceptacion: new Date().toISOString()
-        };
-        const { error } = await db.from('ordenes').update(updates).eq('id', id);
-        if (error) {
-            alert("Error: " + error.message);
-        } else {
-            // Animación visual de confirmación antes de desaparecer
-            const fila = document.querySelector(`tr[data-id="${id}"]`);
-            if (fila) {
-                fila.style.background = '#e6fffa';
-                fila.style.transition = 'background 0.3s';
-            }
-        }
+    // ── 🔑 FIX PRINCIPAL: Confirmar pago y registrar venta ────────────────
+    // Se ejecuta cuando el cajero confirma que el cliente ya transfirió
+    async function confirmarPagoYCocina(id) {
+      const orden = todasLasOrdenes.find(o => o.id === id);
+      if (!orden) return;
+
+      // 1. Registrar en tabla ventas como TRANSFERENCIA
+      const { error: errVenta } = await db.from('ventas').insert([{
+        restaurante_id: sesion.restaurante_id,
+        mesa:           orden.mesa,           // "Para Llevar" / "Para Recoger"
+        productos:      orden.productos,
+        total:          orden.total,
+        metodo_pago:    'transferencia'        // 🔑 Siempre transferencia para recoger
+      }]);
+
+      if (errVenta) {
+        alert('Error al registrar la venta: ' + errVenta.message);
+        return; // No continuar si falla el registro de venta
+      }
+
+      // 2. Cambiar estado a "preparando" (ya pagó, va a cocina)
+      const { error: errEstado } = await db.from('ordenes').update({
+        estado:           'preparando',
+        tiempo_aceptacion: new Date().toISOString()
+      }).eq('id', id);
+
+      if (errEstado) {
+        alert('Venta registrada pero error al cambiar estado: ' + errEstado.message);
+        return;
+      }
+
+      // 3. Feedback visual
+      const fila = document.querySelector(`tr[data-id="${id}"]`);
+      if (fila) {
+        fila.style.background   = '#e6fffa';
+        fila.style.transition   = 'background 0.3s';
+        fila.style.borderLeft   = '4px solid #10ad93';
+      }
+
+      mostrarToastPR('✅ Pago confirmado', `Venta registrada. ${orden.mesa} pasa a cocina.`);
     }
 
-    // CAMBIO 1: Rechazar/cancelar elimina el registro completamente de la BD
-    async function rechazarYEliminar(id) {
-        if (!confirm("¿Rechazar esta orden? Se eliminará permanentemente del sistema.")) return;
-        
-        const fila = document.querySelector(`tr[data-id="${id}"]`);
-        
-        // Animación de salida
-        if (fila) {
-            fila.classList.add('fila-eliminando');
-            await new Promise(r => setTimeout(r, 500)); // Espera la animación
-        }
+    // ── Entregar pedido ya preparado ───────────────────────────────────────
+    // (la venta ya se registró en confirmarPagoYCocina, aquí solo cerramos)
+    async function entregarPedido(id) {
+      if (!confirm('¿Confirmar entrega al cliente? La orden se cerrará.')) return;
 
-        const { error } = await db.from('ordenes').delete().eq('id', id);
-        if (error) {
-            alert("Error al eliminar: " + error.message);
-            if (fila) fila.classList.remove('fila-eliminando');
-        }
-        // El canal realtime actualizará la tabla automáticamente
+      const fila = document.querySelector(`tr[data-id="${id}"]`);
+      if (fila) {
+        fila.classList.add('fila-eliminando');
+        await new Promise(r => setTimeout(r, 500));
+      }
+
+      // Marcar como entregado (no borrar, para historial)
+      const { error } = await db.from('ordenes').update({ estado: 'entregado' }).eq('id', id);
+      if (error) {
+        alert('Error: ' + error.message);
+        if (fila) fila.classList.remove('fila-eliminando');
+      }
+      // Realtime recarga la tabla
     }
 
-    // ─── Entregar y eliminar orden (pago ya fue por transferencia) ──────
-    async function entregarYEliminar(id) {
-        if (!confirm("¿Confirmar entrega? La orden se marcará como completada y se eliminará del panel.")) return;
-
-        const fila = document.querySelector(`tr[data-id="${id}"]`);
-        if (fila) {
-            fila.classList.add('fila-eliminando');
-            await new Promise(r => setTimeout(r, 500));
-        }
-
-        const { error } = await db.from('ordenes').delete().eq('id', id);
-        if (error) {
-            alert("Error al eliminar: " + error.message);
-            if (fila) fila.classList.remove('fila-eliminando');
-        }
-        // Realtime actualiza la tabla automáticamente
+    // ── Rechazar pedido ────────────────────────────────────────────────────
+    async function rechazarPedido(id) {
+      if (!confirm('¿Rechazar este pedido? Se eliminará del panel.')) return;
+      const fila = document.querySelector(`tr[data-id="${id}"]`);
+      if (fila) {
+        fila.classList.add('fila-eliminando');
+        await new Promise(r => setTimeout(r, 500));
+      }
+      const { error } = await db.from('ordenes').delete().eq('id', id);
+      if (error) {
+        alert('Error: ' + error.message);
+        if (fila) fila.classList.remove('fila-eliminando');
+      }
     }
 
-    // ─── Modal Ticket completo con datos del establecimiento ─────────────
+    // ── Modal de ticket ────────────────────────────────────────────────────
     function verTicket(id) {
-        const o = todasLasOrdenes.find(item => item.id == id);
-        if (!o) return;
+      const o = todasLasOrdenes.find(item => item.id == id);
+      if (!o) return;
 
-        // — Datos del establecimiento —
-        document.getElementById('t-nombre-rest').textContent = configRestaurante.nombre || "Mi Restaurante";
-        document.getElementById('t-direccion').textContent   = configRestaurante.direccion || "Dirección no registrada";
-        document.getElementById('t-telefono').textContent    = "Tel: " + (configRestaurante.telefono || "—");
-        document.getElementById('t-redes').textContent       = configRestaurante.instagram ? `📷 @${configRestaurante.instagram}` : "";
-        document.getElementById('t-wifi').textContent        = configRestaurante.wifi ? `📶 WiFi: ${configRestaurante.wifi}` : "";
-        document.getElementById('t-mensaje-agradecimiento').textContent = configRestaurante.mensaje_ticket || "¡GRACIAS POR SU COMPRA!";
+      document.getElementById('t-nombre-rest').textContent = configRestaurante.nombre || 'Mi Restaurante';
+      document.getElementById('t-direccion').textContent   = configRestaurante.direccion || '';
+      document.getElementById('t-telefono').textContent    = 'Tel: ' + (configRestaurante.telefono || '—');
+      document.getElementById('t-mensaje-agradecimiento').textContent = configRestaurante.mensaje_ticket || '¡GRACIAS!';
 
-        // — Datos de la orden —
-        document.getElementById('t-folio').textContent   = o.id.toString().slice(-6).toUpperCase();
-        document.getElementById('t-fecha').textContent   = new Date(o.created_at).toLocaleString('es-MX', {
-            day:'2-digit', month:'short', year:'numeric', hour:'2-digit', minute:'2-digit'
-        });
-        document.getElementById('t-cliente').textContent = o.cliente_nombre || 'Cliente General';
-        document.getElementById('t-mesa').textContent    = o.mesa || '—';
-        document.getElementById('t-metodo').textContent  = (o.metodo_pago || o.metodo || 'Transferencia').toUpperCase();
+      document.getElementById('t-folio').textContent   = o.id.toString().slice(-6).toUpperCase();
+      document.getElementById('t-fecha').textContent   = new Date(o.created_at).toLocaleString('es-MX');
+      document.getElementById('t-cliente').textContent = o.cliente_nombre || 'Cliente General';
+      document.getElementById('t-mesa').textContent    = o.mesa || '—';
+      document.getElementById('t-metodo').textContent  = 'TRANSFERENCIA';
 
-        // — Totales con IVA —
-        const total    = parseFloat(o.total) || 0;
-        const subtotal = configRestaurante.iva_incluido ? total / 1.16 : total;
-        const iva      = total - subtotal;
-        document.getElementById('t-subtotal').textContent = subtotal.toFixed(2);
-        document.getElementById('t-iva').textContent      = iva.toFixed(2);
-        document.getElementById('t-total').textContent    = total.toFixed(2);
+      const total    = parseFloat(o.total) || 0;
+      const subtotal = total / 1.16;
+      const iva      = total - subtotal;
+      document.getElementById('t-subtotal').textContent = subtotal.toFixed(2);
+      document.getElementById('t-iva').textContent      = iva.toFixed(2);
+      document.getElementById('t-total').textContent    = total.toFixed(2);
 
-        // — Productos —
-        const itemsBody = document.getElementById('t-items');
-        itemsBody.innerHTML = "";
-        const arrProductos = (o.productos || '').split(',').filter(p => p.trim());
-        arrProductos.forEach(p => {
-            const tr = document.createElement('tr');
-            tr.innerHTML = `
-                <td style="color:#666; padding-right:6px;">1x</td>
-                <td>${p.trim()}</td>
-                <td>—</td>`;
-            itemsBody.appendChild(tr);
-        });
+      const tbody = document.getElementById('t-items');
+      tbody.innerHTML = '';
+      (o.productos || '').split(',').filter(p => p.trim()).forEach(p => {
+        const tr = document.createElement('tr');
+        tr.innerHTML = `<td style="color:#666;padding-right:6px;">1x</td><td>${p.trim()}</td><td>—</td>`;
+        tbody.appendChild(tr);
+      });
 
-        document.getElementById('modalTicket').showModal();
+      document.getElementById('modalTicket').showModal();
     }
 
-    // ─── Cronómetro de cuenta regresiva ────────────────────────────────
-    // ─── Sonido de alarma REAL (más audible que el anterior) ────────────
+    // ── Cronómetro regresivo ───────────────────────────────────────────────
     function sonarAlarma() {
-        try {
-            const ctx = new (window.AudioContext || window.webkitAudioContext)();
-            
-            // Tono 1 — agudo urgente
-            const secuencia = [
-                { freq: 1047, inicio: 0,    duracion: 0.15 },
-                { freq: 0,    inicio: 0.15, duracion: 0.05 },
-                { freq: 1047, inicio: 0.20, duracion: 0.15 },
-                { freq: 0,    inicio: 0.35, duracion: 0.05 },
-                { freq: 1047, inicio: 0.40, duracion: 0.15 },
-                { freq: 880,  inicio: 0.60, duracion: 0.40 },
-            ];
-
-            secuencia.forEach(({ freq, inicio, duracion }) => {
-                if (freq === 0) return;
-                const osc  = ctx.createOscillator();
-                const gain = ctx.createGain();
-                osc.connect(gain);
-                gain.connect(ctx.destination);
-                osc.type = 'square'; // más penetrante que 'sine'
-                osc.frequency.setValueAtTime(freq, ctx.currentTime + inicio);
-                gain.gain.setValueAtTime(0.6, ctx.currentTime + inicio);
-                gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + inicio + duracion);
-                osc.start(ctx.currentTime + inicio);
-                osc.stop(ctx.currentTime + inicio + duracion);
-            });
-        } catch(e) { console.warn('Audio no disponible:', e); }
-    }
-
-    // ─── Registro de órdenes ya alertadas (para no repetir la alarma) ───
-    const alertasDisparadas = new Set();
-    const cancelacionesPendientes = new Set(); // evita doble cancelación
-
-    // ─── Cancelar orden automáticamente ─────────────────────────────────
-    async function cancelarOrdenAutomatica(id) {
-        if (cancelacionesPendientes.has(id)) return;
-        cancelacionesPendientes.add(id);
-
-        const { error } = await db.from('ordenes').delete().eq('id', id);
-        if (error) {
-            console.error('Error al cancelar:', error.message);
-            cancelacionesPendientes.delete(id);
-        } else {
-            mostrarToastPR('⏱️ Orden cancelada', 'El tiempo de pago expiró');
-            sonarAlarma();
-        }
-    }
-
-    // ─── Cronómetro principal ────────────────────────────────────────────
-    setInterval(() => {
-        document.querySelectorAll(".tiempo-cronometro[data-limite]").forEach(el => {
-            const limiteMs     = parseInt(el.getAttribute("data-limite"));
-            const toleranciaMs = parseInt(el.getAttribute("data-tolerancia"));
-            const idOrden      = el.getAttribute("data-id");
-            const ahora        = Date.now();
-            const distancia    = limiteMs - ahora;
-            const enTolerancia = ahora > limiteMs && ahora < toleranciaMs;
-            const expirado     = ahora >= toleranciaMs;
-
-            if (expirado) {
-                // Cancelar automáticamente
-                el.textContent = "Cancelando...";
-                el.style.background = "#1a1a1a";
-                el.style.color = "white";
-                cancelarOrdenAutomatica(idOrden);
-                return;
-            }
-
-            if (enTolerancia) {
-                // Tolerancia: 2 min extra en rojo parpadeante
-                const segsTolerancia = Math.ceil((toleranciaMs - ahora) / 1000);
-                const m = Math.floor(segsTolerancia / 60);
-                const s = segsTolerancia % 60;
-                el.textContent = `+${m}:${s.toString().padStart(2,'0')} TOLERANCIA`;
-                el.style.background = "#7b2d00";
-                el.style.color = "white";
-                el.style.border = "2px solid #ff4d00";
-
-                // Alarma al entrar en tolerancia (solo una vez)
-                if (!alertasDisparadas.has(`tol_${idOrden}`)) {
-                    alertasDisparadas.add(`tol_${idOrden}`);
-                    sonarAlarma();
-                    mostrarToastPR('⚠️ Tiempo límite', '2 min de tolerancia — si no paga se cancela');
-                }
-                return;
-            }
-
-            if (distancia > 0) {
-                const minutos  = Math.floor((distancia % (1000 * 60 * 60)) / (1000 * 60));
-                const segundos = Math.floor((distancia % (1000 * 60)) / 1000);
-                el.textContent = `${minutos.toString().padStart(2,'0')}:${segundos.toString().padStart(2,'0')}`;
-
-                // Alarma a 1 minuto restante (solo una vez)
-                if (distancia < 60000 && !alertasDisparadas.has(`min_${idOrden}`)) {
-                    alertasDisparadas.add(`min_${idOrden}`);
-                    sonarAlarma();
-                    mostrarToastPR('🔔 1 minuto restante', 'El cliente debe pagar pronto');
-                }
-
-                // Color según urgencia
-                if (distancia < 120000) {
-                    el.style.background = "#e53935";
-                    el.style.color = "white";
-                } else if (distancia < 300000) {
-                    el.style.background = "#f39c12";
-                    el.style.color = "white";
-                } else {
-                    el.style.background = "#edf2f7";
-                    el.style.color = "#2d3748";
-                }
-            }
+      try {
+        const ctx = new (window.AudioContext || window.webkitAudioContext)();
+        [1047,1047,880].forEach((freq, i) => {
+          const osc = ctx.createOscillator(), gain = ctx.createGain();
+          osc.connect(gain); gain.connect(ctx.destination);
+          osc.type = 'square'; osc.frequency.value = freq;
+          gain.gain.setValueAtTime(0.5, ctx.currentTime + i*0.2);
+          gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + i*0.2 + 0.15);
+          osc.start(ctx.currentTime + i*0.2);
+          osc.stop(ctx.currentTime + i*0.2 + 0.15);
         });
+      } catch(e) {}
+    }
+
+    const alertasDisparadas       = new Set();
+    const cancelacionesPendientes = new Set();
+
+    async function cancelarOrdenAutomatica(id) {
+      if (cancelacionesPendientes.has(id)) return;
+      cancelacionesPendientes.add(id);
+      const { error } = await db.from('ordenes').delete().eq('id', id);
+      if (error) { cancelacionesPendientes.delete(id); return; }
+      mostrarToastPR('⏱️ Orden cancelada', 'El tiempo de pago expiró');
+      sonarAlarma();
+    }
+
+    setInterval(() => {
+      document.querySelectorAll('.tiempo-cronometro[data-limite]').forEach(el => {
+        const limiteMs     = parseInt(el.getAttribute('data-limite'));
+        const toleranciaMs = parseInt(el.getAttribute('data-tolerancia'));
+        const idOrden      = el.getAttribute('data-id');
+        const ahora        = Date.now();
+        const distancia    = limiteMs - ahora;
+        const enTolerancia = ahora > limiteMs && ahora < toleranciaMs;
+        const expirado     = ahora >= toleranciaMs;
+
+        if (expirado) {
+          el.textContent = 'Cancelando...';
+          el.style.background = '#1a1a1a'; el.style.color = 'white';
+          cancelarOrdenAutomatica(idOrden); return;
+        }
+        if (enTolerancia) {
+          const s = Math.ceil((toleranciaMs - ahora) / 1000);
+          el.textContent = `+${Math.floor(s/60)}:${(s%60).toString().padStart(2,'0')} TOLERANCIA`;
+          el.style.background = '#7b2d00'; el.style.color = 'white'; el.style.border = '2px solid #ff4d00';
+          if (!alertasDisparadas.has(`tol_${idOrden}`)) {
+            alertasDisparadas.add(`tol_${idOrden}`);
+            sonarAlarma(); mostrarToastPR('⚠️ Tiempo límite', '2 min de tolerancia restante');
+          }
+          return;
+        }
+        if (distancia > 0) {
+          const m = Math.floor((distancia%(1000*60*60))/(1000*60));
+          const s = Math.floor((distancia%(1000*60))/1000);
+          el.textContent = `${m.toString().padStart(2,'0')}:${s.toString().padStart(2,'0')}`;
+          if (distancia < 60000 && !alertasDisparadas.has(`min_${idOrden}`)) {
+            alertasDisparadas.add(`min_${idOrden}`);
+            sonarAlarma(); mostrarToastPR('🔔 1 minuto restante', 'El cliente debe pagar pronto');
+          }
+          el.style.background = distancia < 120000 ? '#e53935' : distancia < 300000 ? '#f39c12' : '#edf2f7';
+          el.style.color      = distancia < 300000 ? 'white'  : '#2d3748';
+        }
+      });
     }, 1000);
 
-    // ─── Alerta sonora ──────────────────────────────────────────────────
-    function reproducirAlerta() {
-        const audio = document.getElementById("audioNotificacion");
-        if (audio) {
-            audio.play().catch(e => console.log("Audio bloqueado por el navegador."));
-        }
-    }
-
-    // ─── Supabase Realtime ──────────────────────────────────────────────
+    // ── Realtime — canal propio 'recoger-monitor-{restoId}' ───────────────
+    // Canal distinto al de ordenes.js ('ordenes-monitor-{restoId}') — sin colisión
     function conectarRealtime() {
-        db.channel('monitor_ordenes')
-          .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'ordenes' }, payload => {
-      const o = payload.new || {};
-      const esRecoger = (o.mesa || '').toUpperCase().includes('LLEVAR') ||
-                        (o.mesa || '').toUpperCase().includes('RECOGER');
-      reproducirAlerta(); // audio tag existente como respaldo
-      _sonidoPR();
-      if (esRecoger) {
-          mostrarToastPR(
-              'Nuevo pedido por recoger',
-              `Cliente: ${o.cliente_nombre || o.mesa || '—'}`
-          );
-      }
-      cargarOrdenes();
-  })
-  .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'ordenes' }, payload => {
-      cargarOrdenes();
-  })
-  .on('postgres_changes', { event: 'DELETE', schema: 'public', table: 'ordenes' }, payload => {
-      cargarOrdenes();
-  })
-  .subscribe((status) => {
-              const indicadores = [
-                  document.getElementById("indicadorRealtime"),
-                  document.getElementById("indicadorRealtimeMobile")
-              ];
-              indicadores.forEach(ind => {
-                  if (!ind) return;
-                  if (status === "SUBSCRIBED") {
-                      ind.textContent = "● Tiempo Real Activo";
-                      ind.style.background = "#e6fffa";
-                      ind.style.color = "#319795";
-                      ind.style.borderColor = "#81e6d9";
-                  } else {
-                      ind.textContent = "○ Desconectado";
-                      ind.style.background = "#fff5f5";
-                      ind.style.color = "#c53030";
-                      ind.style.borderColor = "#fc8181";
-                  }
-              });
-          });
+      if (!sesion?.restaurante_id) return;
+
+      db.channel(`recoger-monitor-${sesion.restaurante_id}`)
+        .on('postgres_changes', {
+          event: '*', schema: 'public', table: 'ordenes',
+          filter: `restaurante_id=eq.${sesion.restaurante_id}`
+        }, payload => {
+          const o = payload.new || {};
+          const mesa = (o.mesa || '').toUpperCase();
+          const esRecoger = mesa.includes('LLEVAR') || mesa.includes('RECOGER');
+
+          if (payload.eventType === 'INSERT' && esRecoger) {
+            _sonidoPR();
+            mostrarToastPR('🚶 Nuevo pedido por recoger', `Cliente: ${o.cliente_nombre || o.mesa || '—'}`);
+          }
+          cargarOrdenes();
+        })
+        .subscribe(status => {
+          const ind = document.getElementById('indicadorRealtime');
+          if (!ind) return;
+          if (status === 'SUBSCRIBED') {
+            ind.textContent        = '● En línea';
+            ind.style.background   = '#e6fffa';
+            ind.style.color        = '#319795';
+          } else {
+            ind.textContent        = '○ Desconectado';
+            ind.style.background   = '#fff5f5';
+            ind.style.color        = '#c53030';
+          }
+        });
     }
 
- // ─── Escuchar notificaciones de otras páginas vía localStorage ──────
-    window.addEventListener('storage', (e) => {
-        if (e.key !== '_notiPendiente') return;
-        if (!e.newValue) return;
-        try {
-            const { tipo, titulo, subtitulo, urlDestino, origen } = JSON.parse(e.newValue);
-            const paginaActual = window.location.pathname.split('/').pop();
-            if (origen === paginaActual) return;
-            _sonidoPR();
-            mostrarToastPR(titulo, subtitulo || '');
-        } catch(err) {}
-    });
-
-    // ─── Arranque ───────────────────────────────────────────────────────
-    cargarConfig();       // Carga datos del establecimiento
-    cargarOrdenes();      // Carga órdenes activas
-    conectarRealtime();   // Escucha cambios en tiempo real
+    // ── Arranque ───────────────────────────────────────────────────────────
+    cargarConfig();
+    cargarOrdenes();
+    conectarRealtime();
   </script>
 </body>
 </html>
