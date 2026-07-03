@@ -414,80 +414,242 @@
     }
     // ─── Galería visual del menú ──────────────────────────────────
     async function abrirGaleriaMenu() {
-    // 🔑 FIX: removemos .eq('activo', true) — columna no existe en BD
-    const { data: prods, error } = await db
-        .from('productos')
-        .select('id, nombre, imagen_url, precio, categoria')
-        .eq('restaurante_id', ridParam)
-        // Filtramos solo los que tienen imagen (los sin imagen no sirven para galería)
-        .not('imagen_url', 'is', null)
-        .order('categoria');
+  // ── Crear o reutilizar el modal ──────────────────────────────────
+  let modal = document.getElementById('modalGaleria');
+  if (!modal) {
+    modal = document.createElement('dialog');
+    modal.id = 'modalGaleria';
+    modal.style.cssText = 'border:none;border-radius:20px;padding:0;width:min(96vw,560px);max-height:90vh;overflow:hidden;';
+    modal.addEventListener('click', e => { if (e.target === modal) modal.close(); });
+    document.body.appendChild(modal);
+  }
  
-    if (error) {
-        console.error('Error al cargar galería:', error.message);
-        alert('Error al cargar el menú. Intenta de nuevo.');
-        return;
-    }
+  // Mostrar cargando mientras traemos datos
+  modal.innerHTML = `
+    <div style="background:linear-gradient(135deg,#10ad93,#0d8a76);color:white;
+                padding:16px 20px;display:flex;justify-content:space-between;align-items:center;">
+      <span style="font-weight:800;font-size:1rem;">🖼️ Menú</span>
+      <button onclick="document.getElementById('modalGaleria').close()"
+        style="background:rgba(255,255,255,0.2);border:none;color:white;
+               border-radius:8px;padding:5px 12px;cursor:pointer;">✕ Cerrar</button>
+    </div>
+    <div style="padding:20px;text-align:center;color:#888;">Cargando...</div>`;
+  modal.showModal();
  
-    if (!prods || prods.length === 0) {
-        alert('📷 Aún no hay imágenes en el menú.\nAgrega fotos a tus productos desde el panel de administración.');
-        return;
-    }
+  // ── Cargar en paralelo: fotos del menú físico + productos ────────
+  const [respResto, respProds] = await Promise.all([
+    // 1. Fotos del menú que el dueño sube desde Ajustes
+    db.from('restaurantes')
+      .select('galeria_menu, nombre')
+      .eq('id', ridParam)
+      .single(),
  
-    // Agrupar por categoría
-    const porCat = prods.reduce((acc, p) => {
-        const cat = p.categoria || 'General';
-        if (!acc[cat]) acc[cat] = [];
-        acc[cat].push(p);
-        return acc;
-    }, {});
+    // 2. Productos con imagen para agregar al carrito
+    db.from('productos')
+      .select('id, nombre, imagen_url, precio, categoria')
+      .eq('restaurante_id', ridParam)
+      .not('imagen_url', 'is', null)
+      .order('categoria')
+  ]);
  
-    // Crear o reutilizar el modal
-    let modal = document.getElementById('modalGaleria');
-    if (!modal) {
-        modal = document.createElement('dialog');
-        modal.id = 'modalGaleria';
-        modal.style.cssText = 'border:none;border-radius:20px;padding:0;width:min(96vw,560px);max-height:85vh;overflow:hidden;';
-        modal.addEventListener('click', e => { if (e.target === modal) modal.close(); });
-        document.body.appendChild(modal);
-    }
+  // ── Extraer datos ────────────────────────────────────────────────
+  const galeriaFotos = respResto.data?.galeria_menu || [];   // Array de URLs
+  const nombreResto  = respResto.data?.nombre || 'Menú';
+  const prods        = respProds.data || [];
  
-    const fmt = v => '$' + parseFloat(v).toFixed(2);
+  // Agrupar productos por categoría
+  const porCat = prods.reduce((acc, p) => {
+    const cat = p.categoria || 'General';
+    if (!acc[cat]) acc[cat] = [];
+    acc[cat].push(p);
+    return acc;
+  }, {});
  
-    modal.innerHTML = `
-        <div style="background:linear-gradient(135deg,#10ad93,#0d8a76);color:white;
-                    padding:16px 20px;display:flex;justify-content:space-between;align-items:center;">
-            <span style="font-weight:800;font-size:1rem;">🖼️ Menú Visual</span>
-            <button onclick="document.getElementById('modalGaleria').close()"
-                style="background:rgba(255,255,255,0.2);border:none;color:white;
-                       border-radius:8px;padding:5px 12px;cursor:pointer;font-size:0.9rem;">✕ Cerrar</button>
+  const fmt = v => '$' + parseFloat(v).toFixed(2);
+ 
+  // ── Construir HTML del modal con pestañas ────────────────────────
+  // Si hay fotos de galería Y productos → 2 pestañas
+  // Si solo hay uno de los dos → mostrar directamente sin pestañas
+ 
+  const hayFotos    = galeriaFotos.length > 0;
+  const hayProductos = prods.length > 0;
+ 
+  // ── Sección de fotos del menú físico (carrusel) ──────────────────
+  const htmlFotosMenu = hayFotos ? `
+    <div id="tabFotos" class="tab-content" style="display:block;">
+      <p style="font-size:0.75rem;color:#888;margin:0 0 12px;text-align:center;">
+        Imágenes del menú de <strong>${nombreResto}</strong>
+      </p>
+ 
+      <!-- Carrusel simple de fotos -->
+      <div id="carrusel" style="position:relative;overflow:hidden;border-radius:12px;background:#000;">
+        <div id="carruselTrack"
+             style="display:flex;transition:transform 0.4s ease;will-change:transform;">
+          ${galeriaFotos.map((url, i) => `
+            <img src="${url}" alt="Menú ${i+1}" loading="lazy"
+                 style="min-width:100%;max-height:65vh;object-fit:contain;display:block;"
+                 onerror="this.parentElement.parentElement.parentElement.removeChild(this.parentElement.parentElement)">
+          `).join('')}
         </div>
-        <div style="overflow-y:auto;max-height:calc(85vh - 56px);padding:16px;">
-            ${Object.entries(porCat).map(([cat, items]) => `
-                <p style="font-size:0.75rem;font-weight:700;text-transform:uppercase;
-                          letter-spacing:1px;color:#888;margin:0 0 8px;">${cat}</p>
-                <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));
-                            gap:10px;margin-bottom:18px;">
-                    ${items.map(p => `
-                        <div onclick="elegirDeGaleria('${p.id}')"
-                            style="border-radius:12px;overflow:hidden;background:white;cursor:pointer;
-                                   box-shadow:0 2px 8px rgba(0,0,0,0.08);transition:transform 0.15s;"
-                            onmouseover="this.style.transform='scale(1.04)'"
-                            onmouseout="this.style.transform='scale(1)'">
-                            <img src="${p.imagen_url}" alt="${p.nombre}" loading="lazy"
-                                 style="width:100%;height:90px;object-fit:cover;"
-                                 onerror="this.style.display='none'">
-                            <div style="padding:7px 9px;">
-                                <div style="font-size:0.76rem;font-weight:700;color:#1d1d1f;line-height:1.2;">${p.nombre}</div>
-                                <div style="font-size:0.75rem;color:#10ad93;font-weight:700;margin-top:2px;">${fmt(p.precio)}</div>
-                            </div>
-                        </div>
-                    `).join('')}
-                </div>
-            `).join('')}
-        </div>`;
  
-    modal.showModal();
+        <!-- Controles del carrusel (solo si hay más de 1 foto) -->
+        ${galeriaFotos.length > 1 ? `
+          <button onclick="moverCarrusel(-1)"
+                  style="position:absolute;left:8px;top:50%;transform:translateY(-50%);
+                         background:rgba(0,0,0,0.5);color:white;border:none;border-radius:50%;
+                         width:36px;height:36px;font-size:1.2rem;cursor:pointer;z-index:5;">‹</button>
+          <button onclick="moverCarrusel(1)"
+                  style="position:absolute;right:8px;top:50%;transform:translateY(-50%);
+                         background:rgba(0,0,0,0.5);color:white;border:none;border-radius:50%;
+                         width:36px;height:36px;font-size:1.2rem;cursor:pointer;z-index:5;">›</button>
+          <div style="position:absolute;bottom:8px;left:0;right:0;text-align:center;">
+            ${galeriaFotos.map((_, i) => `
+              <span id="dot-${i}"
+                    onclick="irAFoto(${i})"
+                    style="display:inline-block;width:8px;height:8px;border-radius:50%;
+                           background:${i===0?'white':'rgba(255,255,255,0.4)'};
+                           margin:0 3px;cursor:pointer;transition:background 0.3s;"></span>
+            `).join('')}
+          </div>
+        ` : ''}
+      </div>
+ 
+      <p style="text-align:center;font-size:0.72rem;color:#aaa;margin:8px 0 0;">
+        Toca la imagen para verla completa · ${galeriaFotos.length} foto${galeriaFotos.length!==1?'s':''}
+      </p>
+    </div>` : '';
+ 
+  // ── Sección de productos con imagen (para agregar al carrito) ────
+  const htmlProductos = hayProductos ? `
+    <div id="tabProductos" class="tab-content" style="display:${hayFotos?'none':'block'};">
+      ${Object.entries(porCat).map(([cat, items]) => `
+        <p style="font-size:0.72rem;font-weight:700;text-transform:uppercase;
+                  letter-spacing:1px;color:#888;margin:0 0 8px;">${cat}</p>
+        <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(120px,1fr));
+                    gap:10px;margin-bottom:16px;">
+          ${items.map(p => `
+            <div onclick="elegirDeGaleria('${p.id}')"
+                 style="border-radius:12px;overflow:hidden;background:white;cursor:pointer;
+                        box-shadow:0 2px 8px rgba(0,0,0,0.08);transition:transform 0.15s;"
+                 onmouseover="this.style.transform='scale(1.04)'"
+                 onmouseout="this.style.transform='scale(1)'">
+              <img src="${p.imagen_url}" alt="${p.nombre}" loading="lazy"
+                   style="width:100%;height:85px;object-fit:cover;"
+                   onerror="this.style.display='none'">
+              <div style="padding:6px 8px;">
+                <div style="font-size:0.73rem;font-weight:700;color:#1d1d1f;line-height:1.2;">${p.nombre}</div>
+                <div style="font-size:0.73rem;color:#10ad93;font-weight:700;margin-top:2px;">${fmt(p.precio)}</div>
+              </div>
+            </div>
+          `).join('')}
+        </div>
+      `).join('')}
+    </div>` : '';
+ 
+  // ── Pestañas (solo si hay ambas secciones) ───────────────────────
+  const htmlPestanas = (hayFotos && hayProductos) ? `
+    <div style="display:flex;border-bottom:2px solid #eee;margin-bottom:12px;">
+      <button id="btnTabFotos"
+              onclick="cambiarTab('fotos')"
+              style="flex:1;padding:10px;border:none;background:none;
+                     font-weight:700;font-size:0.85rem;color:#10ad93;
+                     border-bottom:3px solid #10ad93;cursor:pointer;">
+        📷 Fotos del Menú
+      </button>
+      <button id="btnTabProductos"
+              onclick="cambiarTab('productos')"
+              style="flex:1;padding:10px;border:none;background:none;
+                     font-weight:700;font-size:0.85rem;color:#888;
+                     border-bottom:3px solid transparent;cursor:pointer;">
+        🍽️ Agregar al Pedido
+      </button>
+    </div>` : (hayFotos ? `
+    <p style="font-size:0.8rem;color:#888;text-align:center;margin:0 0 12px;">
+      Fotos del menú físico
+    </p>` : `
+    <p style="font-size:0.8rem;color:#888;text-align:center;margin:0 0 12px;">
+      Toca cualquier producto para agregarlo a tu pedido
+    </p>`);
+ 
+  // ── Sin contenido ────────────────────────────────────────────────
+  if (!hayFotos && !hayProductos) {
+    modal.querySelector('div:last-child').innerHTML = `
+      <p style="text-align:center;color:#888;padding:2rem;">
+        📷 El menú aún no tiene imágenes cargadas.
+      </p>`;
+    return;
+  }
+ 
+  // ── Montar el modal completo ─────────────────────────────────────
+  modal.innerHTML = `
+    <div style="background:linear-gradient(135deg,#10ad93,#0d8a76);color:white;
+                padding:14px 16px;display:flex;justify-content:space-between;align-items:center;">
+      <span style="font-weight:800;font-size:1rem;">🖼️ ${nombreResto}</span>
+      <button onclick="document.getElementById('modalGaleria').close()"
+        style="background:rgba(255,255,255,0.2);border:none;color:white;
+               border-radius:8px;padding:5px 12px;cursor:pointer;font-size:0.9rem;">✕ Cerrar</button>
+    </div>
+    <div style="overflow-y:auto;max-height:calc(90vh - 56px);padding:16px;">
+      ${htmlPestanas}
+      ${htmlFotosMenu}
+      ${htmlProductos}
+    </div>`;
+ 
+  // ── Lógica del carrusel ──────────────────────────────────────────
+  let fotoActual = 0;
+  const totalFotos = galeriaFotos.length;
+ 
+  window.moverCarrusel = (dir) => {
+    fotoActual = (fotoActual + dir + totalFotos) % totalFotos;
+    actualizarCarrusel();
+  };
+ 
+  window.irAFoto = (i) => {
+    fotoActual = i;
+    actualizarCarrusel();
+  };
+ 
+  function actualizarCarrusel() {
+    const track = document.getElementById('carruselTrack');
+    if (track) track.style.transform = `translateX(-${fotoActual * 100}%)`;
+    // Actualizar dots
+    for (let i = 0; i < totalFotos; i++) {
+      const dot = document.getElementById(`dot-${i}`);
+      if (dot) dot.style.background = i === fotoActual ? 'white' : 'rgba(255,255,255,0.4)';
+    }
+  }
+ 
+  // ── Lógica de pestañas ───────────────────────────────────────────
+  window.cambiarTab = (tab) => {
+    const tabFotos     = document.getElementById('tabFotos');
+    const tabProductos = document.getElementById('tabProductos');
+    const btnFotos     = document.getElementById('btnTabFotos');
+    const btnProductos = document.getElementById('btnTabProductos');
+ 
+    if (tab === 'fotos') {
+      if (tabFotos)     tabFotos.style.display     = 'block';
+      if (tabProductos) tabProductos.style.display = 'none';
+      if (btnFotos) {
+        btnFotos.style.color       = '#10ad93';
+        btnFotos.style.borderBottom = '3px solid #10ad93';
+      }
+      if (btnProductos) {
+        btnProductos.style.color       = '#888';
+        btnProductos.style.borderBottom = '3px solid transparent';
+      }
+    } else {
+      if (tabFotos)     tabFotos.style.display     = 'none';
+      if (tabProductos) tabProductos.style.display = 'block';
+      if (btnProductos) {
+        btnProductos.style.color       = '#10ad93';
+        btnProductos.style.borderBottom = '3px solid #10ad93';
+      }
+      if (btnFotos) {
+        btnFotos.style.color       = '#888';
+        btnFotos.style.borderBottom = '3px solid transparent';
+      }
+    }
+  };
 }
 
     function elegirDeGaleria(id) {
