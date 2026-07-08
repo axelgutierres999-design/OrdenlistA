@@ -178,7 +178,9 @@
         }
         #menuNavegacion.show { display: flex !important; }
         #menuNavegacion li { width: 100%; text-align: center; }
+        
     }
+    
     /* ── MEJORAS MÓVIL: Panel de orden flotante ──────────────── */
 
 /* Barra flotante pegada al fondo en móvil */
@@ -353,6 +355,16 @@
   font-weight: 800;
   margin-left: 8px;
 }
+/* Mover el botón + (admin) arriba del carrito flotante */
+  .fab-add {
+    bottom: 90px !important;
+    right: 16px !important;
+    width: 50px !important;
+    height: 50px !important;
+    font-size: 1.6rem !important;
+    z-index: 799 !important;  /* debajo del overlay (900) */
+  }
+
   </style>
 </head>
 <body>
@@ -559,9 +571,9 @@ function cerrarDrawer() {
       <span id="totalDrawer" style="font-size:1.5rem;font-weight:900;color:#10ad93;">$0.00</span>
     </div>
     <textarea id="notaDrawer" rows="2" placeholder="📝 Nota general..."
-      style="width:100%;border:1.5px solid #e5e7eb;border-radius:10px;padding:8px;font-size:0.85rem;resize:none;margin-bottom:8px;"></textarea>
+  style="width:100%;box-sizing:border-box;border:1.5px solid #e5e7eb;border-radius:10px;padding:8px;font-size:0.85rem;resize:none;margin-bottom:8px;"></textarea>
     <select id="selectMesaDrawer"
-      style="width:100%;border:1.5px solid #e5e7eb;border-radius:10px;padding:9px;margin-bottom:10px;font-size:0.88rem;">
+  style="width:100%;box-sizing:border-box;border:1.5px solid #e5e7eb;border-radius:10px;padding:9px;margin-bottom:10px;font-size:0.88rem;">
       <option value="" disabled selected>🪑 Selecciona mesa...</option>
     </select>
     <button id="btnParaLlevarDrawer" class="btn-llevar"

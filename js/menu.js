@@ -239,11 +239,25 @@ document.getElementById('btnProcesarDrawer')?.addEventListener('click', async ()
         ...producto,
         cantidad: 1,
         comentario: "",
-        tempId: Date.now() + Math.random() 
+        tempId: Date.now() * 1000 + Math.floor(Math.random() * 1000)
     };
     ordenActual.push(nuevoItem);
     renderizarCarrito();
   }
+  window.cambiarCantidad = (tempId, delta) => {
+  // Convertir a número para comparación segura
+  const id = Number(tempId);
+  const idx = ordenActual.findIndex(i => i.tempId === id);
+  if (idx === -1) return;
+  ordenActual[idx].cantidad += delta;
+  if (ordenActual[idx].cantidad <= 0) {
+    ordenActual.splice(idx, 1);
+  }
+  renderizarCarrito();
+};
+window.quitarItem = (tempId) => {
+  window.cambiarCantidad(tempId, -999);
+};
 
   window.actualizarNotaItem = (tempId, texto) => {
       const item = ordenActual.find(i => i.tempId === tempId);
