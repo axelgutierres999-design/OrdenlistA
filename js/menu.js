@@ -91,6 +91,37 @@ async function inicializar() {
         configurarBotonLlevar();
         configurarSubidaImagen(); 
         configurarEventosEditor();
+        // ── NUEVO: Sincronizar mesas con el drawer móvil ──────────
+// Copiar opciones de selectMesa al selectMesaDrawer
+const selectMesaDrawer = document.getElementById('selectMesaDrawer');
+if (selectMesaDrawer && selectMesa) {
+  selectMesaDrawer.innerHTML = selectMesa.innerHTML;
+  if (mesaURL) { selectMesaDrawer.value = mesaURL; selectMesaDrawer.disabled = true; }
+}
+
+// Botón Para Llevar del drawer
+const btnLlevarDrawer = document.getElementById('btnParaLlevarDrawer');
+btnLlevarDrawer?.addEventListener('click', () => {
+  modoLlevar = !modoLlevar;
+  btnLlevar?.classList.toggle('activo', modoLlevar);
+  btnLlevarDrawer.classList.toggle('activo', modoLlevar);
+  [btnLlevar, btnLlevarDrawer].forEach(b => { if(b) b.textContent = modoLlevar ? '✅ Para Llevar' : '🥡 Para Llevar'; });
+  document.getElementById('alertaLlevar')?.classList.toggle('mostrar', modoLlevar);
+  document.getElementById('alertaLlevarDrawer')?.classList.toggle('mostrar', modoLlevar);
+  if (selectMesa) { selectMesa.disabled = modoLlevar; if(modoLlevar) selectMesa.value=''; }
+  if (selectMesaDrawer) { selectMesaDrawer.disabled = modoLlevar; if(modoLlevar) selectMesaDrawer.value=''; }
+});
+
+// Botón procesar del drawer
+document.getElementById('btnProcesarDrawer')?.addEventListener('click', async () => {
+  const mesa = modoLlevar ? 'Para Llevar' : (selectMesaDrawer?.value || selectMesa?.value || '');
+  if (!mesa) return alert('Selecciona mesa o activa Para Llevar');
+  const total = ordenActual.reduce((acc, i) => acc + i.precio * i.cantidad, 0);
+  const notaExtra = document.getElementById('notaDrawer')?.value || '';
+  if (modoLlevar) mostrarCalculadoraPago(total);
+  else await guardarOrden(mesa, total, null, notaExtra);
+  cerrarDrawer();
+});
 
     } catch (error) {
         console.error("Error en inicialización:", error);
@@ -220,40 +251,73 @@ async function inicializar() {
   };
 
   function renderizarCarrito() {
-    if (!listaItemsOrden) return;
-    
-    if (ordenActual.length === 0) {
-      listaItemsOrden.innerHTML = "<small style='display:block; text-align:center; color:#999; margin-top:20px;'>Tu orden está vacía.</small>";
-      ordenTotalSpan.textContent = "$0.00";
-      if(btnProcesar) btnProcesar.disabled = true;
-      return;
+  const total   = ordenActual.reduce((acc, i) => acc + i.precio * i.cantidad, 0);
+  const nItems  = ordenActual.reduce((acc, i) => acc + i.cantidad, 0);
+  const fmt     = n => `$${n.toFixed(2)}`;
+
+  // HTML de un ítem con controles +/−
+  const htmlItem = item => `
+    <div class="item-carrito">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;">
+        <span class="nombre-item" style="flex:1;font-size:0.95rem;font-weight:700;color:#1f2937;line-height:1.4;">
+          ${item.nombre}
+        </span>
+        <span class="precio-item" style="font-size:0.95rem;font-weight:800;color:#10ad93;margin-left:8px;">
+          ${fmt(item.precio * item.cantidad)}
+        </span>
+      </div>
+      <div class="ctrl-cantidad">
+        <button class="btn-cant restar" onclick="window.cambiarCantidad(${item.tempId}, -1)">−</button>
+        <span class="num-cant">${item.cantidad}</span>
+        <button class="btn-cant" onclick="window.cambiarCantidad(${item.tempId}, +1)">+</button>
+      </div>
+      <input type="text" placeholder="Nota (ej: sin cebolla)..." value="${item.comentario}"
+        oninput="window.actualizarNotaItem(${item.tempId}, this.value)"
+        style="width:100%;font-size:0.78rem;padding:4px 0;border:none;border-bottom:1px solid #eee;background:transparent;outline:none;margin-top:5px;">
+    </div>`;
+
+  const htmlVacio = `<p style="text-align:center;color:#9ca3af;padding:20px 0;font-size:0.88rem;">Carrito vacío</p>`;
+  const contenido = ordenActual.length === 0 ? htmlVacio : ordenActual.map(htmlItem).join('');
+
+  // ── Actualizar panel desktop ──
+  if (listaItemsOrden) listaItemsOrden.innerHTML = contenido;
+  if (ordenTotalSpan)  ordenTotalSpan.textContent = fmt(total);
+  if (btnProcesar)     btnProcesar.disabled = ordenActual.length === 0;
+
+  // Badge contador desktop
+  let badgeDesk = document.querySelector('.badge-contador-desk-inline');
+  if (!badgeDesk) {
+    const h3 = document.querySelector('#panelOrden h3');
+    if (h3) {
+      badgeDesk = document.createElement('span');
+      badgeDesk.className = 'badge-contador-desk badge-contador-desk-inline';
+      h3.appendChild(badgeDesk);
     }
-
-    listaItemsOrden.innerHTML = ordenActual.map(item => `
-      <div class="item-carrito" style="border-bottom: 1px dashed #e0e0e0; padding: 10px 0; animation: fadeIn 0.3s ease;">
-        <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 4px;">
-            <div style="font-weight: 600; font-size: 0.9rem; color: #333; width: 70%; line-height: 1.2;">
-                ${item.cantidad}x ${item.nombre}
-            </div>
-            <div style="text-align: right;">
-                <span style="font-weight: bold; font-size:0.9rem;">$${(item.precio * item.cantidad).toFixed(2)}</span>
-                <button onclick="window.quitarItem(${item.tempId})" style="border:none; background:none; color:red; font-size:1.1rem; margin-left:5px; cursor:pointer;">&times;</button>
-            </div>
-        </div>
-        <input type="text" placeholder="Nota..." value="${item.comentario}" 
-               oninput="window.actualizarNotaItem(${item.tempId}, this.value)"
-               style="width: 100%; font-size: 0.75rem; padding:4px 0; border: none; border-bottom: 1px solid #eee; background:transparent; outline:none;">
-      </div>`).join("");
-
-    const total = ordenActual.reduce((acc, i) => acc + i.precio * i.cantidad, 0);
-    ordenTotalSpan.textContent = `$${total.toFixed(2)}`;
-    if(btnProcesar) btnProcesar.disabled = false;
+  }
+  if (badgeDesk) {
+    badgeDesk.textContent = nItems > 0 ? `${nItems} ítem${nItems !== 1 ? 's' : ''}` : '';
+    badgeDesk.style.display = nItems > 0 ? 'inline' : 'none';
   }
 
-  window.quitarItem = (tempId) => {
-    ordenActual = ordenActual.filter((i) => i.tempId !== tempId);
-    renderizarCarrito();
-  };
+  // ── Actualizar drawer móvil ──
+  const listaDrawer  = document.getElementById('listaItemsDrawer');
+  const totalDrawer  = document.getElementById('totalDrawer');
+  const badgeDrawer  = document.getElementById('badgeDrawer');
+  const fabBadge     = document.getElementById('fabBadge');
+  const fabTotal     = document.getElementById('fabTotal');
+  const fabBtn       = document.getElementById('btnCarritoFlotante');
+  const btnProcDraw  = document.getElementById('btnProcesarDrawer');
+
+  if (listaDrawer) listaDrawer.innerHTML = contenido;
+  if (totalDrawer) totalDrawer.textContent = fmt(total);
+  if (badgeDrawer) { badgeDrawer.textContent = nItems; badgeDrawer.style.display = nItems > 0 ? 'inline' : 'none'; }
+  if (btnProcDraw) btnProcDraw.disabled = ordenActual.length === 0;
+
+  // Botón flotante: solo visible si hay items
+  if (fabBtn)    fabBtn.style.display   = nItems > 0 ? 'flex' : 'none';
+  if (fabBadge)  fabBadge.textContent   = nItems;
+  if (fabTotal)  fabTotal.textContent   = fmt(total);
+}
 
   function configurarFiltros() {
     inputBuscar?.addEventListener("input", () => {
@@ -301,7 +365,7 @@ async function inicializar() {
     else await guardarOrden(mesaLabel, total);
   };
 
-  async function guardarOrden(mesaLabel, total, metodoPago = null) {
+  async function guardarOrden(mesaLabel, total, metodoPago = null, notaExtra = "") {
     try {
       let estadoInicial = "pendiente";
       if (mesaURL && sesion.rol === "invitado") estadoInicial = "por_confirmar";
@@ -312,7 +376,7 @@ async function inicializar() {
       }).join(", ");
 
       const notasDePlatos = ordenActual.filter(i => i.comentario.trim() !== "").map(i => `🔹${i.nombre}: ${i.comentario}`).join(" | ");
-      const comentarioGeneral = comentarioInput?.value || "";
+      const comentarioGeneral = comentarioInput?.value || notaExtra || "";
 
       let comentarioFinal = "";
       if (notasDePlatos) comentarioFinal += notasDePlatos;

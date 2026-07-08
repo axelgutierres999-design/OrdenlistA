@@ -179,6 +179,180 @@
         #menuNavegacion.show { display: flex !important; }
         #menuNavegacion li { width: 100%; text-align: center; }
     }
+    /* ── MEJORAS MÓVIL: Panel de orden flotante ──────────────── */
+
+/* Barra flotante pegada al fondo en móvil */
+@media (max-width: 768px) {
+  /* Ocultar el panel lateral en móvil */
+  #panelOrden {
+    display: none !important;
+  }
+
+  /* Espacio para que el botón flotante no tape productos */
+  main.container {
+    padding-bottom: 90px;
+  }
+}
+
+/* Botón flotante del carrito */
+#btnCarritoFlotante {
+  display: none;
+  position: fixed;
+  bottom: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: linear-gradient(135deg, #10ad93, #0d8a76);
+  color: white;
+  border: none;
+  border-radius: 50px;
+  padding: 14px 28px;
+  font-size: 1rem;
+  font-weight: 800;
+  align-items: center;
+  gap: 10px;
+  box-shadow: 0 8px 24px rgba(16,173,147,0.45);
+  cursor: pointer;
+  z-index: 800;
+  white-space: nowrap;
+}
+#btnCarritoFlotante .badge {
+  background: white;
+  color: #10ad93;
+  border-radius: 50%;
+  width: 26px;
+  height: 26px;
+  font-size: 0.85rem;
+  font-weight: 900;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+@media (max-width: 768px) {
+  #btnCarritoFlotante { display: flex; }
+}
+
+/* Overlay oscuro del drawer */
+#drawerOverlay {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.45);
+  z-index: 900;
+}
+#drawerOverlay.abierto { display: block; }
+
+/* Drawer deslizante desde abajo */
+#carritoDrawer {
+  position: fixed;
+  bottom: 0; left: 0; right: 0;
+  background: white;
+  border-radius: 22px 22px 0 0;
+  max-height: 85vh;
+  display: flex;
+  flex-direction: column;
+  z-index: 901;
+  transform: translateY(100%);
+  transition: transform 0.3s cubic-bezier(0.32, 0.72, 0, 1);
+  box-shadow: 0 -8px 40px rgba(0,0,0,0.2);
+}
+#carritoDrawer.abierto { transform: translateY(0); }
+
+.drawer-handle {
+  width: 40px; height: 4px;
+  background: #d1d5db;
+  border-radius: 2px;
+  margin: 12px auto 0;
+  flex-shrink: 0;
+}
+.drawer-header {
+  padding: 12px 20px 10px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-bottom: 1px solid #f3f4f6;
+  flex-shrink: 0;
+}
+.drawer-titulo {
+  font-size: 1.1rem;
+  font-weight: 800;
+  color: #111;
+  margin: 0;
+}
+.drawer-cerrar {
+  background: #f3f4f6;
+  border: none;
+  border-radius: 50%;
+  width: 32px; height: 32px;
+  font-size: 1rem;
+  cursor: pointer;
+}
+.drawer-body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 10px 16px;
+}
+.drawer-footer {
+  padding: 12px 16px 28px;
+  border-top: 2px solid #f3f4f6;
+  flex-shrink: 0;
+}
+
+/* Mejora items del carrito: texto más grande, mejor spacing */
+.item-carrito {
+  padding: 12px 0 !important;
+  border-bottom: 1px solid #f0f0f0 !important;
+}
+.item-carrito .nombre-item {
+  font-size: 0.95rem !important;
+  font-weight: 700 !important;
+  color: #1f2937 !important;
+  line-height: 1.4 !important;
+}
+.item-carrito .precio-item {
+  font-size: 0.95rem !important;
+  font-weight: 800 !important;
+  color: #10ad93 !important;
+}
+
+/* Controles +/- cantidad */
+.ctrl-cantidad {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 6px;
+}
+.btn-cant {
+  background: #f3f4f6;
+  border: none;
+  border-radius: 50%;
+  width: 30px; height: 30px;
+  font-size: 1.1rem;
+  font-weight: 700;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.15s;
+}
+.btn-cant:hover { background: #e5e7eb; }
+.btn-cant.restar:hover { background: #fee2e2; color: #e53935; }
+.num-cant {
+  font-size: 1rem;
+  font-weight: 800;
+  min-width: 20px;
+  text-align: center;
+}
+
+/* Badge contador en panel desktop */
+.badge-contador-desk {
+  background: #10ad93;
+  color: white;
+  border-radius: 20px;
+  padding: 2px 9px;
+  font-size: 0.78rem;
+  font-weight: 800;
+  margin-left: 8px;
+}
   </style>
 </head>
 <body>
@@ -337,6 +511,16 @@
       alert("Pedido pagado con: " + metodo);
       cerrarModalCobro();
     }
+    function abrirDrawer() {
+  document.getElementById('carritoDrawer').classList.add('abierto');
+  document.getElementById('drawerOverlay').classList.add('abierto');
+  document.body.style.overflow = 'hidden';
+}
+function cerrarDrawer() {
+  document.getElementById('carritoDrawer').classList.remove('abierto');
+  document.getElementById('drawerOverlay').classList.remove('abierto');
+  document.body.style.overflow = '';
+}
   </script>
 
   <script>
@@ -345,7 +529,48 @@
       menu.classList.toggle('show');
   }
 </script>
-  
+  <!-- Botón flotante carrito (solo móvil) -->
+<button id="btnCarritoFlotante" onclick="abrirDrawer()">
+  🛒 Ver Orden
+  <span class="badge" id="fabBadge">0</span>
+  <span id="fabTotal" style="opacity:0.85;font-size:0.88rem;">$0.00</span>
+</button>
+
+<!-- Overlay oscuro -->
+<div id="drawerOverlay" onclick="cerrarDrawer()"></div>
+
+<!-- Drawer deslizante -->
+<div id="carritoDrawer">
+  <div class="drawer-handle"></div>
+  <div class="drawer-header">
+    <h3 class="drawer-titulo">
+      🛒 Tu Orden
+      <span id="badgeDrawer" class="badge-contador-desk" style="display:none;"></span>
+    </h3>
+    <button class="drawer-cerrar" onclick="cerrarDrawer()">✕</button>
+  </div>
+  <div class="drawer-body" id="listaItemsDrawer">
+    <p style="text-align:center;color:#9ca3af;padding:20px 0;">Agrega productos al pedido</p>
+  </div>
+  <div class="drawer-footer">
+    <div id="alertaLlevarDrawer" class="alerta-llevar"></div>
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
+      <span style="font-size:0.9rem;color:#6b7280;font-weight:600;">Total</span>
+      <span id="totalDrawer" style="font-size:1.5rem;font-weight:900;color:#10ad93;">$0.00</span>
+    </div>
+    <textarea id="notaDrawer" rows="2" placeholder="📝 Nota general..."
+      style="width:100%;border:1.5px solid #e5e7eb;border-radius:10px;padding:8px;font-size:0.85rem;resize:none;margin-bottom:8px;"></textarea>
+    <select id="selectMesaDrawer"
+      style="width:100%;border:1.5px solid #e5e7eb;border-radius:10px;padding:9px;margin-bottom:10px;font-size:0.88rem;">
+      <option value="" disabled selected>🪑 Selecciona mesa...</option>
+    </select>
+    <button id="btnParaLlevarDrawer" class="btn-llevar"
+      style="width:100%;margin-bottom:8px;">🥡 Para Llevar</button>
+    <button id="btnProcesarDrawer"
+      style="width:100%;padding:13px;background:linear-gradient(135deg,#10ad93,#0d8a76);color:white;border:none;border-radius:12px;font-size:1rem;font-weight:800;cursor:pointer;"
+      disabled>🚀 Enviar Pedido</button>
+  </div>
+</div>
   <button id="btnAgregarProducto" class="fab-add" style="display:none;">+</button>
 <!-- Librería para convertir HTML a Imagen -->
 <script src="https://html2canvas.hertzen.com/dist/html2canvas.min.js"></script>
