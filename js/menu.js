@@ -281,12 +281,12 @@ window.quitarItem = (tempId) => {
         </span>
       </div>
       <div class="ctrl-cantidad">
-        <button class="btn-cant restar" onclick="window.cambiarCantidad(${item.tempId}, -1)">−</button>
+        <button class="btn-cant restar" onclick="event.stopPropagation(); window.cambiarCantidad(${item.tempId}, -1)">−</button>
         <span class="num-cant">${item.cantidad}</span>
-        <button class="btn-cant" onclick="window.cambiarCantidad(${item.tempId}, +1)">+</button>
+        <button class="btn-cant" onclick="event.stopPropagation(); window.cambiarCantidad(${item.tempId}, +1)">+</button>
       </div>
       <input type="text" placeholder="Nota (ej: sin cebolla)..." value="${item.comentario}"
-        oninput="window.actualizarNotaItem(${item.tempId}, this.value)"
+        onclick="event.stopPropagation()" oninput="window.actualizarNotaItem(${item.tempId}, this.value)"
         style="width:100%;font-size:0.78rem;padding:4px 0;border:none;border-bottom:1px solid #eee;background:transparent;outline:none;margin-top:5px;">
     </div>`;
 
@@ -328,7 +328,10 @@ window.quitarItem = (tempId) => {
   if (btnProcDraw) btnProcDraw.disabled = ordenActual.length === 0;
 
   // Botón flotante: solo visible si hay items
-  if (fabBtn)    fabBtn.style.display   = nItems > 0 ? 'flex' : 'none';
+  if (fabBtn) {
+  const esMobil = window.innerWidth <= 768;
+  fabBtn.style.display = (nItems > 0 && esMobil) ? 'flex' : 'none';
+}
   if (fabBadge)  fabBadge.textContent   = nItems;
   if (fabTotal)  fabTotal.textContent   = fmt(total);
 }
