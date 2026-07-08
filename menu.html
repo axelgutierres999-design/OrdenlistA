@@ -280,14 +280,22 @@
   color: #111;
   margin: 0;
 }
+/* DESPUÉS: */
 .drawer-cerrar {
-  background: #f3f4f6;
+  background: #1f2937;
+  color: white;
   border: none;
   border-radius: 50%;
-  width: 32px; height: 32px;
-  font-size: 1rem;
+  width: 34px; height: 34px;
+  font-size: 0.9rem;
+  font-weight: 700;
   cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.15s;
 }
+.drawer-cerrar:hover { background: #374151; }
 .drawer-body {
   flex: 1;
   overflow-y: auto;
@@ -323,21 +331,32 @@
   gap: 8px;
   margin-top: 6px;
 }
+/* DESPUÉS: */
 .btn-cant {
-  background: #f3f4f6;
   border: none;
   border-radius: 50%;
-  width: 30px; height: 30px;
+  width: 32px; height: 32px;
   font-size: 1.1rem;
-  font-weight: 700;
+  font-weight: 800;
   cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
-  transition: background 0.15s;
+  transition: all 0.15s;
+  /* Botón + por defecto (verde) */
+  background: #10ad93;
+  color: white;
+  box-shadow: 0 2px 6px rgba(16,173,147,0.35);
 }
-.btn-cant:hover { background: #e5e7eb; }
-.btn-cant.restar:hover { background: #fee2e2; color: #e53935; }
+.btn-cant:hover { background: #0d8a76; transform: scale(1.08); }
+
+/* Botón − en rojo */
+.btn-cant.restar {
+  background: #e53935;
+  color: white;
+  box-shadow: 0 2px 6px rgba(229,57,53,0.35);
+}
+.btn-cant.restar:hover { background: #c62828; transform: scale(1.08); }
 .num-cant {
   font-size: 1rem;
   font-weight: 800;
