@@ -85,6 +85,11 @@
         #menuNavegacion.show { display: flex; }
         #menuNavegacion li { width: 100%; text-align: center; }
     }
+    @keyframes pulseVoz {
+        0%,100% { opacity:1; transform:scale(1); }
+        50%      { opacity:0.7; transform:scale(1.05); }
+    }
+    
   </style>
 </head>
 <body>
@@ -105,10 +110,25 @@
 </nav>
 
   <main class="container panel-cocina">
-      <header>
-          <h1>🛠️ Monitor de Producción</h1>
-          <p>Los pedidos finalizados descuentan automáticamente el stock del inventario.</p>
-      </header>
+      <header style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:12px;">
+  <div>
+    <h1 style="margin:0;">🛠️ Monitor de Producción</h1>
+    <p style="margin:4px 0 0;">Los pedidos finalizados descuentan automáticamente el stock.</p>
+  </div>
+  <div style="display:flex;gap:10px;align-items:center;">
+    <button id="btnVoz"
+      style="background:#6c3483;color:white;border:none;border-radius:12px;
+             padding:10px 18px;font-size:0.9rem;font-weight:700;cursor:pointer;
+             display:flex;align-items:center;gap:8px;">
+      🔇 Voz: OFF
+    </button>
+    <div id="indicadorVoz" style="display:none;background:#8e44ad;color:white;
+         padding:6px 12px;border-radius:8px;font-size:0.8rem;font-weight:600;
+         animation:pulseVoz 1.5s infinite;">
+      🔊 Leyendo...
+    </div>
+  </div>
+</header>
 
       <div class="grid" style="grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 1.5rem;">
           <div>

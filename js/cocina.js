@@ -13,6 +13,90 @@ document.addEventListener('DOMContentLoaded', () => {
     const pendiente_aceptacion = document.getElementById('tareaspendiente_aceptacion');
     const por_pagar           = document.getElementById('tareaspor_pagar');
 
+    // ================================================================
+// 🎙️ SISTEMA DE VOZ — Configuración
+// ================================================================
+let vozActiva   = false;
+let vozOcupada  = false;
+const colaVoz   = [];          // Cola de mensajes pendientes
+const ordenesPreviamenteLeidas = new Set(); // IDs ya anunciados
+
+function hablar(texto) {
+    if (!vozActiva) return;
+    // Agregar a cola para no cortar mensajes anteriores
+    colaVoz.push(texto);
+    if (!vozOcupada) procesarColaVoz();
+}
+
+function procesarColaVoz() {
+    if (colaVoz.length === 0) {
+        vozOcupada = false;
+        document.getElementById('indicadorVoz').style.display = 'none';
+        return;
+    }
+    vozOcupada = true;
+    document.getElementById('indicadorVoz').style.display = 'block';
+
+    const texto  = colaVoz.shift();
+    const utterance = new SpeechSynthesisUtterance(texto);
+    utterance.lang  = 'es-MX';
+    utterance.rate  = 0.92;   // Velocidad natural para cocina ruidosa
+    utterance.pitch = 1.0;
+
+    // Elegir voz en español si está disponible
+    const voces = window.speechSynthesis.getVoices();
+    const vozEs  = voces.find(v => v.lang.startsWith('es')) || voces[0];
+    if (vozEs) utterance.voice = vozEs;
+
+    utterance.onend = procesarColaVoz;
+    window.speechSynthesis.speak(utterance);
+}
+
+// Construir el texto hablado de una orden
+function textoOrden(orden) {
+    const minutosEspera = Math.round((Date.now() - new Date(orden.created_at).getTime()) / 60000);
+    const mesa = orden.mesa || 'sin mesa';
+
+    // Limpiar productos: quitar corchetes de notas especiales
+    const items = (orden.productos || '').split(',').map(p => p.trim().replace(/\[.*?\]/g, '').trim());
+    const listaProductos = items.filter(Boolean).join(', ');
+
+    // Extraer notas especiales
+    const notasBruta = (orden.productos || '').match(/\[(.+?)\]/g);
+    const notas = notasBruta ? 'Nota especial: ' + notasBruta.map(n => n.replace(/[\[\]]/g,'')).join(', ') : '';
+
+    let texto = `Nueva orden. ${mesa}. ${listaProductos}.`;
+    if (notas)           texto += ` ${notas}.`;
+    if (orden.comentarios) texto += ` Comentario del cliente: ${orden.comentarios}.`;
+    if (minutosEspera > 0) texto += ` Lleva ${minutosEspera} ${minutosEspera === 1 ? 'minuto' : 'minutos'} esperando.`;
+
+    return texto;
+}
+
+// Activar / desactivar voz desde el botón
+document.getElementById('btnVoz')?.addEventListener('click', () => {
+    vozActiva = !vozActiva;
+    const btn = document.getElementById('btnVoz');
+    if (vozActiva) {
+        btn.textContent = '🔊 Voz: ON';
+        btn.style.background = '#27ae60';
+        // Anunciar activación
+        hablar('Sistema de voz activado. Listo para anunciar nuevas órdenes.');
+    } else {
+        btn.textContent = '🔇 Voz: OFF';
+        btn.style.background = '#6c3483';
+        window.speechSynthesis.cancel();
+        colaVoz.length = 0;
+        vozOcupada = false;
+        document.getElementById('indicadorVoz').style.display = 'none';
+    }
+});
+
+// Cargar voces al inicio (Chrome las carga de forma asíncrona)
+if (window.speechSynthesis) {
+    window.speechSynthesis.getVoices();
+    window.speechSynthesis.onvoiceschanged = () => window.speechSynthesis.getVoices();
+}
     const estadosContainer = {
         'pendiente':            pendientes,
         'preparando':           enProceso,
@@ -126,6 +210,20 @@ document.addEventListener('DOMContentLoaded', () => {
     // ================================================================
     function renderizarCocina() {
         // Limpiar columnas
+        // ── Detectar órdenes nuevas y anunciarlas por voz ──────────
+    if (vozActiva) {
+        ordenesLocales
+            .filter(o => o.estado === 'pendiente' && !ordenesPreviamenteLeidas.has(o.id))
+            .forEach(o => {
+                ordenesPreviamenteLeidas.add(o.id);
+                hablar(textoOrden(o));
+            });
+    }
+    // Limpiar IDs de órdenes que ya no existen (ya entregadas)
+    const idsActivos = new Set(ordenesLocales.map(o => o.id));
+    ordenesPreviamenteLeidas.forEach(id => {
+        if (!idsActivos.has(id)) ordenesPreviamenteLeidas.delete(id);
+    });
         Object.values(estadosContainer).forEach(c => { if (c) c.innerHTML = ''; });
 
         const estadosVisibles = ['pendiente', 'preparando', 'proceso', 'terminado',
