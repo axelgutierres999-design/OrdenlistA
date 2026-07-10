@@ -21,10 +21,52 @@ let vozOcupada  = false;
 const colaVoz   = [];          // Cola de mensajes pendientes
 const ordenesPreviamenteLeidas = new Set(); // IDs ya anunciados
 
-function hablar(texto) {
+// Registro de cuándo se leyó cada orden por última vez
+const ultimaLecturaPorId = {};   // { id: timestamp }
+
+// Repetir órdenes en preparación cada 12 min
+// Repetir órdenes listas para entrega cada 8 min
+const REPETIR_PREPARANDO_MS = 12 * 60 * 1000;
+const REPETIR_TERMINADO_MS  =  8 * 60 * 1000;
+
+setInterval(() => {
+    if (!vozActiva || vozOcupada) return;
+    const ahora = Date.now();
+
+    ordenesLocales.forEach(o => {
+        const ultima = ultimaLecturaPorId[o.id] || 0;
+
+        if (o.estado === 'preparando') {
+            const limite = ultima
+                ? REPETIR_PREPARANDO_MS
+                : 5 * 60 * 1000;   // primera repetición a los 5 min
+            if (ahora - ultima >= limite) {
+                ultimaLecturaPorId[o.id] = ahora;
+                hablar(textoOrdenPorEstado(o));
+            }
+        }
+
+        if (o.estado === 'terminado') {
+            const limite = ultima
+                ? REPETIR_TERMINADO_MS
+                : 2 * 60 * 1000;   // primera alerta a los 2 min sin entrega
+            if (ahora - ultima >= limite) {
+                ultimaLecturaPorId[o.id] = ahora;
+                hablar(textoOrdenPorEstado(o));
+            }
+        }
+    });
+
+    // Limpiar IDs de órdenes que ya no existen
+    const idsActivos = new Set(ordenesLocales.map(o => String(o.id)));
+    Object.keys(ultimaLecturaPorId).forEach(id => {
+        if (!idsActivos.has(id)) delete ultimaLecturaPorId[id];
+    });
+}, 30_000); // Revisa cada 30 segundos
+
+function hablar(texto, esNota = false) {
     if (!vozActiva) return;
-    // Agregar a cola para no cortar mensajes anteriores
-    colaVoz.push(texto);
+    colaVoz.push({ texto, esNota });
     if (!vozOcupada) procesarColaVoz();
 }
 
@@ -37,60 +79,108 @@ function procesarColaVoz() {
     vozOcupada = true;
     document.getElementById('indicadorVoz').style.display = 'block';
 
-    const texto  = colaVoz.shift();
-    const utterance = new SpeechSynthesisUtterance(texto);
-    utterance.lang  = 'es-MX';
-    utterance.rate  = 0.92;   // Velocidad natural para cocina ruidosa
-    utterance.pitch = 1.0;
+    const { texto, esNota } = colaVoz.shift();
 
-    // Elegir voz en español si está disponible
-    const voces = window.speechSynthesis.getVoices();
-    const vozEs  = voces.find(v => v.lang.startsWith('es')) || voces[0];
-    if (vozEs) utterance.voice = vozEs;
+    const u    = new SpeechSynthesisUtterance(texto);
+    u.lang     = 'es-MX';
+    u.rate     = esNota ? 0.78 : 0.88;   // notas más lentas
+    u.pitch    = esNota ? 0.95 : 1.05;
+    u.volume   = 1.0;
 
-    utterance.onend = procesarColaVoz;
-    window.speechSynthesis.speak(utterance);
+    // Preferir voz femenina en español (más clara en cocinas ruidosas)
+    const voces   = window.speechSynthesis.getVoices();
+    const prioridad = [
+        v => v.name.includes('Paulina'),      // macOS México
+        v => v.name.includes('Monica'),       // macOS español
+        v => v.lang === 'es-MX',
+        v => v.lang === 'es-ES',
+        v => v.lang.startsWith('es'),
+    ];
+    for (const fn of prioridad) {
+        const voz = voces.find(fn);
+        if (voz) { u.voice = voz; break; }
+    }
+
+    u.onend   = procesarColaVoz;
+    u.onerror = procesarColaVoz;
+    window.speechSynthesis.speak(u);
 }
 
 // Construir el texto hablado de una orden
-function textoOrden(orden) {
-    const minutosEspera = Math.round((Date.now() - new Date(orden.created_at).getTime()) / 60000);
+function textoOrdenPorEstado(orden) {
     const mesa = orden.mesa || 'sin mesa';
+    const mins = Math.round(
+        (Date.now() - new Date(orden.created_at).getTime()) / 60000
+    );
 
-    // Limpiar productos: quitar corchetes de notas especiales
-    const items = (orden.productos || '').split(',').map(p => p.trim().replace(/\[.*?\]/g, '').trim());
-    const listaProductos = items.filter(Boolean).join(', ');
+    // Limpiar productos: "1x Pan" → "un Pan", "2x Tacos" → "dos Tacos"
+    // y eliminar el rombo y corchetes de las notas inline
+    const numerosALetras = { 1:'un', 2:'dos', 3:'tres', 4:'cuatro',
+                             5:'cinco', 6:'seis', 7:'siete', 8:'ocho',
+                             9:'nueve', 10:'diez' };
 
-    // Extraer notas especiales
-    const notasBruta = (orden.productos || '').match(/\[(.+?)\]/g);
-    const notas = notasBruta ? 'Nota especial: ' + notasBruta.map(n => n.replace(/[\[\]]/g,'')).join(', ') : '';
+    const items = (orden.productos || '').split(',').map(p => {
+        const limpio = p.trim();
+        // Extraer cantidad y nombre, quitar [notas]
+        const match  = limpio.match(/^(\d+)x\s+(.+?)(?:\s*\[.*?\]\s*)*$/);
+        if (match) {
+            const cant  = parseInt(match[1]);
+            const nombre = match[2].trim();
+            const cantStr = numerosALetras[cant] || cant.toString();
+            return `${cantStr} ${nombre}`;
+        }
+        // Si no hay patrón, limpiar corchetes y rombos
+        return limpio.replace(/\[.*?\]/g, '').replace(/[◆♦►•]/g, '').trim();
+    }).filter(Boolean);
 
-    let texto = `Nueva orden. ${mesa}. ${listaProductos}.`;
-    if (notas)           texto += ` ${notas}.`;
-    if (orden.comentarios) texto += ` Comentario del cliente: ${orden.comentarios}.`;
-    if (minutosEspera > 0) texto += ` Lleva ${minutosEspera} ${minutosEspera === 1 ? 'minuto' : 'minutos'} esperando.`;
+    // Extraer notas especiales de los corchetes (limpias, sin rombos)
+    const notasRaw = (orden.productos || '').match(/\[(.+?)\]/g) || [];
+    const notasLimpias = notasRaw.map(n =>
+        n.replace(/[\[\]◆♦►•]/g, '').trim()
+    ).filter(Boolean);
+
+    // Comentario general (quitar "---", "GENERAL:", rombos)
+    const comentario = (orden.comentarios || '')
+        .replace(/---/g, '')
+        .replace(/GENERAL:/gi, '')
+        .replace(/[◆♦►•]/g, '')
+        .replace(/\|/g, ', ')
+        .trim();
+
+    // Construir el mensaje según el estado
+    let texto = '';
+
+    if (orden.estado === 'pendiente') {
+        texto = `Nueva orden. ${mesa}. `;
+        texto += items.join(', ') + '. ';
+        // Notas: pausa antes para que el cocinero las escuche bien
+        if (notasLimpias.length > 0) {
+    texto += 'Atención, tiene notas especiales. ';
+    // Encolar las notas por separado con velocidad reducida
+    setTimeout(() => {
+        hablar('Notas: ' + notasLimpias.join('. '), true);
+    }, 100);
+}
+        if (comentario) texto += `Nota general: ${comentario}. `;
+        texto += mins > 0
+            ? `El cliente lleva ${mins} ${mins === 1 ? 'minuto' : 'minutos'} esperando.`
+            : 'Acaba de llegar.';
+
+    } else if (orden.estado === 'preparando') {
+        texto = `Recordatorio. ${mesa} lleva ${mins} ${mins === 1 ? 'minuto' : 'minutos'} en preparación. `;
+        texto += items.join(', ') + '. ';
+        if (notasLimpias.length > 0) texto += 'Notas: ' + notasLimpias.join('. ') + '. ';
+
+    } else if (orden.estado === 'terminado') {
+        texto = `Atención. La orden de ${mesa} está lista para entregar. `;
+        texto += items.join(', ') + '. ';
+        texto += mins > 0
+            ? `Lleva ${mins} ${mins === 1 ? 'minuto' : 'minutos'} esperando entrega.`
+            : '';
+    }
 
     return texto;
 }
-
-// Activar / desactivar voz desde el botón
-document.getElementById('btnVoz')?.addEventListener('click', () => {
-    vozActiva = !vozActiva;
-    const btn = document.getElementById('btnVoz');
-    if (vozActiva) {
-        btn.textContent = '🔊 Voz: ON';
-        btn.style.background = '#27ae60';
-        // Anunciar activación
-        hablar('Sistema de voz activado. Listo para anunciar nuevas órdenes.');
-    } else {
-        btn.textContent = '🔇 Voz: OFF';
-        btn.style.background = '#6c3483';
-        window.speechSynthesis.cancel();
-        colaVoz.length = 0;
-        vozOcupada = false;
-        document.getElementById('indicadorVoz').style.display = 'none';
-    }
-});
 
 // Cargar voces al inicio (Chrome las carga de forma asíncrona)
 if (window.speechSynthesis) {
@@ -212,12 +302,15 @@ if (window.speechSynthesis) {
         // Limpiar columnas
         // ── Detectar órdenes nuevas y anunciarlas por voz ──────────
     if (vozActiva) {
-        ordenesLocales
-            .filter(o => o.estado === 'pendiente' && !ordenesPreviamenteLeidas.has(o.id))
-            .forEach(o => {
-                ordenesPreviamenteLeidas.add(o.id);
-                hablar(textoOrden(o));
-            });
+       // Anunciar nuevas órdenes entrantes (pendiente/preparando/terminado)
+ordenesLocales
+  .filter(o => ['pendiente','preparando','terminado'].includes(o.estado)
+               && !ordenesPreviamenteLeidas.has(o.id))
+  .forEach(o => {
+      ordenesPreviamenteLeidas.add(o.id);
+      ultimaLecturaPorId[o.id] = Date.now();
+      hablar(textoOrdenPorEstado(o));
+  });
     }
     // Limpiar IDs de órdenes que ya no existen (ya entregadas)
     const idsActivos = new Set(ordenesLocales.map(o => o.id));
