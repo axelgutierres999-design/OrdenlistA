@@ -20,6 +20,10 @@ document.addEventListener('DOMContentLoaded', async () => {
         if(inputMesas && configRestaurante.num_mesas) {
             inputMesas.value = configRestaurante.num_mesas;
         }
+        const inputWhatsapp = document.getElementById('inputNumWhatsapp');
+       if(inputWhatsapp && configRestaurante.whatsapp_numero) {
+          inputWhatsapp.value = configRestaurante.whatsapp_numero;
+        }
 
         App.registerRender('mesas', renderizarMesas);
         await renderizarMesas();
@@ -563,9 +567,17 @@ async function renderizarMesas() {
 
       // Forzar recarga de datos en app.js para que getOrdenes() esté actualizado
       // antes de redibujar — sin esto el mapa sigue mostrando la mesa ocupada
-      if (typeof App !== 'undefined' && App.notifyUpdate) {
-          await new Promise(resolve => setTimeout(resolve, 600)); // espera que Supabase propague
-          App.notifyUpdate(); // esto dispara cargarDatosIniciales() en app.js → luego renderizarMesas()
+      if (typeof App !== 'undefined') {
+          // Esperar 1 segundo para que Supabase haya replicado completamente
+          await new Promise(resolve => setTimeout(resolve, 1000));
+          
+          // Llamar a cargarDatosIniciales DIRECTAMENTE (que es más agresivo)
+          if (App.cargarDatosIniciales) {
+              await App.cargarDatosIniciales();
+          } else {
+              // Fallback si no está expuesto
+              App.notifyUpdate();
+          }
       } else {
           renderizarMesas();
       }
@@ -591,7 +603,7 @@ async function renderizarMesas() {
 async function mostrarTicket(orden) {
     const modal = document.getElementById('modalTicket');
     
-    // 1. LLENADO DE DATOS (Igual que antes)
+    // 1. LLENADO DE DATOS
     document.getElementById('t-nombre-rest').textContent = configRestaurante.nombre || "Mi Restaurante";
     document.getElementById('t-direccion').textContent = configRestaurante.direccion || "Dirección no registrada";
     document.getElementById('t-telefono').textContent = "Tel: " + (configRestaurante.telefono || "00000000");
@@ -621,42 +633,72 @@ async function mostrarTicket(orden) {
             <td style="text-align:right;">—</td>
         </tr>`).join('');
 
-    // 2. LÓGICA DE WHATSAPP (MODO PROFESIONAL: IMAGEN)
+    // 2. BOTÓN WHATSAPP: ENVÍA A NÚMERO PRECONFIGURADO AUTOMÁTICAMENTE
     const btnWhatsapp = document.getElementById('btnWhatsapp');
     btnWhatsapp.onclick = async () => {
+        // Obtener número de WhatsApp desde configuración
+        const numeroWhatsapp = configRestaurante.whatsapp_numero 
+            ? configRestaurante.whatsapp_numero.replace(/\D/g, '') // Solo dígitos
+            : null;
+
+        if (!numeroWhatsapp) {
+            alert("⚠️ No hay número de WhatsApp configurado en el restaurante.");
+            return;
+        }
+
         const areaTicket = document.getElementById('areaImpresion');
         
-        // Feedback visual mientras procesa
+        // Feedback visual
         const originalText = btnWhatsapp.innerHTML;
         btnWhatsapp.disabled = true;
         btnWhatsapp.innerHTML = "⌛ Generando...";
 
         try {
-            // "Tomamos la foto" del ticket en alta definición
+            // Convertir ticket a imagen
             const canvas = await html2canvas(areaTicket, {
-                scale: 3, // Calidad HD
+                scale: 2, // Menor escala para que sea más rápido
                 backgroundColor: "#f9f9f9",
                 logging: false
             });
 
-            // Convertimos a archivo de imagen real
+            // Convertir canvas a blob
             canvas.toBlob(async (blob) => {
-                const file = new File([blob], `Ticket_Mesa_${orden.mesa}.png`, { type: "image/png" });
-
-                // Verificamos si es móvil/tablet para compartir directamente
+                // Crear FormData para subir a servicio temporal (si lo tienes)
+                // O simplemente mostrar la URL como data: URL
+                
+                const file = new File([blob], `Ticket_${orden.mesa}.png`, { type: "image/png" });
+                
+                // OPCIÓN 1: Si es móvil, intentar compartir
                 if (navigator.canShare && navigator.canShare({ files: [file] })) {
-                    await navigator.share({
-                        files: [file],
-                        title: `Ticket Mesa ${orden.mesa}`,
-                        text: `Aquí tienes tu ticket de OrdenLista. ¡Gracias por tu visita!`
-                    });
-                } else {
-                    // Si es PC, descargamos la imagen para que el cajero la arrastre a WhatsApp Web
-                    const link = document.createElement('a');
-                    link.download = `Ticket_Mesa_${orden.mesa}.png`;
-                    link.href = canvas.toDataURL("image/png");
-                    link.click();
-                    alert("Se ha descargado el ticket en imagen. Puedes enviarlo por WhatsApp Web.");
+                    try {
+                        await navigator.share({
+                            files: [file],
+                            title: `Ticket ${orden.mesa}`,
+                            text: `Ticket del restaurante ${configRestaurante.nombre}`
+                        });
+                    } catch(e) {
+                        console.log('Compartir cancelado');
+                    }
+                } 
+                // OPCIÓN 2: Si es PC, convertir a data URL y abrir WhatsApp Web
+                else {
+                    // Convertir blob a data URL
+                    const reader = new FileReader();
+                    reader.onload = () => {
+                        const dataUrl = reader.result;
+                        
+                        // Crear mensaje para WhatsApp
+                        const mensaje = `Ticket: ${orden.mesa} | Total: $${total.toFixed(2)}`;
+                        
+                        // Abrir WhatsApp Web con enlace
+                        // Nota: para enviar imagen automática necesitarías un backend
+                        // Por ahora, abrimos WhatsApp con un mensaje
+                        const urlWhatsapp = `https://wa.me/${numeroWhatsapp}?text=${encodeURIComponent(mensaje)}`;
+                        window.open(urlWhatsapp, '_blank');
+                        
+                        alert("Se abrió WhatsApp. Por favor, adjunta manualmente la imagen descargada.");
+                    };
+                    reader.readAsDataURL(blob);
                 }
 
                 btnWhatsapp.disabled = false;
@@ -664,8 +706,8 @@ async function mostrarTicket(orden) {
             }, "image/png");
 
         } catch (error) {
-            console.error("Error al generar imagen:", error);
-            alert("Hubo un error al crear la imagen del ticket.");
+            console.error("Error:", error);
+            alert("Error al generar imagen del ticket.");
             btnWhatsapp.disabled = false;
             btnWhatsapp.innerHTML = originalText;
         }
@@ -748,6 +790,34 @@ async function mostrarTicket(orden) {
       document.head.appendChild(script);
     } else {
       new QRCode(document.getElementById("qrCanvas"), { text: urlMesa, width: 200, height: 200 });
+    }
+  };
+
+  window.guardarNumeroWhatsapp = async () => {
+    const sesionRaw = localStorage.getItem('sesion_activa');
+    if (!sesionRaw) return alert("❌ No hay sesión activa.");
+    
+    const sesion = JSON.parse(sesionRaw);
+    const restauranteId = sesion.restaurante_id;
+    const numero = document.getElementById('inputNumWhatsapp').value.trim();
+
+    if (!numero) {
+        return alert("⚠️ Por favor ingresa un número de WhatsApp válido.");
+    }
+
+    try {
+        const { error } = await db.from('restaurantes')
+            .update({ whatsapp_numero: numero })
+            .eq('id', restauranteId);
+
+        if (error) throw error;
+
+        configRestaurante.whatsapp_numero = numero;
+        alert(`✅ Número de WhatsApp actualizado: ${numero}`);
+
+    } catch (err) { 
+        console.error("Error:", err); 
+        alert("❌ Error al guardar el número: " + err.message); 
     }
   };
   // =====================================================
