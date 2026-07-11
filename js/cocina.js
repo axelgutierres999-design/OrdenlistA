@@ -406,12 +406,44 @@ ordenesLocales
                 console.log(`[Realtime Cocina] ${status}`);
             });
     }
+    
 
     // ================================================================
     // 7️⃣  ARRANQUE
     // ================================================================
     cargarOrdenesLocales();
     iniciarRealtime();
+    
+    // ================================================================
+// 🎙️ TOGGLE DEL BOTÓN DE VOZ
+// ================================================================
+const btnVoz = document.getElementById('btnVoz');
+
+if (btnVoz) {
+    btnVoz.addEventListener('click', () => {
+        vozActiva = !vozActiva;
+
+        if (vozActiva) {
+            btnVoz.innerHTML = '🔊 Voz: ON';
+            btnVoz.style.background = '#10ad93';
+
+            // Truco para "despertar" el motor de voz en Chrome
+            // (a veces la primera vez no suena si no hay interacción previa)
+            const test = new SpeechSynthesisUtterance('');
+            window.speechSynthesis.speak(test);
+
+        } else {
+            btnVoz.innerHTML = '🔇 Voz: OFF';
+            btnVoz.style.background = '#6c3483';
+
+            // Cancelar cualquier lectura en curso y vaciar la cola
+            window.speechSynthesis.cancel();
+            colaVoz.length = 0;
+            vozOcupada = false;
+            document.getElementById('indicadorVoz').style.display = 'none';
+        }
+    });
+}
 
     // Registramos en App como respaldo (por si notifyUpdate() es llamado)
     const registrar = () => {
