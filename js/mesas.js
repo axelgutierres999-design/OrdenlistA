@@ -565,23 +565,10 @@ async function renderizarMesas() {
       const panelAcciones = document.getElementById('panelAccionesMesa');
       if (panelAcciones) panelAcciones.style.display = 'none';
 
-      // Forzar recarga de datos en app.js para que getOrdenes() esté actualizado
-      // antes de redibujar — sin esto el mapa sigue mostrando la mesa ocupada
-      if (typeof App !== 'undefined') {
-          // Esperar 1 segundo para que Supabase haya replicado completamente
-          await new Promise(resolve => setTimeout(resolve, 1000));
-          
-          // Llamar a cargarDatosIniciales DIRECTAMENTE (que es más agresivo)
-          if (App.cargarDatosIniciales) {
-              await App.cargarDatosIniciales();
-          } else {
-              // Fallback si no está expuesto
-              App.notifyUpdate();
-          }
-      } else {
-          renderizarMesas();
-      }
-
+     // Esperar a que Supabase haya replicado el cambio
+      // Luego refrescar el renderizado local
+      await new Promise(resolve => setTimeout(resolve, 800));
+      cargarOrdenes(); // Esto redibuja mesas con datos frescos
       // GENERAR TICKET AUTOMÁTICO
       mostrarTicket({
         id: folio,
@@ -918,24 +905,11 @@ async function mostrarTicket(orden) {
         payload => {
           console.log('[Realtime Mesas] Cambio detectado:', payload.eventType);
           
-          // ────────────────────────────────────────────────────────
-          // PASO 1: Si App está disponible, pedimos que recargue TODOS
-          // sus datos desde Supabase (esto es lo importante)
-          // ────────────────────────────────────────────────────────
-          if (typeof App !== 'undefined') {
-              // Esperar 400ms para que Supabase haya replicado el cambio
-              // LUEGO llamar a App.notifyUpdate() que:
-              // 1. Dispara todos los callbacks (incluyendo renderizarMesas)
-              // 2. Actualiza los badges
-              setTimeout(() => {
-                  if (App.notifyUpdate) {
-                      App.notifyUpdate();
-                  }
-              }, 400);
-          } else {
-              // Fallback si App no está inicializado aún
-              setTimeout(() => renderizarMesas(), 400);
-          }
+          // Esperar a que Supabase haya replicado el cambio
+          // Luego refrescar los datos locales de mesas
+          setTimeout(() => {
+              cargarOrdenes();
+          }, 500);
         }
       )
       .subscribe(status => {
@@ -943,18 +917,6 @@ async function mostrarTicket(orden) {
       });
   }
 
-  // ────────────────────────────────────────────────────────────────
-  // BONUS: Polling cada 3 segundos como respaldo (por si el realtime
-  // falla o hay delays de Supabase)
-  // ────────────────────────────────────────────────────────────────
-  setInterval(() => {
-    if (typeof App !== 'undefined' && App.getOrdenes) {
-        // Solo refrescar si la página está visible
-        if (!document.hidden) {
-            renderizarMesas();
-        }
-    }
-  }, 1000); // Cada 3 segundos
          // ─── Alerta de mesas sin cobrar más de 30 minutos ───────────────────
        const alertasMesasDisparadas = new Set();
 

@@ -508,14 +508,7 @@ const actualizarBadges = () => {
         getOrdenes:     () => ordenes,
         getSuministros: () => suministros,
         getConfig:      () => config,
-       // cargarDatosIniciales,  // Exponer para que mesas.js pueda forzar recarga
-        notifyUpdate: () => {
-            Object.values(renderCallbacks).forEach(cb => {
-                if (typeof cb === 'function') cb();
-            });
-            actualizarBadges();
-        },
-        // ... 
+        
         guardarConfiguracionMesas: async (nuevoNumero) => {
             const restoId = getRestoId();
             if (!restoId) return alert("Restaurante no identificado.");

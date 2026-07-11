@@ -158,31 +158,39 @@
     
     <section id="config-rapida" style="margin-bottom: 20px; padding: 15px; background: #f4f4f4; border-radius: 10px; border: 1px solid #ddd;">
     <div class="grid" style="align-items: center; margin-bottom: 0;">
+        
+        <!-- CAMPO 1: NÚMERO DE MESAS -->
         <div>
             <label for="inputNumMesas" style="font-weight: bold; margin-bottom: 5px; display: block;">
                 🔢 Cantidad de Mesas:
             </label>
             <div style="display: flex; gap: 10px;">
                 <input type="number" id="inputNumMesas" placeholder="Ej: 15" min="1" max="100" style="margin-bottom: 0;">
-                <button onclick="guardarConfiguracionMesas()" style="width: auto; padding: 0 20px; background: #10ad93; border: none;">
+                <button onclick="guardarConfiguracionMesas()" style="width: auto; padding: 0 20px; background: #10ad93; border: none; color: white; border-radius: 5px; cursor: pointer;">
                     Guardar
                 </button>
-            <div style="margin-top: 15px; padding-top: 15px; border-top: 1px solid #ccc;">
+            </div>
+        </div>
+
+        <!-- CAMPO 2: NÚMERO WHATSAPP -->
+        <div style="margin-top: 15px; padding-top: 15px; border-top: 1px solid #ccc;">
             <label for="inputNumWhatsapp" style="font-weight: bold; margin-bottom: 5px; display: block;">
                 📱 Número WhatsApp para Tickets:
             </label>
             <div style="display: flex; gap: 10px;">
                 <input type="tel" id="inputNumWhatsapp" placeholder="Ej: +52 777 123 4567" style="margin-bottom: 0; flex: 1;">
-                <button onclick="guardarNumeroWhatsapp()" style="width: auto; padding: 0 20px; background: #25D366; border: none; color: white;">
+                <button onclick="guardarNumeroWhatsapp()" style="width: auto; padding: 0 20px; background: #25D366; border: none; color: white; border-radius: 5px; cursor: pointer;">
                     Guardar
                 </button>
             </div>
-            <small style="color: #666;">Formato: +código_país numero (ej: +52 para México)</small>
+            <small style="color: #666; display: block; margin-top: 5px;">Formato: +código_país numero (ej: +52 para México)</small>
         </div>
 
-        <div class="hide-mobile" style="text-align: right; color: #666; font-size: 0.85rem;">
-            <p style="margin: 0;">Esta configuración define cuántos bloques aparecen <br> si no tienes un plano visual activo.</p>
+        <!-- INFO -->
+        <div class="hide-mobile" style="text-align: right; color: #666; font-size: 0.85rem; margin-top: 15px; padding-top: 15px; border-top: 1px solid #ccc;">
+            <p style="margin: 0;">Esta configuración define cuántos bloques aparecen si no tienes un plano visual activo.</p>
         </div>
+
     </div>
 </section>
   </main>
