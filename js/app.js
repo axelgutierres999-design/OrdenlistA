@@ -508,7 +508,7 @@ const actualizarBadges = () => {
         getOrdenes:     () => ordenes,
         getSuministros: () => suministros,
         getConfig:      () => config,
-        
+
         guardarConfiguracionMesas: async (nuevoNumero) => {
             const restoId = getRestoId();
             if (!restoId) return alert("Restaurante no identificado.");

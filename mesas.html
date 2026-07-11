@@ -8,50 +8,17 @@
     <link rel="stylesheet" href="css/app.css">
     
     <style>
-      /* Modal Ticket para Impresoras Térmicas 80mm */
-  #modalTicket article { 
-    background: #f9f9f9; 
-    max-width: 90mm;  /* 80mm + márgenes */
-    padding: 0; 
-    margin: 0 auto;
-  }
-  .ticket-body { 
-    width: 80mm;
-    margin: 0 auto;
-    padding: 5mm;
-    font-family: 'Courier New', Courier, monospace; 
-    color: #000;
-    font-size: 10pt;
-    line-height: 1.4;
-  }
-  
-  @media print {
-    body * { visibility: hidden; }
-    #modalTicket, #modalTicket article, .ticket-body, .ticket-body * { visibility: visible; }
-    #modalTicket article { 
-      position: absolute; 
-      left: 0; 
-      top: 0; 
-      width: 80mm; 
-      max-width: 80mm;
-      margin: 0 !important;
-      padding: 0 !important;
-      box-shadow: none; 
-      background: white;
-    }
-    .ticket-body {
-      width: 80mm;
-      max-width: 80mm;
-    }
-    .no-print { display: none !important; }
-    
-    /* Configurar márgenes para impresoras térmicas */
-    @page {
-      size: 80mm auto;
-      margin: 0;
-      padding: 0;
-    }
-  }
+      /* Modal Ticket Estilo Papel */
+      #modalTicket article { background: #f9f9f9; max-width: 350px; padding: 0; }
+      .ticket-body { padding: 20px; font-family: 'Courier New', Courier, monospace; color: #000; }
+      
+      @media print {
+        body * { visibility: hidden; }
+        #modalTicket, #modalTicket article, .ticket-body, .ticket-body * { visibility: visible; }
+        #modalTicket article { position: absolute; left: 0; top: 0; width: 100%; box-shadow: none; }
+        .no-print { display: none !important; }
+      }
+
       /* --- NAVEGACIÓN UNIFICADA --- */
       .nav-inicio {
           display: flex;
@@ -158,39 +125,20 @@
     
     <section id="config-rapida" style="margin-bottom: 20px; padding: 15px; background: #f4f4f4; border-radius: 10px; border: 1px solid #ddd;">
     <div class="grid" style="align-items: center; margin-bottom: 0;">
-        
-        <!-- CAMPO 1: NÚMERO DE MESAS -->
         <div>
             <label for="inputNumMesas" style="font-weight: bold; margin-bottom: 5px; display: block;">
                 🔢 Cantidad de Mesas:
             </label>
             <div style="display: flex; gap: 10px;">
                 <input type="number" id="inputNumMesas" placeholder="Ej: 15" min="1" max="100" style="margin-bottom: 0;">
-                <button onclick="guardarConfiguracionMesas()" style="width: auto; padding: 0 20px; background: #10ad93; border: none; color: white; border-radius: 5px; cursor: pointer;">
+                <button onclick="guardarConfiguracionMesas()" style="width: auto; padding: 0 20px; background: #10ad93; border: none;">
                     Guardar
                 </button>
             </div>
         </div>
-
-        <!-- CAMPO 2: NÚMERO WHATSAPP -->
-        <div style="margin-top: 15px; padding-top: 15px; border-top: 1px solid #ccc;">
-            <label for="inputNumWhatsapp" style="font-weight: bold; margin-bottom: 5px; display: block;">
-                📱 Número WhatsApp para Tickets:
-            </label>
-            <div style="display: flex; gap: 10px;">
-                <input type="tel" id="inputNumWhatsapp" placeholder="Ej: +52 777 123 4567" style="margin-bottom: 0; flex: 1;">
-                <button onclick="guardarNumeroWhatsapp()" style="width: auto; padding: 0 20px; background: #25D366; border: none; color: white; border-radius: 5px; cursor: pointer;">
-                    Guardar
-                </button>
-            </div>
-            <small style="color: #666; display: block; margin-top: 5px;">Formato: +código_país numero (ej: +52 para México)</small>
+        <div class="hide-mobile" style="text-align: right; color: #666; font-size: 0.85rem;">
+            <p style="margin: 0;">Esta configuración define cuántos bloques aparecen <br> si no tienes un plano visual activo.</p>
         </div>
-
-        <!-- INFO -->
-        <div class="hide-mobile" style="text-align: right; color: #666; font-size: 0.85rem; margin-top: 15px; padding-top: 15px; border-top: 1px solid #ccc;">
-            <p style="margin: 0;">Esta configuración define cuántos bloques aparecen si no tienes un plano visual activo.</p>
-        </div>
-
     </div>
 </section>
   </main>
@@ -215,61 +163,66 @@
 
 <dialog id="modalTicket">
     <article>
-        <div class="ticket-body" id="areaImpresion" style="width: 80mm; margin: 0 auto; padding: 5mm; font-family: 'Courier New', monospace; font-size: 10pt; line-height: 1.4;">
-            
-            <!-- ENCABEZADO -->
-            <div style="text-align: center; margin-bottom: 3mm; border-bottom: 1px solid #000; padding-bottom: 3mm;">
-                <h2 id="t-nombre-rest" style="margin: 0; font-size: 12pt; font-weight: bold; text-transform: uppercase;">NOMBRE RESTAURANTE</h2>
-                <p id="t-direccion" style="font-size: 8pt; margin: 1mm 0;">Dirección no configurada</p>
-                <p id="t-telefono" style="font-size: 8pt; margin: 1mm 0;">Tel: 000-000-0000</p>
+        <div class="ticket-body" id="areaImpresion">
+            <!-- ENCABEZADO PERSONALIZABLE -->
+            <div style="text-align: center; margin-bottom: 10px;">
+                <h2 id="t-nombre-rest" style="margin: 0; text-transform: uppercase;">NOMBRE RESTAURANTE</h2>
+                <p id="t-direccion" style="font-size: 12px; margin: 2px 0;">Dirección no configurada</p>
+                <p id="t-telefono" style="font-size: 12px; margin: 2px 0;">Tel: 000-000-0000</p>
             </div>
+
+            <div style="border-top: 1px dashed #000; margin: 10px 0;"></div>
 
             <!-- INFO ORDEN -->
-            <div style="font-size: 9pt; margin-bottom: 3mm;">
-                <p style="margin: 1mm 0;"><strong>MESA:</strong> <span id="t-mesa"></span></p>
-                <p style="margin: 1mm 0;"><strong>FECHA:</strong> <span id="t-fecha"></span></p>
-                <p style="margin: 1mm 0;"><strong>FOLIO:</strong> <span id="t-folio"></span></p>
-                <p style="margin: 1mm 0;"><strong>PAGO:</strong> <span id="t-metodo"></span></p>
+            <div style="font-size: 13px;">
+                <p style="margin: 2px 0;"><strong>MESA:</strong> <span id="t-mesa"></span></p>
+                <p style="margin: 2px 0;"><strong>FECHA:</strong> <span id="t-fecha"></span></p>
+                <p style="margin: 2px 0;"><strong>FOLIO:</strong> #<span id="t-folio"></span></p>
+                <p style="margin: 2px 0;"><strong>PAGO:</strong> <span id="t-metodo"></span></p>
             </div>
 
-            <div style="border-bottom: 1px solid #000; margin: 2mm 0;"></div>
+            <div style="border-top: 1px dashed #000; margin: 10px 0;"></div>
 
-            <!-- PRODUCTOS - Tabla monoespaciada -->
-            <div style="font-size: 9pt; margin-bottom: 3mm; font-family: monospace;">
-                <div style="display: flex; justify-content: space-between; font-weight: bold; border-bottom: 1px solid #000; margin-bottom: 1mm; padding-bottom: 1mm;">
-                    <span>CAN</span>
-                    <span style="flex: 1; text-align: center;">DESCRIPCIÓN</span>
-                    <span>TOTAL</span>
-                </div>
-                <div id="t-items" style="margin-bottom: 1mm;"></div>
-            </div>
+            <!-- PRODUCTOS -->
+            <table style="width: 100%; font-size: 13px; border-collapse: collapse;">
+                <thead>
+                    <tr>
+                        <th style="text-align: left;">CANT</th>
+                        <th style="text-align: left;">DESC</th>
+                        <th style="text-align: right;">TOTAL</th>
+                    </tr>
+                </thead>
+                <tbody id="t-items">
+                    <!-- Se llena con JS -->
+                </tbody>
+            </table>
 
-            <div style="border-bottom: 1px solid #000; margin: 2mm 0;"></div>
+            <div style="border-top: 1px dashed #000; margin: 10px 0;"></div>
 
             <!-- TOTALES -->
-            <div style="text-align: right; font-size: 9pt; font-family: monospace; margin-bottom: 3mm;">
-                <p style="margin: 1mm 0;">SUBTOTAL: $<span id="t-subtotal">0.00</span></p>
-                <p style="margin: 1mm 0;">IVA (16%): $<span id="t-iva">0.00</span></p>
-                <p style="margin: 2mm 0; font-size: 11pt; font-weight: bold;">TOTAL: $<span id="t-total">0.00</span></p>
+            <div style="text-align: right; font-size: 13px;">
+                <p style="margin: 2px 0;">SUBTOTAL: $<span id="t-subtotal">0.00</span></p>
+                <p style="margin: 2px 0;">IVA (16%): $<span id="t-iva">0.00</span></p>
+                <h3 style="margin: 5px 0; font-size: 18px;">TOTAL: $<span id="t-total">0.00</span></h3>
             </div>
 
-            <div style="border-bottom: 1px solid #000; margin: 2mm 0;"></div>
+            <div style="border-top: 1px dashed #000; margin: 10px 0;"></div>
 
-            <!-- PIE -->
-            <div style="text-align: center; font-size: 8pt; margin-top: 2mm;">
-                <p id="t-mensaje-agradecimiento" style="margin: 1mm 0; font-weight: bold;">¡GRACIAS POR SU COMPRA!</p>
-                <p id="t-wifi" style="margin: 0.5mm 0;"></p>
-                <p id="t-redes" style="margin: 0.5mm 0;"></p>
+            <!-- PIE DE TICKET PERSONALIZABLE -->
+            <div style="text-align: center; font-size: 11px;">
+                <p id="t-mensaje-agradecimiento" style="margin: 5px 0; font-weight: bold;">¡GRACIAS POR SU COMPRA!</p>
+                <p id="t-wifi" style="margin: 2px 0;"></p>
+                <p id="t-redes" style="margin: 2px 0;"></p>
             </div>
         </div>
         
-        <footer class="no-print" style="display: flex; gap: 5px; padding: 10px; flex-wrap: wrap;">
-            <button onclick="window.print()" style="flex: 1; min-width: 100px; background: #10ad93; color: white; border: none; padding: 8px; border-radius: 5px; cursor: pointer; font-weight: bold;">🖨️ Imprimir</button>
-            <button id="btnWhatsapp" style="flex: 1; min-width: 100px; background: #25D366; color: white; border: none; padding: 8px; border-radius: 5px; cursor: pointer; font-weight: bold;">📱 WhatsApp</button>
-            <button onclick="document.getElementById('modalTicket').close()" style="flex: 1; min-width: 100px; background: #ccc; border: none; padding: 8px; border-radius: 5px; cursor: pointer;">Cerrar</button>
+        <footer class="no-print" style="display: flex; gap: 10px; padding: 10px;">
+            <button onclick="window.print()" style="flex: 1; background: #10ad93; color: white; border: none; padding: 10px; border-radius: 5px; cursor: pointer;">🖨️ Imprimir</button>
+            <button id="btnWhatsapp" style="flex: 1; background: #25D366; color: white; border: none; padding: 10px; border-radius: 5px; cursor: pointer;">📱 WhatsApp</button>
+            <button onclick="document.getElementById('modalTicket').close()" style="flex: 1; background: #ccc; border: none; padding: 10px; border-radius: 5px; cursor: pointer;">Cerrar</button>
         </footer>
     </article>
-</dialog>
+  </dialog>
   
   <script>
     function toggleNav() {
