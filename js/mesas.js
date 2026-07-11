@@ -845,19 +845,46 @@ async function mostrarTicket(orden) {
           table: 'ordenes',
           filter: `restaurante_id=eq.${sesion.restaurante_id}`
         },
-        () => {
-          // Cuando cambia una orden, le pedimos a app.js que recargue
-          // sus datos, y cuando termine llamará renderizarMesas() 
-          // a través del registerRender que ya está registrado.
-          // Como respaldo adicional, esperamos 800ms y forzamos
-          // el render con los datos que app.js ya tiene en memoria.
-          setTimeout(() => renderizarMesas(), 800);
+        payload => {
+          console.log('[Realtime Mesas] Cambio detectado:', payload.eventType);
+          
+          // ────────────────────────────────────────────────────────
+          // PASO 1: Si App está disponible, pedimos que recargue TODOS
+          // sus datos desde Supabase (esto es lo importante)
+          // ────────────────────────────────────────────────────────
+          if (typeof App !== 'undefined') {
+              // Esperar 400ms para que Supabase haya replicado el cambio
+              // LUEGO llamar a App.notifyUpdate() que:
+              // 1. Dispara todos los callbacks (incluyendo renderizarMesas)
+              // 2. Actualiza los badges
+              setTimeout(() => {
+                  if (App.notifyUpdate) {
+                      App.notifyUpdate();
+                  }
+              }, 400);
+          } else {
+              // Fallback si App no está inicializado aún
+              setTimeout(() => renderizarMesas(), 400);
+          }
         }
       )
       .subscribe(status => {
         console.log(`[Realtime Mesas] ${status}`);
       });
   }
+
+  // ────────────────────────────────────────────────────────────────
+  // BONUS: Polling cada 3 segundos como respaldo (por si el realtime
+  // falla o hay delays de Supabase)
+  // ────────────────────────────────────────────────────────────────
+  setInterval(() => {
+    if (typeof App !== 'undefined' && App.getOrdenes) {
+        // Solo refrescar si la página está visible
+        if (!document.hidden) {
+            renderizarMesas();
+        }
+    }
+  }, 1000); // Cada 3 segundos
          // ─── Alerta de mesas sin cobrar más de 30 minutos ───────────────────
        const alertasMesasDisparadas = new Set();
 
