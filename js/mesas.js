@@ -528,17 +528,11 @@ async function renderizarMesas() {
     try {
       let todosProductos = [];
       let folio = Date.now();
-      let clientePhone = null; // ← NUEVO: guardar número cliente
 
       // Recopilar productos y actualizar estado
       for (const id of ordenesIdsCobro) {
         const ordenData = App.getOrdenes().find(o => o.id === id);
         if (ordenData) {
-          // ← NUEVO: Capturar número si existe
-          if (ordenData.cliente_phone && !clientePhone) {
-            clientePhone = ordenData.cliente_phone;
-          }
-
           todosProductos = todosProductos.concat(
             typeof ordenData.productos === 'string'
               ? ordenData.productos.split(',')
@@ -559,39 +553,22 @@ async function renderizarMesas() {
         }
       }
 
-      // ✅ CIERRE INMEDIATO DEL MODAL
+      // Éxito — cerrar modal y ocultar panel inmediatamente
+      alert("✅ Pago registrado correctamente.");
       if(modalCobro.open) modalCobro.close();
+
+      // Ocultar panel de acciones
       const panelAcciones = document.getElementById('panelAccionesMesa');
       if (panelAcciones) panelAcciones.style.display = 'none';
 
-      alert("✅ Pago registrado correctamente.");
-
-      // ✅ REFRESH VISUAL INMEDIATO (sin esperar mucho)
-      // 1. Primero refrescamos la UI localmente para limpiarla YA
-      renderizarMesas();
-
-      // 2. Esperar MENOS tiempo a que Supabase replique (200ms en vez de 600ms)
-      setTimeout(async () => {
-        if (typeof App !== 'undefined' && App.notifyUpdate) {
-            App.notifyUpdate(); // Recarga datos desde BD y dispara todos renders
-        }
-      }, 200);
-
-      // ✅ GENERAR TICKET CON NÚMERO DE CLIENTE
-      mostrarTicket({
-        id: folio,
-        mesa: mesaActualCobro,
-        total: totalActualCobro,
-        productos: todosProductos,
-        metodo: metodo,
-        cliente_phone: clientePhone // ← NUEVO: pasar el número
-      });
-
-    } catch (error) {
-      console.error(error);
-      alert("❌ Error al procesar el pago en base de datos.");
-    }
-  }
+      // Forzar recarga de datos en app.js para que getOrdenes() esté actualizado
+      // antes de redibujar — sin esto el mapa sigue mostrando la mesa ocupada
+      if (typeof App !== 'undefined' && App.notifyUpdate) {
+          await new Promise(resolve => setTimeout(resolve, 600)); // espera que Supabase propague
+          App.notifyUpdate(); // esto dispara cargarDatosIniciales() en app.js → luego renderizarMesas()
+      } else {
+          renderizarMesas();
+      }
 
       // GENERAR TICKET AUTOMÁTICO
       mostrarTicket({
@@ -608,86 +585,9 @@ async function renderizarMesas() {
     }
   }
 
- // =====================================================
-// 5️⃣ EJECUCIÓN REAL DEL COBRO (BASE DE DATOS)
-// [REEMPLAZAR ESTA SECCIÓN COMPLETA]
-// =====================================================
-async function ejecutarTransaccionDB(metodo) {
-    const sesion = JSON.parse(localStorage.getItem('sesion_activa'));
-    if (!sesion?.restaurante_id) return alert("Error de sesión.");
- 
-    try {
-      let todosProductos = [];
-      let folio = Date.now();
-      let clientePhone = null; // ✅ NUEVO: guardar número cliente
- 
-      // Recopilar productos y actualizar estado
-      for (const id of ordenesIdsCobro) {
-        const ordenData = App.getOrdenes().find(o => o.id === id);
-        if (ordenData) {
-          // ✅ NUEVO: Capturar número si existe
-          if (ordenData.cliente_phone && !clientePhone) {
-            clientePhone = ordenData.cliente_phone;
-          }
- 
-          todosProductos = todosProductos.concat(
-            typeof ordenData.productos === 'string'
-              ? ordenData.productos.split(',')
-              : ordenData.productos
-          );
-          
-          // Registrar Venta
-          await db.from('ventas').insert([{
-            restaurante_id: sesion.restaurante_id,
-            mesa: ordenData.mesa,
-            productos: ordenData.productos,
-            total: ordenData.total,
-            metodo_pago: metodo
-          }]);
-          
-          // Cerrar Orden
-          await db.from('ordenes').update({ estado: 'pagado' }).eq('id', id);
-        }
-      }
- 
-      // ✅ CIERRE INMEDIATO DEL MODAL
-      if(modalCobro.open) modalCobro.close();
-      const panelAcciones = document.getElementById('panelAccionesMesa');
-      if (panelAcciones) panelAcciones.style.display = 'none';
- 
-      alert("✅ Pago registrado correctamente.");
- 
-      // ✅ REFRESH VISUAL INMEDIATO (sin esperar mucho)
-      // 1. Primero refrescamos la UI localmente para limpiarla YA
-      renderizarMesas();
- 
-      // 2. Esperar MENOS tiempo a que Supabase replique (200ms en vez de 600ms)
-      setTimeout(async () => {
-        if (typeof App !== 'undefined' && App.notifyUpdate) {
-            App.notifyUpdate(); // Recarga datos desde BD y dispara todos renders
-        }
-      }, 200);
- 
-      // ✅ GENERAR TICKET CON NÚMERO DE CLIENTE
-      mostrarTicket({
-        id: folio,
-        mesa: mesaActualCobro,
-        total: totalActualCobro,
-        productos: todosProductos,
-        metodo: metodo,
-        cliente_phone: clientePhone // ✅ NUEVO: pasar el número
-      });
- 
-    } catch (error) {
-      console.error(error);
-      alert("❌ Error al procesar el pago en base de datos.");
-    }
-  }
- 
-// =====================================================
-// 6️⃣ MOSTRAR TICKET (Versión mejorada con WhatsApp)
-// [REEMPLAZAR ESTA SECCIÓN COMPLETA]
-// =====================================================
+  // =====================================================
+  // 6️⃣ MOSTRAR TICKET (Resto del código igual)
+  // =====================================================
 async function mostrarTicket(orden) {
     const modal = document.getElementById('modalTicket');
     
@@ -698,20 +598,20 @@ async function mostrarTicket(orden) {
     document.getElementById('t-mensaje-agradecimiento').textContent = configRestaurante.mensaje_ticket || "¡GRACIAS POR SU COMPRA!";
     document.getElementById('t-wifi').textContent = configRestaurante.wifi ? `WiFi: ${configRestaurante.wifi}` : "";
     document.getElementById('t-redes').textContent = configRestaurante.instagram ? `@${configRestaurante.instagram}` : "";
- 
+
     document.getElementById('t-mesa').textContent = orden.mesa;
     document.getElementById('t-fecha').textContent = new Date().toLocaleString();
     document.getElementById('t-folio').textContent = orden.id;
     document.getElementById('t-metodo').textContent = (orden.metodo || 'Efectivo').toUpperCase();
- 
+
     const total = parseFloat(orden.total);
     const subtotal = total / 1.16;
     const iva = total - subtotal;
- 
+
     document.getElementById('t-subtotal').textContent = subtotal.toFixed(2);
     document.getElementById('t-iva').textContent = iva.toFixed(2);
     document.getElementById('t-total').textContent = total.toFixed(2);
- 
+
     const listaProductos = Array.isArray(orden.productos) ? orden.productos : orden.productos.split(',');
     const tbody = document.getElementById('t-items');
     tbody.innerHTML = listaProductos.map(p => `
@@ -720,125 +620,57 @@ async function mostrarTicket(orden) {
             <td>${p.trim()}</td>
             <td style="text-align:right;">—</td>
         </tr>`).join('');
- 
-    // 2. ✅ LÓGICA DE WHATSAPP (MEJORADA CON API)
+
+    // 2. LÓGICA DE WHATSAPP (MODO PROFESIONAL: IMAGEN)
     const btnWhatsapp = document.getElementById('btnWhatsapp');
     btnWhatsapp.onclick = async () => {
-        // ✅ VERIFICAR SI HAY NÚMERO DE CLIENTE
-        if (!orden.cliente_phone) {
-            alert("⚠️ No hay número de cliente registrado.\n\nOpciones:\n" +
-                  "1. Copiar ticket y enviar manualmente\n" +
-                  "2. Descargar como imagen\n\n" +
-                  "TIP: Pide al cliente su número WhatsApp al pedir.");
-            
-            // Opción fallback: descargar la imagen
-            try {
-                const areaTicket = document.getElementById('areaImpresion');
-                const canvas = await html2canvas(areaTicket, {
-                    scale: 3,
-                    backgroundColor: "#f9f9f9",
-                    logging: false
-                });
-                const link = document.createElement('a');
-                link.download = `Ticket_Mesa_${orden.mesa}.png`;
-                link.href = canvas.toDataURL("image/png");
-                link.click();
-            } catch(e) {
-                console.error("Error descargando:", e);
-            }
-            return;
-        }
- 
         const areaTicket = document.getElementById('areaImpresion');
+        
+        // Feedback visual mientras procesa
         const originalText = btnWhatsapp.innerHTML;
         btnWhatsapp.disabled = true;
-        btnWhatsapp.innerHTML = "⌛ Preparando...";
- 
+        btnWhatsapp.innerHTML = "⌛ Generando...";
+
         try {
-            // 1️⃣ GENERAR IMAGEN DEL TICKET
+            // "Tomamos la foto" del ticket en alta definición
             const canvas = await html2canvas(areaTicket, {
-                scale: 3,
+                scale: 3, // Calidad HD
                 backgroundColor: "#f9f9f9",
                 logging: false
             });
- 
-            // 2️⃣ CONVERTIR A IMAGEN (BLOB)
+
+            // Convertimos a archivo de imagen real
             canvas.toBlob(async (blob) => {
-                try {
-                    // 3️⃣ LIMPIAR Y FORMATEAR NÚMERO
-                    let numeroLimpio = orden.cliente_phone
-                        .toString()
-                        .replace(/\D/g, '') // Remover no-dígitos
-                        .replace(/^0+/, '') // Remover ceros al inicio
-                        .trim();
-                    
-                    console.log('Número original:', orden.cliente_phone);
-                    console.log('Número limpio:', numeroLimpio);
-                    
-                    // ✅ AJUSTAR PARA MÉXICO (agregar +52 si es necesario)
-                    if (numeroLimpio.length === 10) {
-                        // Número local MX (10 dígitos) → agregar 52
-                        numeroLimpio = '52' + numeroLimpio;
-                    } else if (numeroLimpio.length > 10 && !numeroLimpio.startsWith('52')) {
-                        // Número con prefijo pero sin 52 → agregar 52
-                        numeroLimpio = '52' + numeroLimpio.slice(-10);
-                    } else if (!numeroLimpio.startsWith('52') && numeroLimpio.length <= 10) {
-                        // Pequeño y sin prefijo → asumir MX
-                        numeroLimpio = '52' + numeroLimpio;
-                    }
- 
-                    console.log('Número final WhatsApp:', numeroLimpio);
- 
-                    // 4️⃣ CREAR MENSAJE PRE-ESCRITO
-                    const mensaje = encodeURIComponent(
-                        `🍽️ *Ticket de Compra*\n\n` +
-                        `📍 Mesa: ${orden.mesa}\n` +
-                        `💰 Total: $${orden.total}\n` +
-                        `💳 Método: ${orden.metodo || 'Efectivo'}\n` +
-                        `\n¡Gracias por su visita! 😊\n` +
-                        `Adjunta la imagen del ticket en el próximo mensaje.`
-                    );
-                    
-                    // 5️⃣ CONSTRUIR URL DE WhatsApp API
-                    const urlWhatsApp = `https://wa.me/${numeroLimpio}?text=${mensaje}`;
-                    console.log('URL WhatsApp:', urlWhatsApp);
- 
-                    // 6️⃣ ABRIR WhatsApp CON NÚMERO Y MENSAJE
-                    window.open(urlWhatsApp, '_blank');
- 
-                    // 7️⃣ OFRECER DESCARGAR IMAGEN TAMBIÉN
-                    setTimeout(() => {
-                        const userWantsImg = confirm(
-                            "✅ Se abrió WhatsApp.\n\n" +
-                            "¿Descargas la imagen del ticket para que el cliente la adjunte?"
-                        );
-                        if (userWantsImg) {
-                            const link = document.createElement('a');
-                            link.download = `Ticket_Mesa_${orden.mesa}_${Date.now()}.png`;
-                            link.href = canvas.toDataURL("image/png");
-                            link.click();
-                        }
-                    }, 1500);
- 
-                    btnWhatsapp.disabled = false;
-                    btnWhatsapp.innerHTML = originalText;
- 
-                } catch (error) {
-                    console.error("Error con WhatsApp:", error);
-                    alert("❌ Error al abrir WhatsApp: " + error.message);
-                    btnWhatsapp.disabled = false;
-                    btnWhatsapp.innerHTML = originalText;
+                const file = new File([blob], `Ticket_Mesa_${orden.mesa}.png`, { type: "image/png" });
+
+                // Verificamos si es móvil/tablet para compartir directamente
+                if (navigator.canShare && navigator.canShare({ files: [file] })) {
+                    await navigator.share({
+                        files: [file],
+                        title: `Ticket Mesa ${orden.mesa}`,
+                        text: `Aquí tienes tu ticket de OrdenLista. ¡Gracias por tu visita!`
+                    });
+                } else {
+                    // Si es PC, descargamos la imagen para que el cajero la arrastre a WhatsApp Web
+                    const link = document.createElement('a');
+                    link.download = `Ticket_Mesa_${orden.mesa}.png`;
+                    link.href = canvas.toDataURL("image/png");
+                    link.click();
+                    alert("Se ha descargado el ticket en imagen. Puedes enviarlo por WhatsApp Web.");
                 }
+
+                btnWhatsapp.disabled = false;
+                btnWhatsapp.innerHTML = originalText;
             }, "image/png");
- 
+
         } catch (error) {
-            console.error("Error generando imagen:", error);
-            alert("❌ Error al crear la imagen del ticket.");
+            console.error("Error al generar imagen:", error);
+            alert("Hubo un error al crear la imagen del ticket.");
             btnWhatsapp.disabled = false;
             btnWhatsapp.innerHTML = originalText;
         }
     };
- 
+
     modal.showModal();
 }
 
