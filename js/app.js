@@ -502,7 +502,143 @@ const actualizarBadges = () => {
         init: async () => {
             _inyectarCSS();                 // CSS de toasts y badges
             await cargarDatosIniciales();   // Datos iniciales
-            activarSuscripcionRealtime();   // Canales Realtime
+           / ── REALTIME ───────────────────────────────────────────────────
+const activarSuscripcionRealtime = () => {
+    const restoId = getRestoId();
+    if (!restoId || typeof db === 'undefined') return;
+ 
+    // ── Canal principal: órdenes ──────────────────────────────
+    db.channel(`resto-${restoId}`)
+        // ✅ NUEVA ORDEN
+        .on('postgres_changes', {
+            event: 'INSERT', schema: 'public', table: 'ordenes',
+            filter: `restaurante_id=eq.${restoId}`
+        }, payload => {
+            const o = payload.new;
+            const esRecoger = o.mesa?.toUpperCase().includes('LLEVAR') ||
+                              o.mesa?.toUpperCase().includes('RECOGER');
+            if (esRecoger) {
+                mostrarToast('recoger',
+                    'Nuevo pedido por recoger',
+                    `Cliente: ${o.cliente_nombre || o.mesa || '—'}`,
+                    'pedidos_recoger.html'
+                );
+            } else {
+                mostrarToast('orden',
+                    'Nueva orden recibida',
+                    o.mesa ? `Mesa ${o.mesa}` : 'Para llevar',
+                    'ordenes.html'
+                );
+            }
+            // ✅ RECARGAR INMEDIATAMENTE
+            cargarDatosIniciales().then(() => {
+                if (App.notifyUpdate) App.notifyUpdate();
+            });
+        })
+ 
+        // ✅ ORDEN ACTUALIZADA (AQUÍ ES LO IMPORTANTE)
+        .on('postgres_changes', {
+            event: 'UPDATE', schema: 'public', table: 'ordenes',
+            filter: `restaurante_id=eq.${restoId}`
+        }, payload => {
+            console.log('[Realtime] Orden actualizada:', {
+                id: payload.new.id,
+                estado_anterior: payload.old.estado,
+                estado_nuevo: payload.new.estado,
+                mesa: payload.new.mesa
+            });
+ 
+            // ✅ Si cambió a 'pagado', recargar datos INMEDIATAMENTE
+            if (payload.new.estado === 'pagado') {
+                console.log('✅ Orden pagada detectada, refrescando...');
+                // Recargar datos de forma síncrona y esperar
+                cargarDatosIniciales().then(() => {
+                    console.log('✅ Datos recargados, disparando renders...');
+                    if (App.notifyUpdate) App.notifyUpdate();
+                });
+                return; // No continuar con el código abajo
+            }
+ 
+            // ✅ Si cambió a 'terminado', mostrar alerta
+            if (payload.new.estado === 'terminado') {
+                mostrarToast('listo',
+                    'Orden lista para entregar',
+                    payload.new.mesa ? `Mesa ${payload.new.mesa}` : 'Para llevar',
+                    'mesas.html'
+                );
+            }
+ 
+            // ✅ Para cualquier otro cambio, también recargar pero con menos urgencia
+            cargarDatosIniciales().then(() => {
+                if (App.notifyUpdate) App.notifyUpdate();
+            });
+        })
+ 
+        // ✅ ORDEN ELIMINADA
+        .on('postgres_changes', {
+            event: 'DELETE', schema: 'public', table: 'ordenes',
+            filter: `restaurante_id=eq.${restoId}`
+        }, () => {
+            console.log('[Realtime] Orden eliminada');
+            cargarDatosIniciales();
+        })
+ 
+        // ✅ SUMINISTROS
+        .on('postgres_changes', {
+            event: '*', schema: 'public', table: 'suministros',
+            filter: `restaurante_id=eq.${restoId}`
+        }, () => {
+            console.log('[Realtime] Suministros actualizados');
+            cargarDatosIniciales();
+        })
+ 
+        // ✅ RESTAURANTE
+        .on('postgres_changes', {
+            event: '*', schema: 'public', table: 'restaurantes',
+            filter: `id=eq.${restoId}`
+        }, () => {
+            console.log('[Realtime] Configuración de restaurante actualizada');
+            cargarDatosIniciales();
+        })
+ 
+        // ✅ STATUS DEL CANAL
+        .subscribe(status => {
+            console.log(`[Realtime App] ${status}`);
+            document.querySelectorAll('#indicadorRealtime, #indicadorRealtimeMobile')
+                .forEach(ind => {
+                    if (!ind) return;
+                    if (status === 'SUBSCRIBED') {
+                        ind.textContent = '● Tiempo Real Activo';
+                        ind.style.background = '#e6fffa';
+                        ind.style.color = '#319795';
+                        ind.style.borderColor = '#81e6d9';
+                    } else {
+                        ind.textContent = '○ Desconectado';
+                        ind.style.background = '#fff5f5';
+                        ind.style.color = '#c53030';
+                        ind.style.borderColor = '#fc8181';
+                    }
+                });
+        });
+ 
+    // ── Canal secundario: reservaciones ──────────────────────
+    db.channel(`reservas-app-${restoId}`)
+        .on('postgres_changes', {
+            event: 'INSERT', schema: 'public', table: 'reservaciones',
+            filter: `restaurante_id=eq.${restoId}`
+        }, payload => {
+            const r = payload.new;
+            mostrarToast('reserva',
+                'Nueva reservación',
+                `${r.nombre_cliente} — ${r.fecha_reserva}`,
+                'reservaciones.html'
+            );
+            // Badge manual para reservaciones
+           _setBadgeReserva(true);
+            App.notifyUpdate();
+        })
+        .subscribe();
+};
         },
         getRestoId, getRol,
         getOrdenes:     () => ordenes,
