@@ -421,6 +421,44 @@ document.addEventListener('DOMContentLoaded', () => {
         },
         payload => {
           console.log('[Órdenes Mesa] Cambio:', payload.eventType, payload.new?.id || payload.old?.id);
+          
+          // ─── MOSTRAR TOAST PARA NUEVAS ÓRDENES ───
+          if (payload.eventType === 'INSERT') {
+            const nuevaOrden = payload.new;
+            const mesa = nuevaOrden.mesa || 'Sin mesa';
+            
+            // Evitar mostrar para órdenes para llevar (esas van a otro módulo)
+            const esParaLlevar = mesa.toUpperCase().includes('LLEVAR') || 
+                                 mesa.toUpperCase().includes('RECOGER');
+            
+            if (!esParaLlevar) {
+              // Llamar al toast de App si está disponible
+              if (typeof App !== 'undefined' && App.mostrarToast) {
+                App.mostrarToast(
+                  'orden',
+                  'Nueva orden recibida',
+                  `Mesa ${mesa}`,
+                  'ordenes.html'
+                );
+              }
+            }
+          }
+           if (payload.eventType === 'UPDATE') {
+            const ordenActualizada = payload.new;
+            if (ordenActualizada.estado === 'terminado') {
+              const mesa = ordenActualizada.mesa || 'Sin mesa';
+              if (typeof App !== 'undefined' && App.mostrarToast) {
+                App.mostrarToast(
+                  'listo',
+                  'Orden lista para entregar',
+                  `Mesa ${mesa}`,
+                  'ordenes.html'
+                );
+              }
+            }
+          }
+          // ──────────────────────────────────────────
+          
           cargarOrdenes();
         }
       )
