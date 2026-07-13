@@ -35,7 +35,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     const inMensajeTicket = document.getElementById('inputMensajeTicket');
     const inWifi = document.getElementById('inputWifi');
     const inInstagram = document.getElementById('inputInstagram');
-    const inFacebook = document.getElementById('inputFacebook');
     
     // 🆕 NUEVO: Categoría del restaurante
     const inCategoria = document.getElementById('inputCategoria'); 
@@ -89,7 +88,6 @@ document.addEventListener('DOMContentLoaded', async () => {
                 inMensajeTicket.value = data.mensaje_ticket || '¡GRACIAS POR SU COMPRA!';
                 inWifi.value = data.wifi || '';
                 inInstagram.value = data.instagram || '';
-                inFacebook.value = data.facebook || '';
                 document.getElementById('inputWhatsappDueno').value = data.whatsapp_dueno || '';
 
                 // Imágenes simples
@@ -269,7 +267,6 @@ document.addEventListener('DOMContentLoaded', async () => {
                 mensaje_ticket: inMensajeTicket.value,
                 wifi: inWifi.value,
                 instagram: inInstagram.value,
-                facebook: inFacebook.value,
                  whatsapp_dueno: document.getElementById('inputWhatsappDueno').value.replace(/\D/g, ''),
                 
                 // Guardamos el array como JSONB. 
