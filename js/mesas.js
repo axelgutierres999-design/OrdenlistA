@@ -149,6 +149,115 @@ async function cargarConfigRestaurante() {
         stageMonitor = null; 
     }
 }
+function actualizarColoresPorTiempo() {
+    if (typeof App === 'undefined' || !App.getOrdenes) return;
+ 
+    let ordenes;
+    try {
+        ordenes = App.getOrdenes();
+    } catch (e) {
+        console.error('[ColoresMesas] No se pudieron obtener las órdenes:', e);
+        return;
+    }
+ 
+    const ESTADOS_ACTIVOS = [
+        'por_confirmar', 'pendiente', 'preparando', 'proceso',
+        'terminado', 'archivado_cocina', 'listo', 'en_mesa'
+    ];
+ 
+    // ── CASO A: Plano visual (Konva) ──────────────────────────
+    if (stageMonitor) {
+        try {
+            const mesasShapes = stageMonitor.find(node => node.name() === 'mesa-interactiva');
+            let huboCambios = false;
+ 
+            mesasShapes.forEach(mesaGroup => {
+                try {
+                    const idMesa = mesaGroup.id();
+                    const nombreMesaCompleto = `Mesa ${idMesa}`;
+                    const ordenesMesa = ordenes.filter(o =>
+                        o.mesa === nombreMesaCompleto && ESTADOS_ACTIVOS.includes(o.estado)
+                    );
+                    const ocupada = ordenesMesa.length > 0;
+ 
+                    const hayPorConfirmar  = ordenesMesa.some(o => o.estado === 'por_confirmar');
+                    const hayEnCocina      = ordenesMesa.some(o => ['pendiente', 'preparando', 'proceso'].includes(o.estado));
+                    const hayListasCocina  = ordenesMesa.some(o => ['terminado', 'archivado_cocina', 'listo', 'en_mesa'].includes(o.estado));
+                    const masaDe30MinV2    = ocupada && ordenesMesa.some(o => {
+                        const minutos = (Date.now() - new Date(o.created_at).getTime()) / 60000;
+                        return minutos > 30;
+                    });
+ 
+                    let nuevoFill = '#ffffff', nuevoStroke = '#10ad93';
+                    if (masaDe30MinV2)        { nuevoFill = '#8e44ad'; nuevoStroke = '#6c3483'; }
+                    else if (hayPorConfirmar) { nuevoFill = '#e74c3c'; nuevoStroke = '#c0392b'; }
+                    else if (hayListasCocina) { nuevoFill = '#27ae60'; nuevoStroke = '#1e8449'; }
+                    else if (hayEnCocina)     { nuevoFill = '#f1c40f'; nuevoStroke = '#d4ac0d'; }
+ 
+                    const shapeBase = mesaGroup.findOne('Rect') || mesaGroup.findOne('Circle') || mesaGroup.findOne('Line');
+                    if (shapeBase && shapeBase.fill() !== nuevoFill) {
+                        shapeBase.fill(nuevoFill);
+                        shapeBase.stroke(nuevoStroke);
+                        shapeBase.strokeWidth(3);
+                        huboCambios = true;
+                    }
+                } catch (errMesa) {
+                    console.error('[ColoresMesas] Error procesando una mesa del plano:', errMesa);
+                }
+            });
+ 
+            if (huboCambios) stageMonitor.batchDraw();
+ 
+        } catch (e) {
+            console.error('[ColoresMesas] Error actualizando el plano Konva:', e);
+        }
+    }
+    // ── CASO B: Cuadrícula básica ──────────────────────────────
+    else {
+        try {
+            document.querySelectorAll('.mesa-bloque').forEach(mesaDiv => {
+                try {
+                    const nombreMesaCompleto = mesaDiv.dataset.mesaNombre;
+                    if (!nombreMesaCompleto) return;
+ 
+                    const ordenesMesa = ordenes.filter(o =>
+                        o.mesa === nombreMesaCompleto && ESTADOS_ACTIVOS.includes(o.estado)
+                    );
+                    const ocupada = ordenesMesa.length > 0;
+ 
+                    const hayPorConfirmar  = ordenesMesa.some(o => o.estado === 'por_confirmar');
+                    const hayEnCocina      = ordenesMesa.some(o => ['pendiente', 'preparando', 'proceso'].includes(o.estado));
+                    const hayListasCocina  = ordenesMesa.some(o => ['terminado', 'archivado_cocina', 'listo', 'en_mesa'].includes(o.estado));
+                    const masaDe30MinV2    = ocupada && ordenesMesa.some(o => {
+                        const minutos = (Date.now() - new Date(o.created_at).getTime()) / 60000;
+                        return minutos > 30;
+                    });
+ 
+                    let bgColor = '#ffffff', textColor = '#333', borderColor = '#10ad93';
+                    if (masaDe30MinV2)        { bgColor = '#8e44ad'; textColor = '#fff'; borderColor = '#6c3483'; }
+                    else if (hayPorConfirmar) { bgColor = '#e74c3c'; textColor = '#fff'; borderColor = '#c0392b'; }
+                    else if (hayListasCocina) { bgColor = '#27ae60'; textColor = '#fff'; borderColor = '#1e8449'; }
+                    else if (hayEnCocina)     { bgColor = '#f1c40f'; textColor = '#000'; borderColor = '#d4ac0d'; }
+ 
+                    mesaDiv.style.background = bgColor;
+                    mesaDiv.style.color = textColor;
+                    mesaDiv.style.borderColor = borderColor;
+                } catch (errMesa) {
+                    console.error('[ColoresMesas] Error procesando un bloque de mesa:', errMesa);
+                }
+            });
+        } catch (e) {
+            console.error('[ColoresMesas] Error actualizando la cuadrícula:', e);
+        }
+    }
+ 
+    // Revisar alertas de +30 min (sonido/toast) reutilizando las órdenes ya obtenidas
+    try {
+        verificarMesasConRetraso(ordenes);
+    } catch (e) {
+        console.error('[ColoresMesas] Error verificando alertas:', e);
+    }
+}
 
   esperarAppYRenderizar();
  // =====================================================
@@ -252,6 +361,7 @@ async function renderizarMesas() {
             });
 
             // Cambiar el cursor a manita
+            mesaGroup.off('mouseenter mouseleave'); // ✅ evita acumular handlers duplicados
             mesaGroup.on('mouseenter', () => {
                 document.body.style.cursor = 'pointer';
             });
@@ -330,6 +440,7 @@ async function renderizarMesas() {
             // Crear el bloque HTML
             const mesaDiv = document.createElement('div');
             mesaDiv.className = 'mesa-bloque';
+            mesaDiv.dataset.mesaNombre = nombreMesaCompleto;
             mesaDiv.style = `
                 background: ${bgColor}; 
                 color: ${textColor}; 
@@ -878,13 +989,10 @@ async function mostrarTicket(orden) {
   // falla o hay delays de Supabase)
   // ────────────────────────────────────────────────────────────────
   setInterval(() => {
-    if (typeof App !== 'undefined' && App.getOrdenes) {
-        // Solo refrescar si la página está visible
-        if (!document.hidden) {
-            renderizarMesas();
-        }
+    if (!document.hidden) {
+        actualizarColoresPorTiempo();
     }
-  }, 1000); // Cada 3 segundos
+  }, 5000);
          // ─── Alerta de mesas sin cobrar más de 30 minutos ───────────────────
        const alertasMesasDisparadas = new Set();
 
