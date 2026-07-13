@@ -623,177 +623,53 @@ async function mostrarTicket(orden) {
 
     // 2. LÓGICA DE WHATSAPP (MODO PROFESIONAL: IMAGEN)
     const btnWhatsapp = document.getElementById('btnWhatsapp');
-btnWhatsapp.onclick = () => {
-    // ✅ PASO 1: Crear modal pequeño para pedir número
-    const dialogNumero = document.createElement('dialog');
-    dialogNumero.style = `
-        padding: 0; 
-        border-radius: 15px; 
-        border: none; 
-        max-width: 400px; 
-        width: 90%;
-        box-shadow: 0 10px 40px rgba(0,0,0,0.3);
-    `;
-    
-    dialogNumero.innerHTML = `
-        <div style="background: #25D366; color: white; padding: 15px; text-align: center;">
-            <h3 style="margin: 0;">📱 Enviar por WhatsApp</h3>
-            <p style="font-size: 0.9rem; margin: 5px 0 0 0;">Total: $${orden.total}</p>
-        </div>
+    btnWhatsapp.onclick = async () => {
+        const areaTicket = document.getElementById('areaImpresion');
         
-        <div style="padding: 20px;">
-            <label style="display: block; font-weight: bold; margin-bottom: 10px; color: #333;">
-                Número de WhatsApp:
-            </label>
-            <input 
-                type="tel" 
-                id="inputNumeroWA" 
-                placeholder="Ej: 5551234567"
-                maxlength="15"
-                style="
-                    width: 100%;
-                    padding: 10px;
-                    border: 2px solid #ddd;
-                    border-radius: 8px;
-                    font-size: 1.1rem;
-                    text-align: center;
-                    margin-bottom: 15px;
-                "
-            />
-            <small style="display: block; color: #666; margin-bottom: 15px;">
-                📍 México: 10 dígitos. Ej: 5551234567<br>
-                🌍 Otro país: con código internacional
-            </small>
-            
-            <div style="display: flex; gap: 10px;">
-                <button id="btnEnviarWA" style="
-                    flex: 1;
-                    background: #25D366;
-                    color: white;
-                    border: none;
-                    padding: 12px;
-                    border-radius: 8px;
-                    font-weight: bold;
-                    cursor: pointer;
-                    font-size: 1rem;
-                ">✅ Enviar</button>
-                
-                <button id="btnCancelarWA" style="
-                    flex: 1;
-                    background: #ccc;
-                    color: #333;
-                    border: none;
-                    padding: 12px;
-                    border-radius: 8px;
-                    font-weight: bold;
-                    cursor: pointer;
-                ">✕ Cancelar</button>
-            </div>
-        </div>
-    `;
-    
-    document.body.appendChild(dialogNumero);
-    dialogNumero.showModal();
-    
-    // ✅ PASO 2: Enfocar el input automáticamente
-    const inputNumero = document.getElementById('inputNumeroWA');
-    inputNumero.focus();
-    
-    // ✅ PASO 3: Función para enviar a WhatsApp
-    const enviarWhatsApp = () => {
-        let numero = inputNumero.value.trim();
-        
-        // Validar que hay algo
-        if (!numero) {
-            alert("⚠️ Ingresa un número de WhatsApp");
-            inputNumero.focus();
-            return;
-        }
-        
-        // Limpiar caracteres especiales
-        numero = numero.replace(/\D/g, '');
-        
-        // Validar mínimo 10 dígitos
-        if (numero.length < 10) {
-            alert("⚠️ El número debe tener al menos 10 dígitos");
-            inputNumero.focus();
-            return;
-        }
-        
-        // Si es México (10 dígitos) → agregar +52
-        if (numero.length === 10) {
-            numero = '52' + numero;
-        }
-        // Si es otro formato, asumir que ya tiene código de país
-        else if (!numero.startsWith('1') && numero.length === 11) {
-            // Podría ser USA (+1...), dejar como está
-        } else if (numero.length > 10 && !numero.startsWith('52')) {
-            // Tiene más de 10 pero no es +52, asumir que es otro país válido
-        }
-        
-        // Crear mensaje
-        const mensaje = encodeURIComponent(
-            `🍽️ *TICKET DE COMPRA*\n\n` +
-            `📍 Mesa: ${orden.mesa}\n` +
-            `💰 Total: $${orden.total}\n` +
-            `📅 Fecha: ${new Date().toLocaleString()}\n` +
-            `\n¡Gracias por tu visita! 😊`
-        );
-        
-        // Construir URL de WhatsApp
-        const urlWhatsApp = `https://wa.me/${numero}?text=${mensaje}`;
-        
-        console.log('✅ Abriendo WhatsApp:', urlWhatsApp);
-        
-        // Abrir en nueva ventana
-        window.open(urlWhatsApp, '_blank');
-        
-        // Cerrar el modal
-        dialogNumero.close();
-        dialogNumero.remove();
-        
-        // ✅ BONUS: Ofrecer descargar ticket también
-        setTimeout(() => {
-            const descargar = confirm(
-                "📥 ¿Descargas también la imagen del ticket?\n\n" +
-                "Esto te permite adjuntarla en WhatsApp si lo necesitas."
-            );
-            
-            if (descargar) {
-                // Generar imagen del ticket
-                const areaTicket = document.getElementById('areaImpresion');
-                html2canvas(areaTicket, {
-                    scale: 3,
-                    backgroundColor: "#f9f9f9",
-                    logging: false
-                }).then(canvas => {
+        // Feedback visual mientras procesa
+        const originalText = btnWhatsapp.innerHTML;
+        btnWhatsapp.disabled = true;
+        btnWhatsapp.innerHTML = "⌛ Generando...";
+
+        try {
+            // "Tomamos la foto" del ticket en alta definición
+            const canvas = await html2canvas(areaTicket, {
+                scale: 3, // Calidad HD
+                backgroundColor: "#f9f9f9",
+                logging: false
+            });
+
+            // Convertimos a archivo de imagen real
+            canvas.toBlob(async (blob) => {
+                const file = new File([blob], `Ticket_Mesa_${orden.mesa}.png`, { type: "image/png" });
+
+                // Verificamos si es móvil/tablet para compartir directamente
+                if (navigator.canShare && navigator.canShare({ files: [file] })) {
+                    await navigator.share({
+                        files: [file],
+                        title: `Ticket Mesa ${orden.mesa}`,
+                        text: `Aquí tienes tu ticket de OrdenLista. ¡Gracias por tu visita!`
+                    });
+                } else {
+                    // Si es PC, descargamos la imagen para que el cajero la arrastre a WhatsApp Web
                     const link = document.createElement('a');
-                    link.download = `Ticket_Mesa_${orden.mesa}_${Date.now()}.png`;
+                    link.download = `Ticket_Mesa_${orden.mesa}.png`;
                     link.href = canvas.toDataURL("image/png");
                     link.click();
-                }).catch(err => console.error("Error descargando imagen:", err));
-            }
-        }, 1000);
-    };
-    
-    // ✅ PASO 4: Eventos
-    
-    // Botón Enviar
-    document.getElementById('btnEnviarWA').onclick = enviarWhatsApp;
-    
-    // Botón Cancelar
-    document.getElementById('btnCancelarWA').onclick = () => {
-        dialogNumero.close();
-        dialogNumero.remove();
-    };
-    
-    // Presionar Enter en el input = enviar
-    inputNumero.addEventListener('keypress', (e) => {
-        if (e.key === 'Enter') {
-            enviarWhatsApp();
+                    alert("Se ha descargado el ticket en imagen. Puedes enviarlo por WhatsApp Web.");
+                }
+
+                btnWhatsapp.disabled = false;
+                btnWhatsapp.innerHTML = originalText;
+            }, "image/png");
+
+        } catch (error) {
+            console.error("Error al generar imagen:", error);
+            alert("Hubo un error al crear la imagen del ticket.");
+            btnWhatsapp.disabled = false;
+            btnWhatsapp.innerHTML = originalText;
         }
-    });
-};
+    };
 
     modal.showModal();
 }
