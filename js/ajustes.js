@@ -36,6 +36,11 @@ document.addEventListener('DOMContentLoaded', async () => {
     const inWifi = document.getElementById('inputWifi');
     const inInstagram = document.getElementById('inputInstagram');
     
+    // 🆕 NUEVO: Inputs para los 3 posts interactivos
+    const inPostIg1 = document.getElementById('inputPostIg1');
+    const inPostIg2 = document.getElementById('inputPostIg2');
+    const inPostIg3 = document.getElementById('inputPostIg3');
+    
     // 🆕 NUEVO: Categoría del restaurante
     const inCategoria = document.getElementById('inputCategoria'); 
 
@@ -114,6 +119,12 @@ document.addEventListener('DOMContentLoaded', async () => {
                 inFacebook.value = data.facebook_url || '';
                 redesGaleriaActual = Array.isArray(data.galeria_redes) ? data.galeria_redes : [];
                 renderizarGaleriaRedes();
+
+                // 🆕 NUEVO: Cargar los 3 links de posts en sus respectivos inputs
+                const postsGuardados = Array.isArray(data.posts_instagram) ? data.posts_instagram : [];
+                if (inPostIg1) inPostIg1.value = postsGuardados[0] || '';
+                if (inPostIg2) inPostIg2.value = postsGuardados[1] || '';
+                if (inPostIg3) inPostIg3.value = postsGuardados[2] || '';
             }
 
         } catch (e) {
@@ -286,33 +297,36 @@ document.addEventListener('DOMContentLoaded', async () => {
                 }
             }
 
+            // 🆕 NUEVO: Recolectar los links de Instagram ignorando los campos vacíos
+            const nuevosPostsIg = [];
+            if (inPostIg1 && inPostIg1.value.trim() !== '') nuevosPostsIg.push(inPostIg1.value.trim());
+            if (inPostIg2 && inPostIg2.value.trim() !== '') nuevosPostsIg.push(inPostIg2.value.trim());
+            if (inPostIg3 && inPostIg3.value.trim() !== '') nuevosPostsIg.push(inPostIg3.value.trim());
+
             // 3. Preparar objeto para BD
             const datosActualizados = {
+                // (Tus datos existentes...)
                 direccion: inDir.value,
                 telefono: inTel.value,
                 horarios: inHor.value,
                 datos_bancarios: inBanco.value,
-                categoria: inCategoria.value, // 🆕
-                
+                categoria: inCategoria.value, 
                 lat: parseFloat(inLat.value) || null,
                 longitud: parseFloat(inLong.value) || null,
-
                 logo_url: urlLogo,
                 qr_pago_url: urlQR,
-                foto_lugar_url: urlLugar, // 🆕
-                // Nuevos campos a guardar:
+                foto_lugar_url: urlLugar, 
                 nombre: inNombre.value,
                 mensaje_ticket: inMensajeTicket.value,
                 wifi: inWifi.value,
                 instagram: inInstagram.value,
-                 whatsapp_dueno: document.getElementById('inputWhatsappDueno').value.replace(/\D/g, ''),
-                
-                // Guardamos el array como JSONB. 
+                whatsapp_dueno: document.getElementById('inputWhatsappDueno').value.replace(/\D/g, ''),
                 galeria_menu: menuGaleriaActual,
-
-                // 📲 NUEVO
                 facebook_url: inFacebook.value,
-                galeria_redes: redesGaleriaActual
+                galeria_redes: redesGaleriaActual,
+                
+                // 🆕 NUEVO: Enviamos el arreglo a la BD
+                posts_instagram: nuevosPostsIg
             };
             // 4. Actualizar en Supabase
             const { error } = await db
