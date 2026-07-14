@@ -58,7 +58,11 @@ document.addEventListener('DOMContentLoaded', async () => {
     // 🆕 NUEVO: Carrusel de Menú (Multiples Imágenes)
     const fileGaleria = document.getElementById('fileGaleria'); // Input multiple
     const contenedorGaleria = document.getElementById('contenedorGaleria'); // Div donde se ven las fotos
-
+    // 📲 NUEVO: Redes Sociales
+    const inFacebook = document.getElementById('inputFacebook');
+    const fileGaleriaRedes = document.getElementById('fileGaleriaRedes');
+    const contenedorGaleriaRedes = document.getElementById('contenedorGaleriaRedes');
+    let redesGaleriaActual = []; // Array de fotos para la tarjeta de redes
     const btnGuardar = document.getElementById('btnGuardarTodo');
 
     // =====================================================
@@ -106,6 +110,10 @@ document.addEventListener('DOMContentLoaded', async () => {
                 }
                 
                 renderizarGaleria();
+                 // 📲 NUEVO: Cargar redes sociales
+                inFacebook.value = data.facebook_url || '';
+                redesGaleriaActual = Array.isArray(data.galeria_redes) ? data.galeria_redes : [];
+                renderizarGaleriaRedes();
             }
 
         } catch (e) {
@@ -151,6 +159,29 @@ document.addEventListener('DOMContentLoaded', async () => {
         if(confirm("¿Quitar esta imagen de la lista?")) {
             menuGaleriaActual.splice(index, 1);
             renderizarGaleria();
+        }
+    };
+    // 📲 NUEVO: Renderizar miniaturas de la galería de redes
+    function renderizarGaleriaRedes() {
+        contenedorGaleriaRedes.innerHTML = '';
+        redesGaleriaActual.forEach((url, index) => {
+            const div = document.createElement('div');
+            div.style = "position: relative; width: 100px; height: 100px; border-radius: 8px; overflow: hidden; border: 1px solid #ccc;";
+            div.innerHTML = `
+                <img src="${url}" style="width:100%; height:100%; object-fit:cover;">
+                <button onclick="eliminarFotoRedes(${index})" 
+                    style="position:absolute; top:0; right:0; background:red; color:white; border:none; width:20px; height:20px; cursor:pointer; font-size:12px; line-height:1;">
+                    &times;
+                </button>
+            `;
+            contenedorGaleriaRedes.appendChild(div);
+        });
+    }
+
+    window.eliminarFotoRedes = (index) => {
+        if(confirm("¿Quitar esta imagen de la lista?")) {
+            redesGaleriaActual.splice(index, 1);
+            renderizarGaleriaRedes();
         }
     };
 
@@ -247,6 +278,13 @@ document.addEventListener('DOMContentLoaded', async () => {
                     if(urlNueva) menuGaleriaActual.push(urlNueva);
                 }
             }
+            // 📲 NUEVO: Procesar Galería de Redes Sociales
+            if (fileGaleriaRedes.files.length > 0) {
+                for (let i = 0; i < fileGaleriaRedes.files.length; i++) {
+                    const urlNueva = await subirImagen(fileGaleriaRedes.files[i], 'redes_social');
+                    if(urlNueva) redesGaleriaActual.push(urlNueva);
+                }
+            }
 
             // 3. Preparar objeto para BD
             const datosActualizados = {
@@ -270,11 +308,12 @@ document.addEventListener('DOMContentLoaded', async () => {
                  whatsapp_dueno: document.getElementById('inputWhatsappDueno').value.replace(/\D/g, ''),
                 
                 // Guardamos el array como JSONB. 
-                // IMPORTANTE: Asegúrate de crear la columna 'galeria_menu' tipo JSONB en Supabase
-                // Si no quieres crear columna, puedes guardarlo como string en menu_digital_url: JSON.stringify(menuGaleriaActual)
-                galeria_menu: menuGaleriaActual 
-            };
+                galeria_menu: menuGaleriaActual,
 
+                // 📲 NUEVO
+                facebook_url: inFacebook.value,
+                galeria_redes: redesGaleriaActual
+            };
             // 4. Actualizar en Supabase
             const { error } = await db
                 .from('restaurantes')

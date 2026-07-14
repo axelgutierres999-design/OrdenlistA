@@ -235,6 +235,22 @@
       <div id="contenedorGaleria">
         </div>
     </section>
+    
+    <section class="bloque-ajuste">
+  <h3>📲 Redes Sociales</h3>
+  <p><small>Estas fotos y enlaces aparecerán en la tarjeta "Síguenos en Nuestras Redes" que ven tus clientes.</small></p>
+
+  <label>Facebook (link completo del perfil o página)
+    <input type="text" id="inputFacebook" placeholder="Ej. https://facebook.com/dondesiemprecafe">
+  </label>
+
+  <p><small>💡 El campo de Instagram ya lo configuras arriba, en "Información del Ticket".</small></p>
+
+  <label style="margin-top:15px; display:block;">Fotos destacadas para la tarjeta de redes</label>
+  <input type="file" id="fileGaleriaRedes" accept="image/*" multiple>
+
+  <div id="contenedorGaleriaRedes" style="display:grid; grid-template-columns:repeat(auto-fill,minmax(100px,1fr)); gap:10px; margin-top:15px;"></div>
+</section>
 
     <button id="btnGuardarTodo">
       💾 Guardar Cambios del Establecimiento
