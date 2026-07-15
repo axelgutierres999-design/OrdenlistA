@@ -37,6 +37,9 @@ document.addEventListener('DOMContentLoaded', async () => {
     const inInstagram = document.getElementById('inputInstagram');
     
     // 🆕 NUEVO: Inputs para los 3 posts interactivos
+    const inPostIg1 = document.getElementById('inputPostIg1');
+    const inPostIg2 = document.getElementById('inputPostIg2');
+    const inPostIg3 = document.getElementById('inputPostIg3');
     const filePostIg1 = document.getElementById('filePostIg1');
     const previewPostIg1 = document.getElementById('previewPostIg1');
     const filePostIg2 = document.getElementById('filePostIg2');
