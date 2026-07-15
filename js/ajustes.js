@@ -37,9 +37,12 @@ document.addEventListener('DOMContentLoaded', async () => {
     const inInstagram = document.getElementById('inputInstagram');
     
     // 🆕 NUEVO: Inputs para los 3 posts interactivos
-    const inPostIg1 = document.getElementById('inputPostIg1');
-    const inPostIg2 = document.getElementById('inputPostIg2');
-    const inPostIg3 = document.getElementById('inputPostIg3');
+    const filePostIg1 = document.getElementById('filePostIg1');
+    const previewPostIg1 = document.getElementById('previewPostIg1');
+    const filePostIg2 = document.getElementById('filePostIg2');
+    const previewPostIg2 = document.getElementById('previewPostIg2');
+    const filePostIg3 = document.getElementById('filePostIg3');
+    const previewPostIg3 = document.getElementById('previewPostIg3');
     
     // 🆕 NUEVO: Categoría del restaurante
     const inCategoria = document.getElementById('inputCategoria'); 
@@ -120,11 +123,19 @@ document.addEventListener('DOMContentLoaded', async () => {
                 redesGaleriaActual = Array.isArray(data.galeria_redes) ? data.galeria_redes : [];
                 renderizarGaleriaRedes();
 
-                // 🆕 NUEVO: Cargar los 3 links de posts en sus respectivos inputs
+                // 🆕 NUEVO: Cargar los 3 posts (link + foto)
                 const postsGuardados = Array.isArray(data.posts_instagram) ? data.posts_instagram : [];
-                if (inPostIg1) inPostIg1.value = postsGuardados[0] || '';
-                if (inPostIg2) inPostIg2.value = postsGuardados[1] || '';
-                if (inPostIg3) inPostIg3.value = postsGuardados[2] || '';
+                const normalizarPost = (p) => (typeof p === 'string') ? { link: p, foto: '' } : (p || { link: '', foto: '' });
+                const post1 = normalizarPost(postsGuardados[0]);
+                const post2 = normalizarPost(postsGuardados[1]);
+                const post3 = normalizarPost(postsGuardados[2]);
+
+                if (inPostIg1) inPostIg1.value = post1.link || '';
+                mostrarImagenDesdeUrl(post1.foto, previewPostIg1);
+                if (inPostIg2) inPostIg2.value = post2.link || '';
+                mostrarImagenDesdeUrl(post2.foto, previewPostIg2);
+                if (inPostIg3) inPostIg3.value = post3.link || '';
+                mostrarImagenDesdeUrl(post3.foto, previewPostIg3);
             }
 
         } catch (e) {
@@ -231,10 +242,12 @@ document.addEventListener('DOMContentLoaded', async () => {
                 reader.readAsDataURL(e.target.files[0]);
             }
         });
-    };
-    setupPreview(fileLogo, imgLogo);
+    };setupPreview(fileLogo, imgLogo);
     setupPreview(fileQR, imgQR);
     setupPreview(fileLugar, imgLugar);
+    setupPreview(filePostIg1, previewPostIg1);
+    setupPreview(filePostIg2, previewPostIg2);
+    setupPreview(filePostIg3, previewPostIg3);
 
 
     // =====================================================
@@ -297,11 +310,21 @@ document.addEventListener('DOMContentLoaded', async () => {
                 }
             }
 
-            // 🆕 NUEVO: Recolectar los links de Instagram ignorando los campos vacíos
+           // 🆕 NUEVO: Recolectar los 3 posts (link + foto), subiendo fotos nuevas si las hay
+            const construirPost = async (inputLink, fileInput, imgPreview, carpeta) => {
+                const link = inputLink && inputLink.value.trim();
+                if (!link) return null;
+                const foto = await procesarImagenUnica(fileInput, imgPreview, carpeta);
+                return { link, foto: foto || '' };
+            };
+
             const nuevosPostsIg = [];
-            if (inPostIg1 && inPostIg1.value.trim() !== '') nuevosPostsIg.push(inPostIg1.value.trim());
-            if (inPostIg2 && inPostIg2.value.trim() !== '') nuevosPostsIg.push(inPostIg2.value.trim());
-            if (inPostIg3 && inPostIg3.value.trim() !== '') nuevosPostsIg.push(inPostIg3.value.trim());
+            const p1 = await construirPost(inPostIg1, filePostIg1, previewPostIg1, 'post_ig_1');
+            const p2 = await construirPost(inPostIg2, filePostIg2, previewPostIg2, 'post_ig_2');
+            const p3 = await construirPost(inPostIg3, filePostIg3, previewPostIg3, 'post_ig_3');
+            if (p1) nuevosPostsIg.push(p1);
+            if (p2) nuevosPostsIg.push(p2);
+            if (p3) nuevosPostsIg.push(p3);
 
             // 3. Preparar objeto para BD
             const datosActualizados = {

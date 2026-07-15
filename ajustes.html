@@ -254,9 +254,26 @@
   <div style="margin-top: 15px; padding: 10px; background: #f9f9f9; border-radius: 10px;">
     <label style="font-weight: bold; font-size: 14px;">Enlaces de Publicaciones de Instagram (Máx 3)</label>
     <p style="font-size: 11px; color: #666; margin-bottom: 10px;">Pega los links completos (Ej: https://www.instagram.com/p/XYZ/)</p>
-    <input type="url" id="inputPostIg1" placeholder="Enlace de la Publicación 1" style="width: 100%; padding: 8px; margin-bottom: 8px; border-radius: 8px; border: 1px solid #ccc;">
-    <input type="url" id="inputPostIg2" placeholder="Enlace de la Publicación 2" style="width: 100%; padding: 8px; margin-bottom: 8px; border-radius: 8px; border: 1px solid #ccc;">
-    <input type="url" id="inputPostIg3" placeholder="Enlace de la Publicación 3" style="width: 100%; padding: 8px; border-radius: 8px; border: 1px solid #ccc;">
+   <div style="margin-bottom: 14px; padding: 10px; background: #fff; border-radius: 8px; border: 1px dashed #ccc;">
+        <input type="url" id="inputPostIg1" placeholder="Enlace de la Publicación 1" style="width: 100%; padding: 8px; margin-bottom: 8px; border-radius: 8px; border: 1px solid #ccc;">
+        <label style="font-size: 12px; color: #666;">Foto de esa publicación (para la tarjeta)</label>
+        <input type="file" id="filePostIg1" accept="image/*" style="display:block; margin-top:4px;">
+        <img id="previewPostIg1" src="" class="preview-img" style="max-height: 100px; display:none;">
+    </div>
+
+    <div style="margin-bottom: 14px; padding: 10px; background: #fff; border-radius: 8px; border: 1px dashed #ccc;">
+        <input type="url" id="inputPostIg2" placeholder="Enlace de la Publicación 2" style="width: 100%; padding: 8px; margin-bottom: 8px; border-radius: 8px; border: 1px solid #ccc;">
+        <label style="font-size: 12px; color: #666;">Foto de esa publicación (para la tarjeta)</label>
+        <input type="file" id="filePostIg2" accept="image/*" style="display:block; margin-top:4px;">
+        <img id="previewPostIg2" src="" class="preview-img" style="max-height: 100px; display:none;">
+    </div>
+
+    <div style="padding: 10px; background: #fff; border-radius: 8px; border: 1px dashed #ccc;">
+        <input type="url" id="inputPostIg3" placeholder="Enlace de la Publicación 3" style="width: 100%; padding: 8px; margin-bottom: 8px; border-radius: 8px; border: 1px solid #ccc;">
+        <label style="font-size: 12px; color: #666;">Foto de esa publicación (para la tarjeta)</label>
+        <input type="file" id="filePostIg3" accept="image/*" style="display:block; margin-top:4px;">
+        <img id="previewPostIg3" src="" class="preview-img" style="max-height: 100px; display:none;">
+    </div>
 </div>
 
 </section>
