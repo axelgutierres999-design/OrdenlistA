@@ -732,6 +732,17 @@ async function mostrarTicket(orden) {
             <td style="text-align:right;">—</td>
         </tr>`).join('');
 
+        // 🔄 NUEVO: "Cerrar" ahora redirige a menu.html con la mesa ya seleccionada
+    // Esto fuerza una recarga completa de la página (mesas.html vuelve a cargar datos frescos
+    // la próxima vez que se visite) y deja lista la mesa para tomar otra orden de inmediato.
+    const btnCerrarTicket = document.getElementById('btnCerrarTicket');
+    if (btnCerrarTicket) {
+        btnCerrarTicket.onclick = () => {
+            window.location.href = `menu.html?mesa=${encodeURIComponent(orden.mesa)}`;
+        };
+    }
+
+    
     // 2. LÓGICA DE WHATSAPP (MODO PROFESIONAL: IMAGEN)
     const btnWhatsapp = document.getElementById('btnWhatsapp');
     btnWhatsapp.onclick = async () => {
